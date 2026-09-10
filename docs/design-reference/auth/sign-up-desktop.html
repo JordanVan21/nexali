@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>JV Dumpy - Sign Up</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-low": "#1a1c20",
+                    "secondary": "#4ae176",
+                    "secondary-container": "#00b954",
+                    "on-tertiary": "#472a00",
+                    "secondary-fixed": "#6bff8f",
+                    "error": "#ffb4ab",
+                    "outline-variant": "#424754",
+                    "on-primary": "#002e6a",
+                    "on-secondary-container": "#004119",
+                    "primary-container": "#4d8eff",
+                    "error-container": "#93000a",
+                    "tertiary-container": "#ca8100",
+                    "surface-container": "#1e2024",
+                    "outline": "#8c909f",
+                    "surface-bright": "#37393e",
+                    "primary-fixed": "#d8e2ff",
+                    "inverse-surface": "#e2e2e8",
+                    "surface-container-highest": "#333539",
+                    "on-primary-fixed": "#001a42",
+                    "primary-fixed-dim": "#adc6ff",
+                    "tertiary": "#ffb95f",
+                    "on-surface-variant": "#c2c6d6",
+                    "inverse-primary": "#005ac2",
+                    "surface-variant": "#333539",
+                    "on-primary-fixed-variant": "#004395",
+                    "on-error": "#690005",
+                    "on-tertiary-container": "#3e2400",
+                    "on-error-container": "#ffdad6",
+                    "primary": "#adc6ff",
+                    "surface-container-lowest": "#0c0e12",
+                    "surface-dim": "#111317",
+                    "secondary-fixed-dim": "#4ae176",
+                    "surface-tint": "#adc6ff",
+                    "on-primary-container": "#00285d",
+                    "inverse-on-surface": "#2f3035",
+                    "on-secondary-fixed-variant": "#005321",
+                    "on-tertiary-fixed-variant": "#653e00",
+                    "on-tertiary-fixed": "#2a1700",
+                    "on-background": "#e2e2e8",
+                    "background": "#111317",
+                    "on-secondary-fixed": "#002109",
+                    "on-secondary": "#003915",
+                    "tertiary-fixed": "#ffddb8",
+                    "surface-container-high": "#282a2e",
+                    "tertiary-fixed-dim": "#ffb95f",
+                    "surface": "#111317",
+                    "on-surface": "#e2e2e8"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xs": "4px",
+                    "lg": "24px",
+                    "container-max": "1200px",
+                    "base": "4px",
+                    "md": "16px",
+                    "gutter": "24px",
+                    "xl": "40px",
+                    "sm": "8px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Hanken Grotesk"],
+                    "headline-lg-mobile": ["Hanken Grotesk"],
+                    "label-md": ["Inter"],
+                    "body-md": ["Inter"],
+                    "numeric-data": ["JetBrains Mono"],
+                    "body-lg": ["Inter"],
+                    "headline-xl": ["Hanken Grotesk"],
+                    "headline-lg": ["Hanken Grotesk"]
+            },
+            "fontSize": {
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "numeric-data": ["16px", {"lineHeight": "24px", "fontWeight": "500"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #111317;
+            color: #e2e2e8;
+            -webkit-font-smoothing: antialiased;
+        }
+        .glass-panel {
+            background: rgba(22, 24, 29, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid #262930;
+        }
+        .input-gradient-focus:focus-within {
+            border-color: #adc6ff;
+            box-shadow: 0 0 0 1px #adc6ff;
+        }
+        .password-check-item.valid {
+            color: #4ae176;
+        }
+        .password-check-item.valid span {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-body-md">
+<!-- Top Navigation Anchor (As per Shared Components, though usually hidden for Auth, 
+         we include the identity part but exclude the full nav as per UX Goal) -->
+<header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md border-b border-outline-variant h-[72px] flex items-center justify-center lg:justify-between px-lg">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" style="font-size: 32px;">account_balance_wallet</span>
+<h1 class="font-headline-md text-headline-md font-bold text-primary">JV Dumpy</h1>
+</div>
+</header>
+<main class="flex-grow flex items-center justify-center px-md pt-[72px] pb-xl relative overflow-hidden">
+<!-- Abstract Background Element -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] opacity-10 pointer-events-none">
+<div class="absolute inset-0 rounded-full bg-primary blur-[120px]"></div>
+</div>
+<div class="w-full max-w-[480px] z-10">
+<!-- Sign Up Card -->
+<div class="glass-panel rounded-xl p-lg md:p-xl shadow-2xl">
+<div class="text-center mb-lg">
+<h2 class="font-headline-lg text-headline-lg mb-2">Create Account</h2>
+<p class="text-on-surface-variant font-label-md">Join the elite platform for high-trust finance management.</p>
+</div>
+<form class="space-y-md" id="signupForm" onsubmit="return false;">
+<!-- Full Name -->
+<div class="space-y-sm">
+<label class="block font-label-md text-on-surface-variant" for="fullName">Full Name</label>
+<div class="relative flex items-center bg-surface-container-lowest border border-outline-variant rounded-lg px-md h-12 transition-all duration-200 input-gradient-focus">
+<span class="material-symbols-outlined text-outline mr-sm">person</span>
+<input class="bg-transparent border-none focus:ring-0 w-full text-on-surface placeholder:text-outline/50 font-body-md" id="fullName" placeholder="John Doe" required="" type="text"/>
+</div>
+</div>
+<!-- Email -->
+<div class="space-y-sm">
+<label class="block font-label-md text-on-surface-variant" for="email">Email Address</label>
+<div class="relative flex items-center bg-surface-container-lowest border border-outline-variant rounded-lg px-md h-12 transition-all duration-200 input-gradient-focus">
+<span class="material-symbols-outlined text-outline mr-sm">mail</span>
+<input class="bg-transparent border-none focus:ring-0 w-full text-on-surface placeholder:text-outline/50 font-body-md" id="email" placeholder="name@company.com" required="" type="email"/>
+</div>
+</div>
+<!-- Password -->
+<div class="space-y-sm">
+<label class="block font-label-md text-on-surface-variant" for="password">Password</label>
+<div class="relative flex items-center bg-surface-container-lowest border border-outline-variant rounded-lg px-md h-12 transition-all duration-200 input-gradient-focus">
+<span class="material-symbols-outlined text-outline mr-sm">lock</span>
+<input class="bg-transparent border-none focus:ring-0 w-full text-on-surface placeholder:text-outline/50 font-body-md" id="password" placeholder="••••••••" required="" type="password"/>
+<button class="text-outline hover:text-primary transition-colors" onclick="togglePassword('password')" type="button">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</div>
+</div>
+<!-- Password Requirements -->
+<div class="bg-surface-container-low/50 rounded-lg p-md space-y-xs">
+<div class="password-check-item flex items-center gap-2 font-label-md text-on-surface-variant transition-colors" id="req-length">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+                            At least 8 characters
+                        </div>
+<div class="password-check-item flex items-center gap-2 font-label-md text-on-surface-variant transition-colors" id="req-number">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+                            Contains a number
+                        </div>
+<div class="password-check-item flex items-center gap-2 font-label-md text-on-surface-variant transition-colors" id="req-symbol">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+                            Contains a symbol (@#$%^&amp;*)
+                        </div>
+</div>
+<!-- Confirm Password -->
+<div class="space-y-sm">
+<label class="block font-label-md text-on-surface-variant" for="confirmPassword">Confirm Password</label>
+<div class="relative flex items-center bg-surface-container-lowest border border-outline-variant rounded-lg px-md h-12 transition-all duration-200 input-gradient-focus">
+<span class="material-symbols-outlined text-outline mr-sm">verified_user</span>
+<input class="bg-transparent border-none focus:ring-0 w-full text-on-surface placeholder:text-outline/50 font-body-md" id="confirmPassword" placeholder="••••••••" required="" type="password"/>
+</div>
+</div>
+<!-- CTA Button -->
+<button class="w-full h-12 bg-primary hover:bg-primary-container text-on-primary font-bold rounded-lg transition-all duration-200 active:scale-[0.98] mt-lg flex items-center justify-center gap-2" type="submit">
+                        Create Account
+                        <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</form>
+<div class="mt-lg pt-lg border-t border-outline-variant text-center">
+<p class="text-on-surface-variant font-label-md">
+                        Already have an account? 
+                        <a class="text-primary font-bold hover:underline ml-1" href="#">Sign in</a>
+</p>
+</div>
+</div>
+<!-- Trust Badges -->
+<div class="mt-xl flex justify-center gap-xl grayscale opacity-40">
+<div class="flex items-center gap-1 font-label-md">
+<span class="material-symbols-outlined text-lg">security</span>
+                    Bank-grade Security
+                </div>
+<div class="flex items-center gap-1 font-label-md">
+<span class="material-symbols-outlined text-lg">encrypted</span>
+                    End-to-end Encryption
+                </div>
+</div>
+</div>
+</main>
+<!-- Visual Identity Accents -->
+<div class="fixed bottom-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-secondary to-tertiary opacity-20"></div>
+<script>
+        function togglePassword(id) {
+            const input = document.getElementById(id);
+            const btn = input.nextElementSibling;
+            const icon = btn.querySelector('.material-symbols-outlined');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.textContent = 'visibility_off';
+            } else {
+                input.type = 'password';
+                icon.textContent = 'visibility';
+            }
+        }
+
+        const passwordInput = document.getElementById('password');
+        const reqLength = document.getElementById('req-length');
+        const reqNumber = document.getElementById('req-number');
+        const reqSymbol = document.getElementById('req-symbol');
+
+        passwordInput.addEventListener('input', () => {
+            const val = passwordInput.value;
+            
+            // Length check
+            if (val.length >= 8) {
+                reqLength.classList.add('valid');
+            } else {
+                reqLength.classList.remove('valid');
+            }
+
+            // Number check
+            if (/\d/.test(val)) {
+                reqNumber.classList.add('valid');
+            } else {
+                reqNumber.classList.remove('valid');
+            }
+
+            // Symbol check
+            if (/[!@#$%^&*(),.?":{}|<>]/.test(val)) {
+                reqSymbol.classList.add('valid');
+            } else {
+                reqSymbol.classList.remove('valid');
+            }
+        });
+
+        // Form Submission Micro-interaction
+        document.getElementById('signupForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            const originalContent = btn.innerHTML;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Processing...';
+            
+            setTimeout(() => {
+                btn.innerHTML = '<span class="material-symbols-outlined">check_circle</span> Welcome aboard';
+                btn.classList.remove('bg-primary');
+                btn.classList.add('bg-secondary', 'text-on-secondary');
+            }, 1500);
+        });
+    </script>
+</body></html>

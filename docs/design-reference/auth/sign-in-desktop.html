@@ -1,0 +1,256 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Sign In | FinSovereign</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&amp;family=Hanken+Grotesk:wght@600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "outline": "#8c909f",
+                    "on-secondary": "#003915",
+                    "tertiary-fixed-dim": "#ffb95f",
+                    "on-surface": "#e2e2e8",
+                    "error-container": "#93000a",
+                    "background": "#0F1115",
+                    "on-secondary-fixed-variant": "#005321",
+                    "tertiary-container": "#ca8100",
+                    "surface-container-low": "#1a1c20",
+                    "on-tertiary-fixed-variant": "#653e00",
+                    "surface-container-high": "#282a2e",
+                    "inverse-surface": "#e2e2e8",
+                    "secondary-fixed": "#6bff8f",
+                    "on-secondary-container": "#004119",
+                    "on-error-container": "#ffdad6",
+                    "on-surface-variant": "#c2c6d6",
+                    "secondary-fixed-dim": "#4ae176",
+                    "surface-dim": "#111317",
+                    "tertiary": "#ffb95f",
+                    "surface-bright": "#37393e",
+                    "primary-fixed-dim": "#adc6ff",
+                    "on-tertiary-container": "#3e2400",
+                    "on-primary-fixed-variant": "#004395",
+                    "on-primary-container": "#00285d",
+                    "on-tertiary": "#472a00",
+                    "surface": "#111317",
+                    "tertiary-fixed": "#ffddb8",
+                    "surface-container-lowest": "#0c0e12",
+                    "secondary-container": "#00b954",
+                    "on-secondary-fixed": "#002109",
+                    "outline-variant": "#424754",
+                    "inverse-on-surface": "#2f3035",
+                    "primary-fixed": "#d8e2ff",
+                    "on-primary-fixed": "#001a42",
+                    "secondary": "#4ae176",
+                    "primary-container": "#4d8eff",
+                    "surface-tint": "#adc6ff",
+                    "on-background": "#e2e2e8",
+                    "primary": "#adc6ff",
+                    "on-error": "#690005",
+                    "surface-container-highest": "#333539",
+                    "surface-container": "#1e2024",
+                    "inverse-primary": "#005ac2",
+                    "on-tertiary-fixed": "#2a1700",
+                    "surface-variant": "#333539",
+                    "error": "#ffb4ab",
+                    "on-primary": "#002e6a"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.8rem",
+                    "xl": "1rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "gutter": "24px",
+                    "lg": "24px",
+                    "container-max": "1200px",
+                    "xs": "4px",
+                    "md": "16px",
+                    "base": "4px",
+                    "xl": "40px",
+                    "sm": "8px"
+            },
+            "fontFamily": {
+                    "body-md": ["Inter"],
+                    "numeric-data": ["JetBrains Mono"],
+                    "headline-lg": ["Hanken Grotesk"],
+                    "headline-md": ["Hanken Grotesk"],
+                    "label-md": ["Inter"],
+                    "headline-lg-mobile": ["Hanken Grotesk"],
+                    "body-lg": ["Inter"],
+                    "headline-xl": ["Hanken Grotesk"]
+            },
+            "fontSize": {
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "numeric-data": ["16px", {"lineHeight": "24px", "fontWeight": "500"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #0F1115;
+            -webkit-font-smoothing: antialiased;
+        }
+        .glass-card {
+            background: rgba(22, 24, 29, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(66, 71, 84, 0.5);
+        }
+        .gradient-bg {
+            background: radial-gradient(circle at 50% -20%, #1a2b4b 0%, #0F1115 60%);
+        }
+        .input-focus-glow:focus {
+            box-shadow: 0 0 0 2px rgba(173, 198, 255, 0.15);
+            border-color: #adc6ff;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="font-body-md text-on-surface min-h-screen flex flex-col items-center justify-center gradient-bg selection:bg-primary-container selection:text-on-primary-container">
+<!-- Subtle Background Elements -->
+<div class="fixed inset-0 overflow-hidden pointer-events-none">
+<div class="absolute -top-24 -left-24 w-96 h-96 bg-primary/5 rounded-full blur-[100px]"></div>
+<div class="absolute bottom-0 right-0 w-[500px] h-[500px] bg-secondary/5 rounded-full blur-[120px]"></div>
+</div>
+<!-- Main Content Canvas -->
+<main class="relative z-10 w-full max-w-[440px] px-md py-xl">
+<!-- Branding Identity -->
+<div class="flex flex-col items-center mb-xl">
+<div class="mb-md p-3 rounded-xl bg-surface-container-high border border-outline-variant shadow-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-[32px]">account_balance_wallet</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">FinSovereign</h1>
+<p class="font-body-md text-on-surface-variant mt-xs">Secure login to your executive dashboard</p>
+</div>
+<!-- Auth Card -->
+<div class="glass-card rounded-xl p-8 shadow-2xl transition-all duration-300">
+<form action="#" class="space-y-md" method="POST">
+<!-- Email Field -->
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant ml-xs" for="email">Email Address</label>
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline text-[20px] group-focus-within:text-primary transition-colors">alternate_email</span>
+</div>
+<input class="block w-full pl-10 pr-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-on-surface font-body-md placeholder:text-outline/50 outline-none transition-all input-focus-glow" id="email" name="email" placeholder="name@company.com" required="" type="email">
+</div>
+</div>
+<!-- Password Field -->
+<div class="space-y-xs">
+<div class="flex justify-between items-center px-xs">
+<label class="font-label-md text-label-md text-on-surface-variant" for="password">Password</label>
+<a class="font-label-md text-label-md text-primary hover:text-primary-fixed transition-colors active:opacity-70" href="#">Forgot Password?</a>
+</div>
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline text-[20px] group-focus-within:text-primary transition-colors">lock</span>
+</div>
+<input class="block w-full pl-10 pr-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-on-surface font-body-md placeholder:text-outline/50 outline-none transition-all input-focus-glow" id="password" name="password" placeholder="••••••••" required="" type="password">
+</div>
+</div>
+<!-- Remember Me Toggle (Micro-interaction) -->
+<div class="flex items-center px-xs pt-xs">
+<label class="flex items-center cursor-pointer group">
+<div class="relative">
+<input class="sr-only peer" type="checkbox">
+<div class="w-5 h-5 border-2 border-outline-variant rounded group-hover:border-primary peer-checked:bg-primary peer-checked:border-primary transition-all flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary text-[14px] scale-0 peer-checked:scale-100 transition-transform" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+</div>
+<span class="ml-2 font-label-md text-label-md text-on-surface-variant group-hover:text-on-surface transition-colors">Keep me signed in</span>
+</label>
+</div>
+<!-- Sign In Button -->
+<button class="w-full bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md py-4 px-6 rounded-lg shadow-md hover:shadow-primary/20 transition-all duration-300 active:scale-[0.98] mt-md" type="submit">
+                    Sign In
+                </button>
+</form>
+<!-- Social/Alternative Divider -->
+<div class="relative my-xl">
+<div aria-hidden="true" class="absolute inset-0 flex items-center">
+<div class="w-full border-t border-outline-variant"></div>
+</div>
+<div class="relative flex justify-center text-label-md">
+<span class="px-3 bg-[#16181D] text-on-surface-variant font-label-md">secure enterprise authentication</span>
+</div>
+</div>
+<!-- SSO Options -->
+<div class="grid grid-cols-2 gap-md">
+<button class="flex items-center justify-center gap-2 py-3 px-4 border border-outline-variant rounded-lg hover:bg-surface-variant transition-colors active:scale-95 group">
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface text-[18px]">key</span>
+<span class="font-label-md text-on-surface-variant group-hover:text-on-surface">SSO</span>
+</button>
+<button class="flex items-center justify-center gap-2 py-3 px-4 border border-outline-variant rounded-lg hover:bg-surface-variant transition-colors active:scale-95 group">
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface text-[18px]">passkey</span>
+<span class="font-label-md text-on-surface-variant group-hover:text-on-surface">Passkey</span>
+</button>
+</div>
+</div>
+<!-- Footer Actions -->
+<div class="mt-xl text-center">
+<p class="font-body-md text-on-surface-variant">
+                New to the platform? 
+                <a class="text-primary font-label-md hover:underline underline-offset-4 decoration-primary/30 transition-all ml-1" href="#">Create an Account</a>
+</p>
+</div>
+<!-- Compliance & Security -->
+<footer class="mt-xl text-center space-y-md">
+<div class="flex items-center justify-center gap-4 text-[12px] uppercase tracking-widest text-outline font-bold opacity-50">
+<span>SOC2</span>
+<span class="w-1 h-1 bg-outline rounded-full"></span>
+<span>GDPR</span>
+<span class="w-1 h-1 bg-outline rounded-full"></span>
+<span>AES-256</span>
+</div>
+<p class="text-[12px] text-outline/60 px-xl">
+                © 2024 FinSovereign Technologies. All rights reserved. Your data is encrypted in transit and at rest.
+            </p>
+</footer>
+</main>
+<!-- Visual Polish: Interactive Grain Texture -->
+<div class="fixed inset-0 pointer-events-none opacity-[0.03]" style="background-image: url('https://www.transparenttextures.com/patterns/carbon-fibre.png');"></div>
+<script>
+        // Micro-interaction: Input visual feedback
+        const inputs = document.querySelectorAll('input');
+        inputs.forEach(input => {
+            input.addEventListener('focus', () => {
+                input.parentElement.parentElement.classList.add('scale-[1.01]');
+            });
+            input.addEventListener('blur', () => {
+                input.parentElement.parentElement.classList.remove('scale-[1.01]');
+            });
+        });
+
+        // Form submission animation (placeholder)
+        const form = document.querySelector('form');
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const btn = form.querySelector('button[type="submit"]');
+            btn.innerHTML = `<span class="inline-block animate-spin material-symbols-outlined mr-2">refresh</span> Authenticating...`;
+            btn.classList.add('opacity-80', 'cursor-not-allowed');
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                btn.innerHTML = `<span class="material-symbols-outlined mr-2">check_circle</span> Success`;
+                btn.classList.replace('bg-primary', 'bg-secondary-container');
+                btn.classList.replace('text-on-primary', 'text-on-secondary-container');
+            }, 1800);
+        });
+    </script>
+</body></html>

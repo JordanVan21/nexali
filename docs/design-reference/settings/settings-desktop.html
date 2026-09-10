@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings - Apex Finance</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: {
+              DEFAULT: '#111317',
+              dim: '#0c0e12',
+              card: '#16191f',
+              cardHover: '#1c2027',
+              border: '#232730',
+              borderLight: '#2f3440',
+              muted: '#8b92a2',
+            },
+            primary: {
+              DEFAULT: '#3b82f6',
+              hover: '#2563eb',
+              light: 'rgba(59, 130, 246, 0.12)',
+            },
+            accent: {
+              green: '#22c55e',
+              danger: '#ef4444'
+            }
+          },
+          fontFamily: {
+            sans: ['"Hanken Grotesk"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Hanken Grotesk', sans-serif;
+      background-color: #0c0e12;
+      color: #f1f5f9;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+    .material-symbols-outlined.filled {
+      font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+  </style>
+</head>
+<body class="bg-[#0c0e12] text-slate-100 antialiased selection:bg-primary selection:text-white">
+
+  <!-- TOP CANONICAL DESKTOP NAVBAR (Apex Finance Standard) -->
+  <header class="sticky top-0 z-50 w-full bg-[#111317]/95 backdrop-blur border-b border-surface-border">
+    <div class="max-w-[1280px] mx-auto px-8 h-14 flex items-center justify-between">
+      <!-- Left: Logo and Brand -->
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 rounded-lg bg-primary/10 border border-primary/25 flex items-center justify-center text-primary">
+          <span class="material-symbols-outlined text-xl">account_balance</span>
+        </div>
+        <span class="font-bold tracking-tight text-white text-base">Apex Finance</span>
+      </div>
+
+      <!-- Center Navigation Links (Exact Canonical Order) -->
+      <nav class="flex items-center space-x-8">
+        <a href="#dashboard" class="text-sm font-medium text-slate-400 hover:text-white transition-colors pb-1">Dashboard</a>
+        <a href="#transactions" class="text-sm font-medium text-slate-400 hover:text-white transition-colors pb-1">Transactions</a>
+        <a href="#budgets" class="text-sm font-medium text-slate-400 hover:text-white transition-colors pb-1">Budgets</a>
+        <a href="#reports" class="text-sm font-medium text-slate-400 hover:text-white transition-colors pb-1">Reports</a>
+        <a href="#assistant" class="text-sm font-medium text-slate-400 hover:text-white transition-colors pb-1">Assistant</a>
+      </nav>
+
+      <!-- Right Utility Cluster (Notifications, Settings Active, Avatar, Chevron) -->
+      <div class="flex items-center space-x-4">
+        <!-- Notifications Bell -->
+        <button type="button" class="relative p-1.5 text-slate-400 hover:text-white transition-colors rounded-lg hover:bg-surface-card" title="Notifications">
+          <span class="material-symbols-outlined text-xl">notifications</span>
+          <span class="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-primary rounded-full ring-2 ring-[#111317]"></span>
+        </button>
+
+        <!-- Settings Icon (ACTIVE DESTINATION) -->
+        <button type="button" class="relative p-1.5 text-primary bg-primary/15 rounded-lg border border-primary/30 transition-colors" title="Settings">
+          <span class="material-symbols-outlined text-xl filled">settings</span>
+        </button>
+
+        <!-- Profile Avatar & Chevron -->
+        <div class="flex items-center space-x-2 pl-1 cursor-pointer group">
+          <div class="w-8 h-8 rounded-full bg-slate-700 border border-surface-borderLight overflow-hidden ring-1 ring-white/10 flex items-center justify-center text-xs font-semibold text-slate-200">
+            <span class="material-symbols-outlined text-lg">person</span>
+          </div>
+          <span class="material-symbols-outlined text-sm text-slate-400 group-hover:text-slate-200 transition-colors">expand_more</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN APP CONTAINER -->
+  <main class="flex-1 w-full max-w-[1280px] mx-auto px-8 py-8">
+    
+    <!-- PAGE HEADER -->
+    <div class="flex items-end justify-between pb-7 mb-8 border-b border-surface-border">
+      <div>
+        <div class="text-[11px] font-semibold tracking-wider text-primary uppercase mb-1">SETTINGS</div>
+        <h1 class="text-2xl font-bold tracking-tight text-white">Settings</h1>
+        <p class="text-sm text-surface-muted mt-1">Customize how Apex Finance works for you.</p>
+      </div>
+
+      <!-- Header Action Controls -->
+      <div class="flex items-center space-x-3">
+        <button type="button" class="px-3.5 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-surface-card transition-colors">
+          Reset Changes
+        </button>
+        <button type="button" class="inline-flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-primary-hover shadow-sm transition-all focus:ring-2 focus:ring-primary/40">
+          <span class="material-symbols-outlined text-[18px]">check</span>
+          <span>Save Changes</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- TWO-COLUMN WORKSPACE -->
+    <div class="grid grid-cols-12 gap-8 items-start">
+      
+      <!-- LEFT SETTINGS NAVIGATION (240px equivalent) -->
+      <aside class="col-span-3">
+        <div class="bg-surface p-2 rounded-xl border border-surface-border space-y-1">
+          <!-- 1. General (Active) -->
+          <a href="#general" class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-primary/10 text-primary border border-primary/20 transition-all">
+            <span class="material-symbols-outlined text-lg filled">tune</span>
+            <span class="flex-1">General</span>
+            <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+          </a>
+
+          <!-- 2. Budget Preferences -->
+          <a href="#budgets" class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-surface-card transition-colors">
+            <span class="material-symbols-outlined text-lg">wallet</span>
+            <span class="flex-1">Budget Preferences</span>
+          </a>
+
+          <!-- 3. Appearance -->
+          <a href="#appearance" class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-surface-card transition-colors">
+            <span class="material-symbols-outlined text-lg">palette</span>
+            <span class="flex-1">Appearance</span>
+          </a>
+
+          <!-- 4. Notifications -->
+          <a href="#notifications" class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-surface-card transition-colors">
+            <span class="material-symbols-outlined text-lg">notifications</span>
+            <span class="flex-1">Notifications</span>
+          </a>
+
+          <!-- 5. Assistant -->
+          <a href="#assistant-settings" class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-surface-card transition-colors">
+            <span class="material-symbols-outlined text-lg">smart_toy</span>
+            <span class="flex-1">Assistant</span>
+          </a>
+        </div>
+
+        <!-- Helpful Context Card -->
+        <div class="mt-4 p-4 rounded-xl bg-surface/50 border border-surface-border/70 text-xs text-surface-muted leading-relaxed">
+          <div class="flex items-center space-x-1.5 text-slate-300 font-medium mb-1">
+            <span class="material-symbols-outlined text-sm text-primary">info</span>
+            <span>Personal Settings</span>
+          </div>
+          <p>These preferences adapt how money, dates, and alerts are shown across your dashboard and linked views.</p>
+        </div>
+      </aside>
+
+      <!-- RIGHT SETTINGS CONTENT -->
+      <section class="col-span-9 space-y-8">
+
+        <!-- SECTION 1: GENERAL (Selected Category) -->
+        <div id="general" class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-lg font-semibold text-white tracking-tight">General</h2>
+              <p class="text-xs text-surface-muted">Configure currency, timezone, and regional number formats.</p>
+            </div>
+          </div>
+
+          <!-- Regional Preferences Container Card -->
+          <div class="bg-surface rounded-xl border border-surface-border p-6 space-y-6">
+            <div class="border-b border-surface-border/80 pb-3">
+              <h3 class="text-sm font-semibold text-slate-200">Regional Preferences</h3>
+              <p class="text-xs text-surface-muted mt-0.5">Control how monetary amounts and dates are presented across the app.</p>
+            </div>
+
+            <!-- Grid: Currency & Timezone -->
+            <div class="grid grid-cols-2 gap-6">
+              <!-- Default Currency -->
+              <div>
+                <label for="currency-select" class="block text-xs font-medium text-slate-300 mb-1.5">Default Currency</label>
+                <div class="relative">
+                  <select id="currency-select" class="w-full bg-surface-dim border border-surface-borderLight rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer">
+                    <option value="USD" selected>USD ($) · US Dollar</option>
+                    <option value="EUR">EUR (€) · Euro</option>
+                    <option value="GBP">GBP (£) · British Pound</option>
+                    <option value="CAD">CAD ($) · Canadian Dollar</option>
+                    <option value="AUD">AUD ($) · Australian Dollar</option>
+                    <option value="JPY">JPY (¥) · Japanese Yen</option>
+                  </select>
+                  <span class="material-symbols-outlined absolute right-3 top-3 text-slate-400 pointer-events-none text-base">expand_more</span>
+                </div>
+                <p class="text-[11px] text-surface-muted mt-1.5">Used throughout budgets, transactions, and reports.</p>
+              </div>
+
+              <!-- Timezone -->
+              <div>
+                <label for="timezone-select" class="block text-xs font-medium text-slate-300 mb-1.5">Timezone</label>
+                <div class="relative">
+                  <select id="timezone-select" class="w-full bg-surface-dim border border-surface-borderLight rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer">
+                    <option value="PST" selected>Pacific Time (America/Los_Angeles)</option>
+                    <option value="MST">Mountain Time (America/Denver)</option>
+                    <option value="CST">Central Time (America/Chicago)</option>
+                    <option value="EST">Eastern Time (America/New_York)</option>
+                    <option value="UTC">Coordinated Universal Time (UTC)</option>
+                    <option value="GMT">Greenwich Mean Time (Europe/London)</option>
+                  </select>
+                  <span class="material-symbols-outlined absolute right-3 top-3 text-slate-400 pointer-events-none text-base">expand_more</span>
+                </div>
+                <p class="text-[11px] text-surface-muted mt-1.5">Used when grouping transactions and reports by date.</p>
+              </div>
+            </div>
+
+            <!-- Grid: Date Format & Number Format -->
+            <div class="grid grid-cols-2 gap-6 pt-2">
+              <!-- Date Format -->
+              <div>
+                <label for="date-format-select" class="block text-xs font-medium text-slate-300 mb-1.5">Date Format</label>
+                <div class="relative">
+                  <select id="date-format-select" class="w-full bg-surface-dim border border-surface-borderLight rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer">
+                    <option value="mdy" selected>MM/DD/YYYY (e.g. 10/24/2025)</option>
+                    <option value="dmy">DD/MM/YYYY (e.g. 24/10/2025)</option>
+                    <option value="ymd">YYYY-MM-DD (e.g. 2025-10-24)</option>
+                  </select>
+                  <span class="material-symbols-outlined absolute right-3 top-3 text-slate-400 pointer-events-none text-base">expand_more</span>
+                </div>
+                <p class="text-[11px] text-surface-muted mt-1.5">Preview: <span class="text-slate-300 font-mono">10/24/2025</span></p>
+              </div>
+
+              <!-- Number Format -->
+              <div>
+                <label for="number-format-select" class="block text-xs font-medium text-slate-300 mb-1.5">Number Format</label>
+                <div class="relative">
+                  <select id="number-format-select" class="w-full bg-surface-dim border border-surface-borderLight rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer">
+                    <option value="standard" selected>1,234.56 (Standard comma separator)</option>
+                    <option value="european">1.234,56 (Period thousand separator)</option>
+                    <option value="space">1 234.56 (Thin space separator)</option>
+                  </select>
+                  <span class="material-symbols-outlined absolute right-3 top-3 text-slate-400 pointer-events-none text-base">expand_more</span>
+                </div>
+                <p class="text-[11px] text-surface-muted mt-1.5">Controls how amounts and numbers are displayed.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION 2: BUDGET PREFERENCES -->
+        <div id="budgets" class="space-y-4 pt-2">
+          <div>
+            <h2 class="text-lg font-semibold text-white tracking-tight">Budget Preferences</h2>
+            <p class="text-xs text-surface-muted">Adjust how your recurring budget cycles refresh.</p>
+          </div>
+
+          <div class="bg-surface rounded-xl border border-surface-border p-6 space-y-6">
+            <div class="border-b border-surface-border/80 pb-3">
+              <h3 class="text-sm font-semibold text-slate-200">Cycle Configuration</h3>
+              <p class="text-xs text-surface-muted mt-0.5">Determine how often category caps and target limits renew.</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-6">
+              <!-- Budget Reset Cycle -->
+              <div>
+                <label for="cycle-select" class="block text-xs font-medium text-slate-300 mb-1.5">Budget Reset Cycle</label>
+                <div class="relative">
+                  <select id="cycle-select" class="w-full bg-surface-dim border border-surface-borderLight rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer">
+                    <option value="monthly" selected>Monthly (Recommended)</option>
+                    <option value="biweekly">Bi-weekly (Every 14 days)</option>
+                    <option value="custom">Custom cycle</option>
+                  </select>
+                  <span class="material-symbols-outlined absolute right-3 top-3 text-slate-400 pointer-events-none text-base">expand_more</span>
+                </div>
+                <p class="text-[11px] text-surface-muted mt-1.5">Standard cycle aligns with regular monthly spending allowances.</p>
+              </div>
+
+              <!-- Reset Day -->
+              <div>
+                <label for="reset-day-select" class="block text-xs font-medium text-slate-300 mb-1.5">Budget Reset Day</label>
+                <div class="relative">
+                  <select id="reset-day-select" class="w-full bg-surface-dim border border-surface-borderLight rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer">
+                    <option value="1" selected>1st of every month</option>
+                    <option value="5">5th of every month</option>
+                    <option value="15">15th of every month (Mid-month)</option>
+                    <option value="last">Last calendar day of the month</option>
+                  </select>
+                  <span class="material-symbols-outlined absolute right-3 top-3 text-slate-400 pointer-events-none text-base">expand_more</span>
+                </div>
+                <p class="text-[11px] text-surface-muted mt-1.5">Choose when a new budget period begins.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION 3: APPEARANCE -->
+        <div id="appearance" class="space-y-4 pt-2">
+          <div>
+            <h2 class="text-lg font-semibold text-white tracking-tight">Appearance</h2>
+            <p class="text-xs text-surface-muted">Manage display comfort and visual motion preferences.</p>
+          </div>
+
+          <div class="bg-surface rounded-xl border border-surface-border p-6 space-y-5 divide-y divide-surface-border/80">
+            <!-- Active Theme Indicator -->
+            <div class="flex items-center justify-between pb-4">
+              <div>
+                <div class="text-sm font-medium text-slate-200">Color Palette</div>
+                <div class="text-xs text-surface-muted mt-0.5">Apex Finance currently operates on its signature dark theme.</div>
+              </div>
+              <div class="flex items-center space-x-2 px-3 py-1.5 bg-surface-dim rounded-lg border border-surface-border">
+                <span class="w-2.5 h-2.5 rounded-full bg-primary"></span>
+                <span class="text-xs font-medium text-slate-300">Apex Obsidian Dark</span>
+              </div>
+            </div>
+
+            <!-- Reduce Animations Toggle -->
+            <div class="flex items-center justify-between pt-4">
+              <div class="pr-8">
+                <div class="text-sm font-medium text-slate-200">Reduce animations</div>
+                <div class="text-xs text-surface-muted mt-0.5">Minimize non-essential interface motion and transition effects.</div>
+              </div>
+              <!-- Toggle switch -->
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" class="sr-only peer">
+                <div class="w-11 h-6 bg-surface-dim border border-surface-borderLight rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/30 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary peer-checked:after:bg-white peer-checked:after:border-white"></div>
+              </label>
+            </div>
+
+            <!-- Chart Value Visibility Toggle -->
+            <div class="flex items-center justify-between pt-4">
+              <div class="pr-8">
+                <div class="text-sm font-medium text-slate-200">Show values directly on charts</div>
+                <div class="text-xs text-surface-muted mt-0.5">Display numeric amounts alongside bars and trendlines without hovering.</div>
+              </div>
+              <!-- Toggle switch -->
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" checked class="sr-only peer">
+                <div class="w-11 h-6 bg-surface-dim border border-surface-borderLight rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/30 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary peer-checked:after:bg-white peer-checked:after:border-white"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION 4: NOTIFICATIONS -->
+        <div id="notifications" class="space-y-4 pt-2">
+          <div>
+            <h2 class="text-lg font-semibold text-white tracking-tight">Notifications</h2>
+            <p class="text-xs text-surface-muted">Choose which personal finance and budget updates you receive.</p>
+          </div>
+
+          <div class="bg-surface rounded-xl border border-surface-border p-6 divide-y divide-surface-border/80">
+            <!-- Budget Approaching Limit -->
+            <div class="flex items-center justify-between pb-4">
+              <div class="pr-8">
+                <div class="text-sm font-medium text-slate-200">Budget approaching limit</div>
+                <div class="text-xs text-surface-muted mt-0.5">Get notified when spending approaches a category budget (e.g. at 85%).</div>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" checked class="sr-only peer">
+                <div class="w-11 h-6 bg-surface-dim border border-surface-borderLight rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/30 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary peer-checked:after:bg-white peer-checked:after:border-white"></div>
+              </label>
+            </div>
+
+            <!-- Budget Exceeded -->
+            <div class="flex items-center justify-between py-4">
+              <div class="pr-8">
+                <div class="text-sm font-medium text-slate-200">Budget exceeded</div>
+                <div class="text-xs text-surface-muted mt-0.5">Get notified when spending passes a category budget ceiling.</div>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" checked class="sr-only peer">
+                <div class="w-11 h-6 bg-surface-dim border border-surface-borderLight rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/30 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary peer-checked:after:bg-white peer-checked:after:border-white"></div>
+              </label>
+            </div>
+
+            <!-- Monthly Financial Summary -->
+            <div class="flex items-center justify-between py-4">
+              <div class="pr-8">
+                <div class="text-sm font-medium text-slate-200">Monthly financial summary</div>
+                <div class="text-xs text-surface-muted mt-0.5">Receive a summary when your monthly budget period ends.</div>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" checked class="sr-only peer">
+                <div class="w-11 h-6 bg-surface-dim border border-surface-borderLight rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/30 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary peer-checked:after:bg-white peer-checked:after:border-white"></div>
+              </label>
+            </div>
+
+            <!-- Important Account Activity -->
+            <div class="flex items-center justify-between pt-4">
+              <div class="pr-8">
+                <div class="text-sm font-medium text-slate-200">Account and security notifications</div>
+                <div class="text-xs text-surface-muted mt-0.5">Important sign-in notices and security updates related to your login.</div>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" checked class="sr-only peer">
+                <div class="w-11 h-6 bg-surface-dim border border-surface-borderLight rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/30 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary peer-checked:after:bg-white peer-checked:after:border-white"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION 5: ASSISTANT PREFERENCES -->
+        <div id="assistant-settings" class="space-y-4 pt-2">
+          <div>
+            <h2 class="text-lg font-semibold text-white tracking-tight">Assistant</h2>
+            <p class="text-xs text-surface-muted">Tune how the read-only AI Financial Assistant provides guidance.</p>
+          </div>
+
+          <div class="bg-surface rounded-xl border border-surface-border p-6 space-y-6">
+            
+            <!-- Toggle: Financial Context -->
+            <div class="flex items-center justify-between pb-4 border-b border-surface-border/80">
+              <div class="pr-8">
+                <div class="text-sm font-medium text-slate-200">Use my financial data when answering questions</div>
+                <div class="text-xs text-surface-muted mt-0.5">Allow the Assistant to use your transactions, budgets, and reports to provide personalized answers.</div>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" checked class="sr-only peer">
+                <div class="w-11 h-6 bg-surface-dim border border-surface-borderLight rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/30 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary peer-checked:after:bg-white peer-checked:after:border-white"></div>
+              </label>
+            </div>
+
+            <!-- Radio Segmented: Response Detail -->
+            <div class="pb-4 border-b border-surface-border/80">
+              <label class="block text-xs font-medium text-slate-300 mb-1.5">Response Detail</label>
+              <div class="grid grid-cols-3 gap-3 mt-2">
+                <label class="flex items-center p-3 rounded-lg border border-surface-borderLight bg-surface-dim hover:bg-surface-card cursor-pointer transition-colors">
+                  <input type="radio" name="response_detail" value="concise" class="text-primary focus:ring-primary h-4 w-4 bg-surface border-surface-border">
+                  <div class="ml-3">
+                    <span class="block text-xs font-semibold text-slate-200">Concise</span>
+                    <span class="block text-[11px] text-surface-muted">Key numbers and brief summaries.</span>
+                  </div>
+                </label>
+                <label class="flex items-center p-3 rounded-lg border border-primary bg-primary/10 cursor-pointer transition-colors">
+                  <input type="radio" name="response_detail" value="balanced" checked class="text-primary focus:ring-primary h-4 w-4 bg-surface border-surface-border">
+                  <div class="ml-3">
+                    <span class="block text-xs font-semibold text-primary">Balanced</span>
+                    <span class="block text-[11px] text-slate-300">Clear breakdown with context.</span>
+                  </div>
+                </label>
+                <label class="flex items-center p-3 rounded-lg border border-surface-borderLight bg-surface-dim hover:bg-surface-card cursor-pointer transition-colors">
+                  <input type="radio" name="response_detail" value="detailed" class="text-primary focus:ring-primary h-4 w-4 bg-surface border-surface-border">
+                  <div class="ml-3">
+                    <span class="block text-xs font-semibold text-slate-200">Detailed</span>
+                    <span class="block text-[11px] text-surface-muted">Deep analytical commentary.</span>
+                  </div>
+                </label>
+              </div>
+              <p class="text-[11px] text-surface-muted mt-2">Choose how much explanation the Assistant provides.</p>
+            </div>
+
+            <!-- Toggle: Show Budget Suggestions -->
+            <div class="flex items-center justify-between pb-4 border-b border-surface-border/80">
+              <div class="pr-8">
+                <div class="text-sm font-medium text-slate-200">Show budget suggestions</div>
+                <div class="text-xs text-surface-muted mt-0.5">Allow the Assistant to suggest possible adjustments based on your spending.</div>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" checked class="sr-only peer">
+                <div class="w-11 h-6 bg-surface-dim border border-surface-borderLight rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/30 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary peer-checked:after:bg-white peer-checked:after:border-white"></div>
+              </label>
+            </div>
+
+            <!-- Read-Only Notice Note (Required) -->
+            <div class="p-3.5 rounded-lg bg-surface-dim/90 border border-surface-border flex items-start space-x-3 text-xs text-surface-muted">
+              <span class="material-symbols-outlined text-base text-primary shrink-0 mt-0.5">shield</span>
+              <p class="leading-relaxed">
+                The Assistant can analyze and explain your financial information, but it cannot modify transactions or budgets.
+              </p>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Persistent Bottom Action Area -->
+        <div class="flex items-center justify-end space-x-3 pt-4 border-t border-surface-border">
+          <button type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors">
+            Cancel
+          </button>
+          <button type="button" class="inline-flex items-center space-x-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-primary-hover shadow-sm transition-all">
+            <span class="material-symbols-outlined text-[18px]">check</span>
+            <span>Save Changes</span>
+          </button>
+        </div>
+
+      </section>
+    </div>
+  </main>
+
+  <!-- CANONICAL UNDERSTATED FOOTER -->
+  <footer class="mt-auto border-t border-surface-border bg-surface py-5">
+    <div class="max-w-[1280px] mx-auto px-8 flex items-center justify-between text-xs text-surface-muted">
+      <div>Apex Finance © 2025 Apex Finance Inc. All rights reserved.</div>
+      <div class="flex items-center space-x-6">
+        <a href="#privacy" class="hover:text-slate-300 transition-colors">Privacy Policy</a>
+        <a href="#terms" class="hover:text-slate-300 transition-colors">Terms of Service</a>
+        <a href="#security" class="hover:text-slate-300 transition-colors">Security</a>
+        <a href="#help" class="hover:text-slate-300 transition-colors">Help Center</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

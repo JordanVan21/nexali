@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Profile Identity | Apex Finance</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Hanken+Grotesk:wght@600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .glass-card {
+            background: rgba(22, 24, 29, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid #262930;
+        }
+        .profile-ring {
+            background: linear-gradient(135deg, #adc6ff 0%, #005ac2 100%);
+            padding: 4px;
+        }
+        .input-focus-ring:focus {
+            outline: none;
+            border-color: #adc6ff;
+            box-shadow: 0 0 0 2px rgba(173, 198, 255, 0.2);
+        }
+    </style>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "outline": "#8c909f",
+                    "on-secondary": "#003915",
+                    "tertiary-fixed-dim": "#ffb95f",
+                    "on-surface": "#e2e2e8",
+                    "error-container": "#93000a",
+                    "background": "#111317",
+                    "on-secondary-fixed-variant": "#005321",
+                    "tertiary-container": "#ca8100",
+                    "surface-container-low": "#1a1c20",
+                    "on-tertiary-fixed-variant": "#653e00",
+                    "surface-container-high": "#282a2e",
+                    "inverse-surface": "#e2e2e8",
+                    "secondary-fixed": "#6bff8f",
+                    "on-secondary-container": "#004119",
+                    "on-error-container": "#ffdad6",
+                    "on-surface-variant": "#c2c6d6",
+                    "secondary-fixed-dim": "#4ae176",
+                    "surface-dim": "#111317",
+                    "tertiary": "#ffb95f",
+                    "surface-bright": "#37393e",
+                    "primary-fixed-dim": "#adc6ff",
+                    "on-tertiary-container": "#3e2400",
+                    "on-primary-fixed-variant": "#004395",
+                    "on-primary-container": "#00285d",
+                    "on-tertiary": "#472a00",
+                    "surface": "#111317",
+                    "tertiary-fixed": "#ffddb8",
+                    "surface-container-lowest": "#0c0e12",
+                    "secondary-container": "#00b954",
+                    "on-secondary-fixed": "#002109",
+                    "outline-variant": "#424754",
+                    "inverse-on-surface": "#2f3035",
+                    "primary-fixed": "#d8e2ff",
+                    "on-primary-fixed": "#001a42",
+                    "secondary": "#4ae176",
+                    "primary-container": "#4d8eff",
+                    "surface-tint": "#adc6ff",
+                    "on-background": "#e2e2e8",
+                    "primary": "#adc6ff",
+                    "on-error": "#690005",
+                    "surface-container-highest": "#333539",
+                    "surface-container": "#1e2024",
+                    "inverse-primary": "#005ac2",
+                    "on-tertiary-fixed": "#2a1700",
+                    "surface-variant": "#333539",
+                    "error": "#ffb4ab",
+                    "on-primary": "#002e6a"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "gutter": "24px",
+                    "lg": "24px",
+                    "container-max": "1200px",
+                    "xs": "4px",
+                    "md": "16px",
+                    "base": "4px",
+                    "xl": "40px",
+                    "sm": "8px"
+            },
+            "fontFamily": {
+                    "body-md": ["Inter"],
+                    "numeric-data": ["JetBrains Mono"],
+                    "headline-lg": ["Hanken Grotesk"],
+                    "headline-md": ["Hanken Grotesk"],
+                    "label-md": ["Inter"],
+                    "headline-lg-mobile": ["Hanken Grotesk"],
+                    "body-lg": ["Inter"],
+                    "headline-xl": ["Hanken Grotesk"]
+            },
+            "fontSize": {
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "numeric-data": ["16px", {"lineHeight": "24px", "fontWeight": "500"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen pb-24 md:pb-0 overflow-x-hidden">
+<!-- TopAppBar -->
+<header class="hidden md:flex fixed top-0 w-full z-50 h-[64px] items-center px-lg bg-background/95 backdrop-blur-md border-b border-outline-variant">
+<div class="flex items-center justify-between w-full max-w-container-max mx-auto">
+<!-- Left: Logo -->
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary text-2xl">account_balance</span>
+<span class="font-headline-md text-[20px] font-bold text-on-surface">Apex Finance</span>
+</div>
+<!-- Center: Nav Links -->
+<nav class="flex gap-lg items-center">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer active:opacity-80" href="#">Dashboard</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer active:opacity-80" href="#">Transactions</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer active:opacity-80" href="#">Budgets</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer active:opacity-80" href="#">Reports</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer active:opacity-80" href="#">Assistant</a>
+</nav>
+<!-- Right: Actions -->
+<div class="flex items-center gap-md">
+<div class="relative group">
+<span class="material-symbols-outlined text-on-surface-variant p-2 hover:bg-surface-variant rounded-full cursor-pointer transition-colors">notifications</span>
+<span class="absolute top-2.5 right-2.5 w-1.5 h-1.5 bg-primary rounded-full"></span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant p-2 hover:bg-surface-variant rounded-full cursor-pointer transition-colors">settings</span>
+<div class="flex items-center gap-2 pl-2 cursor-pointer group">
+<div class="h-8 w-8 rounded-full border-2 border-primary overflow-hidden transition-all ring-offset-2 ring-offset-background group-hover:ring-2 ring-primary">
+<img class="w-full h-full object-cover" data-alt="A professional close-up studio portrait of a high-net-worth individual for a financial application profile." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB6Ze4_gc7umiKLVJSAEnSs5iSSNP7kDvMLlD7RNe6MlP7tt-_WX2tGlizXDkMBQYo6zn6w-bwyCFrFrMF5x5hhhcAJBrFr4RUB5V7PQat3rCTu6XR7IiMyfjoqNnVgj_yzBxZHia7EqLofdd2HjnmuIMfAZXCAW1itDiQlIzmWYSmhvS2LQ6ZAQkek2ZCu0w_h4_uWxv37BpjjUOp3VOy0Nd1JvmRfJuaOZQMYVrLdZfhIg57Is3gp"/>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-on-surface transition-colors">expand_more</span>
+</div>
+</div>
+</div>
+</header>
+<main class="max-w-[800px] mx-auto px-md md:px-lg pt-24 md:pt-28 space-y-xl">
+<!-- Centered Identity Header -->
+<section class="flex flex-col items-center text-center space-y-md">
+<div class="relative group">
+<div class="w-32 h-32 md:w-40 md:h-40 rounded-full profile-ring p-1 shadow-2xl">
+<div class="w-full h-full rounded-full overflow-hidden border-4 border-background bg-surface-container">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A sophisticated executive headshot of a business professional, captured with a shallow depth of field." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDlo62_iGoCS_SEaJA10DwlHYVh1ZJ5J5pew_nzwrt8w4E4H2XgMowjc7ZNKPVMI1sVvU4qENQWl_AeRXAX6SQ8tMlKZsH8xjpEirA2GHt-bx0-8IcmttFX_s5b5Ni244nJM0IjJIPYGCtysZUY1OfndkyjALtfkaotShxhU4hp0D8XhRxyJeYZFiK8X-cF0xpKEN2AH2RPTzq26S0HQaXa50AW-dTX3PjQo_rVsWlONx6NjRxgDogB"/>
+</div>
+</div>
+<button class="absolute bottom-2 right-2 bg-primary text-on-primary p-2 rounded-full shadow-lg hover:scale-110 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+</div>
+<div class="space-y-sm">
+<h1 class="font-headline-xl text-headline-xl md:text-headline-xl">Alexander Sterling</h1>
+<div class="inline-flex items-center gap-sm px-4 py-1.5 bg-surface-container-high rounded-full border border-outline-variant">
+<span class="material-symbols-outlined text-primary text-[18px]" style="font-variation-settings: 'FILL' 1;">verified</span>
+<span class="font-label-md text-label-md text-on-surface-variant">Member since Jan 2022</span>
+</div>
+</div>
+</section>
+<!-- Profile Form Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-md">
+<!-- Avatar Management -->
+<div class="md:col-span-5 glass-card rounded-xl p-lg flex flex-col justify-between space-y-md">
+<div>
+<h2 class="font-headline-md text-headline-md mb-2">Avatar Management</h2>
+<p class="text-on-surface-variant text-sm">Update your public identity. Recommended size is 400x400px.</p>
+</div>
+<div class="flex flex-col gap-sm">
+<button class="w-full flex items-center justify-center gap-sm py-3 bg-primary text-on-primary rounded-lg font-label-md hover:opacity-90 transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined">upload</span>
+                    Upload New Photo
+                </button>
+<button class="w-full py-3 bg-transparent border border-outline-variant text-on-surface rounded-lg font-label-md hover:bg-surface-variant transition-all active:scale-[0.98]">
+                    Remove Current
+                </button>
+</div>
+</div>
+<!-- Personal Identity -->
+<div class="md:col-span-7 glass-card rounded-xl p-lg space-y-lg">
+<h2 class="font-headline-md text-headline-md">Personal Identity</h2>
+<div class="space-y-md">
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant ml-1">Full Name</label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-3 text-on-surface font-body-md input-focus-ring transition-all" placeholder="Enter your full name" type="text" value="Alexander Sterling"/>
+</div>
+<div class="space-y-xs opacity-70">
+<label class="font-label-md text-label-md text-on-surface-variant ml-1 flex items-center gap-xs">
+                        Email Address
+                        <span class="material-symbols-outlined text-[14px]">lock</span>
+</label>
+<input class="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-on-surface-variant font-body-md cursor-not-allowed" placeholder="your@email.com" readonly="" type="email" value="alexander.sterling@sovereign.io"/>
+<p class="text-[12px] text-on-surface-variant mt-1 ml-1 italic">Contact support to change your primary email.</p>
+</div>
+</div>
+</div>
+<!-- Financial Bio -->
+<div class="md:col-span-12 glass-card rounded-xl p-lg space-y-md">
+<div class="flex items-center justify-between">
+<div>
+<h2 class="font-headline-md text-headline-md">Financial Bio</h2>
+<p class="text-on-surface-variant text-sm">Briefly describe your financial goals for the AI Assistant.</p>
+</div>
+<span class="font-numeric-data text-on-surface-variant text-sm">0/240</span>
+</div>
+<textarea class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-3 text-on-surface font-body-md input-focus-ring transition-all resize-none" placeholder="E.g., Focused on long-term wealth preservation and optimizing quarterly dividend yields..." rows="4"></textarea>
+</div>
+</div>
+<!-- Action Bar -->
+<div class="flex flex-col md:flex-row items-center justify-end gap-md pb-xl">
+<button class="w-full md:w-auto px-lg py-3 text-on-surface-variant font-label-md hover:text-on-surface transition-colors">Discard Changes</button>
+<button class="w-full md:w-auto px-12 py-4 bg-primary text-on-primary rounded-lg font-headline-md text-[18px] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+            Save Changes
+        </button>
+</div>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-16 px-md pb-safe bg-surface-container shadow-lg rounded-t-xl">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-[10px]">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant transition-colors" href="#">
+<span class="material-symbols-outlined">insert_chart</span>
+<span class="font-label-md text-[10px]">Reports</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant transition-colors" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="font-label-md text-[10px]">AI Chat</span>
+</a>
+<!-- Active state for Settings/Profile as per logic -->
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-4 py-1 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="font-label-md text-[10px]">Settings</span>
+</a>
+</nav>
+<script>
+    // Micro-interaction for text area character count
+    const textarea = document.querySelector('textarea');
+    const counter = document.querySelector('.font-numeric-data');
+    
+    if (textarea && counter) {
+        textarea.addEventListener('input', (e) => {
+            const length = e.target.value.length;
+            counter.textContent = `${length}/240`;
+            if (length > 240) {
+                counter.classList.add('text-error');
+            } else {
+                counter.classList.remove('text-error');
+            }
+        });
+    }
+
+    // Save changes button interaction
+    const actualSaveBtn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Save Changes'));
+    
+    if (actualSaveBtn) {
+        actualSaveBtn.addEventListener('click', () => {
+            const originalText = actualSaveBtn.innerHTML;
+            actualSaveBtn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> Updating...';
+            actualSaveBtn.classList.add('opacity-80');
+            
+            setTimeout(() => {
+                actualSaveBtn.innerHTML = '<span class="material-symbols-outlined">check_circle</span> Saved';
+                actualSaveBtn.classList.replace('bg-primary', 'bg-secondary-container');
+                actualSaveBtn.classList.replace('text-on-primary', 'text-on-secondary-container');
+                
+                setTimeout(() => {
+                    actualSaveBtn.innerHTML = originalText;
+                    actualSaveBtn.classList.replace('bg-secondary-container', 'bg-primary');
+                    actualSaveBtn.classList.replace('text-on-secondary-container', 'text-on-primary');
+                    actualSaveBtn.classList.remove('opacity-80');
+                }, 2000);
+            }, 1200);
+        });
+    }
+</script>
+</body></html>

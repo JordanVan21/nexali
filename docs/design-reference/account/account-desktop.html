@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Account Security | Apex Finance</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Hanken+Grotesk:wght@600;700;800&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(22, 24, 29, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(66, 71, 84, 0.5);
+        }
+        .danger-zone-glow {
+            box-shadow: 0 0 20px rgba(255, 180, 171, 0.05);
+        }
+        body {
+            background-color: #0F1115;
+            color: #e2e2e8;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "outline": "#8c909f",
+                      "on-secondary": "#003915",
+                      "tertiary-fixed-dim": "#ffb95f",
+                      "on-surface": "#e2e2e8",
+                      "error-container": "#93000a",
+                      "background": "#111317",
+                      "on-secondary-fixed-variant": "#005321",
+                      "tertiary-container": "#ca8100",
+                      "surface-container-low": "#1a1c20",
+                      "on-tertiary-fixed-variant": "#653e00",
+                      "surface-container-high": "#282a2e",
+                      "inverse-surface": "#e2e2e8",
+                      "secondary-fixed": "#6bff8f",
+                      "on-secondary-container": "#004119",
+                      "on-error-container": "#ffdad6",
+                      "on-surface-variant": "#c2c6d6",
+                      "secondary-fixed-dim": "#4ae176",
+                      "surface-dim": "#111317",
+                      "tertiary": "#ffb95f",
+                      "surface-bright": "#37393e",
+                      "primary-fixed-dim": "#adc6ff",
+                      "on-tertiary-container": "#3e2400",
+                      "on-primary-fixed-variant": "#004395",
+                      "on-primary-container": "#00285d",
+                      "on-tertiary": "#472a00",
+                      "surface": "#111317",
+                      "tertiary-fixed": "#ffddb8",
+                      "surface-container-lowest": "#0c0e12",
+                      "secondary-container": "#00b954",
+                      "on-secondary-fixed": "#002109",
+                      "outline-variant": "#424754",
+                      "inverse-on-surface": "#2f3035",
+                      "primary-fixed": "#d8e2ff",
+                      "on-primary-fixed": "#001a42",
+                      "secondary": "#4ae176",
+                      "primary-container": "#4d8eff",
+                      "surface-tint": "#adc6ff",
+                      "on-background": "#e2e2e8",
+                      "primary": "#adc6ff",
+                      "on-error": "#690005",
+                      "surface-container-highest": "#333539",
+                      "surface-container": "#1e2024",
+                      "inverse-primary": "#005ac2",
+                      "on-tertiary-fixed": "#2a1700",
+                      "surface-variant": "#333539",
+                      "error": "#ffb4ab",
+                      "on-primary": "#002e6a"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter": "24px",
+                      "lg": "24px",
+                      "container-max": "1200px",
+                      "xs": "4px",
+                      "md": "16px",
+                      "base": "4px",
+                      "xl": "40px",
+                      "sm": "8px"
+              },
+              "fontFamily": {
+                      "body-md": ["Inter"],
+                      "numeric-data": ["JetBrains Mono"],
+                      "headline-lg": ["Hanken Grotesk"],
+                      "headline-md": ["Hanken Grotesk"],
+                      "label-md": ["Inter"],
+                      "headline-lg-mobile": ["Hanken Grotesk"],
+                      "body-lg": ["Inter"],
+                      "headline-xl": ["Hanken Grotesk"]
+              },
+              "fontSize": {
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "numeric-data": ["16px", {"lineHeight": "24px", "fontWeight": "500"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "label-md": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                      "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface min-h-screen pb-24 md:pb-0" id="account-desktop.png">
+<!-- TopAppBar -->
+<header class="hidden md:flex fixed top-0 left-0 right-0 z-50 h-[56px] items-center justify-between px-lg bg-surface/90 backdrop-blur-md border-b border-outline-variant/30">
+<div class="flex items-center gap-2 min-w-[200px]">
+<span class="material-symbols-outlined text-primary text-2xl" style="font-variation-settings: 'FILL' 1;">account_balance</span>
+<span class="font-headline-md text-[20px] font-bold text-on-surface">Apex Finance</span>
+</div>
+<nav class="flex gap-lg items-center">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer active:opacity-80" href="#">Dashboard</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer active:opacity-80" href="#">Transactions</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer active:opacity-80" href="#">Budgets</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer active:opacity-80" href="#">Reports</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer active:opacity-80" href="#">Assistant</a>
+</nav>
+<div class="flex items-center gap-md min-w-[200px] justify-end">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface transition-colors text-[24px]">notifications</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface transition-colors text-[24px]">settings</button>
+<div class="flex items-center gap-1 cursor-pointer hover:opacity-90 transition-opacity">
+<div class="w-8 h-8 rounded-full border border-secondary overflow-hidden">
+<img alt="Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAi9ElO6lA57rfR2Dcf61qD1wINFtTZxzX7s7xplBaOfPlyeUs_t0ZfkULwp6la-i2l-0kMYxN9EuHQp5YIR7GgyjTpAJ6d0tYAn2OZEzvUXWpm-G5RbbHPW7OjAF965tNReZv301_HsgJu0HNR4bSAwHNzqmxJcmQWAGdjZFeg3YCbfsi2IZntvefHiXxvDfoPYZ6e7D9vP_lfakkRd7aKo8s1P5TuK7IaSmtFL-V1jGhGBZ5hyhkq"/>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]">expand_more</span>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="max-w-container-max mx-auto px-md md:px-lg pt-20 md:pt-28 pb-xl">
+<div class="mb-xl">
+<h1 class="font-headline-xl text-headline-xl text-on-surface mb-2">Account Security</h1>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-2xl">Manage your sign-in methods, active sessions, and data privacy settings to keep your sovereign financial data protected.</p>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-lg">
+<!-- Left Column: Core Security -->
+<div class="lg:col-span-8 space-y-lg">
+<!-- Sign-in Information -->
+<section class="glass-card rounded-xl p-lg">
+<div class="flex items-center justify-between mb-md">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">alternate_email</span>
+<h2 class="font-headline-md text-headline-md">Sign-in Information</h2>
+</div>
+</div>
+<div class="flex flex-col md:flex-row md:items-center justify-between p-md bg-surface-container-low border border-outline-variant rounded-lg gap-md">
+<div>
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-1">Current Email Address</p>
+<p class="font-body-lg text-body-lg text-on-surface">executive.user@finsovereign.com</p>
+</div>
+<button class="px-md py-2 bg-outline-variant text-on-surface font-label-md text-label-md rounded-lg hover:bg-surface-bright transition-colors">Change Email</button>
+</div>
+</section>
+<!-- Password & Security -->
+<section class="glass-card rounded-xl p-lg">
+<div class="flex items-center gap-md mb-lg">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">security</span>
+<h2 class="font-headline-md text-headline-md">Password &amp; Security</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+<div class="p-md bg-surface-container-low border border-outline-variant rounded-lg">
+<div class="flex justify-between items-start mb-md">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Account Password</p>
+<span class="bg-secondary-container/20 text-secondary px-2 py-0.5 rounded text-[10px] font-bold uppercase">Strong</span>
+</div>
+<p class="font-body-md text-body-md mb-md">Last updated 45 days ago. We recommend rotating every 90 days.</p>
+<button class="w-full py-2 bg-primary text-on-primary font-label-md text-label-md rounded-lg hover:opacity-90 transition-opacity">Update Password</button>
+</div>
+<div class="p-md bg-surface-container-low border border-outline-variant rounded-lg">
+<div class="flex justify-between items-start mb-md">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Two-Factor Auth</p>
+<span class="bg-secondary-container/20 text-secondary px-2 py-0.5 rounded text-[10px] font-bold uppercase">Enabled</span>
+</div>
+<p class="font-body-md text-body-md mb-md">Security key and Authenticator app are active for your protection.</p>
+<button class="w-full py-2 border border-outline-variant text-on-surface font-label-md text-label-md rounded-lg hover:bg-surface-bright transition-colors">Manage 2FA</button>
+</div>
+</div>
+</section>
+<!-- Active Sessions -->
+<section class="glass-card rounded-xl p-lg">
+<div class="flex items-center justify-between mb-lg">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">devices</span>
+<h2 class="font-headline-md text-headline-md">Active Sessions</h2>
+</div>
+<button class="text-primary font-label-md text-label-md hover:underline">Sign out of all</button>
+</div>
+<div class="space-y-md">
+<!-- Current Device -->
+<div class="flex items-center justify-between p-md bg-surface-container border-l-4 border-primary rounded-r-lg">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-lg bg-surface-container-highest flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface">laptop_mac</span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-on-surface">MacBook Pro 16" <span class="text-primary ml-2">• Current Device</span></p>
+<p class="font-body-md text-body-md text-on-surface-variant">San Francisco, USA • Chrome v121.0</p>
+</div>
+</div>
+</div>
+<!-- Other Device -->
+<div class="flex items-center justify-between p-md border border-outline-variant rounded-lg">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-lg bg-surface-container-lowest flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant">smartphone</span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-on-surface">iPhone 15 Pro</p>
+<p class="font-body-md text-body-md text-on-surface-variant">London, UK • Mobile App v2.4.1</p>
+</div>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-error transition-colors">logout</button>
+</div>
+</div>
+</section>
+</div>
+<!-- Right Column: Data & Privacy -->
+<div class="lg:col-span-4 space-y-lg">
+<section class="glass-card rounded-xl p-lg">
+<div class="flex items-center gap-md mb-md">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">privacy_tip</span>
+<h2 class="font-headline-md text-headline-md">Data &amp; Privacy</h2>
+</div>
+<div class="space-y-md">
+<div class="flex items-start gap-md cursor-pointer group">
+<div class="p-2 rounded bg-surface-container-highest group-hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary">download</span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-on-surface">Export Your Data</p>
+<p class="text-[12px] text-on-surface-variant">Download a copy of all your financial records.</p>
+</div>
+</div>
+<div class="flex items-start gap-md cursor-pointer group">
+<div class="p-2 rounded bg-surface-container-highest group-hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary">visibility_off</span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-on-surface">Privacy Settings</p>
+<p class="text-[12px] text-on-surface-variant">Control how your data is used for insights.</p>
+</div>
+</div>
+<div class="flex items-start gap-md cursor-pointer group">
+<div class="p-2 rounded bg-surface-container-highest group-hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary">verified_user</span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-on-surface">Regulatory Controls</p>
+<p class="text-[12px] text-on-surface-variant">Manage GDPR and CCPA preferences.</p>
+</div>
+</div>
+</div>
+</section>
+<section class="p-lg border border-error/30 bg-error-container/10 rounded-xl danger-zone-glow">
+<div class="flex items-center gap-md mb-md">
+<span class="material-symbols-outlined text-error" style="font-variation-settings: 'FILL' 1;">warning</span>
+<h2 class="font-headline-md text-headline-md text-error">Danger Zone</h2>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-lg leading-relaxed">
+                        Deleting your account will permanently erase all financial records, AI learnings, and linked accounts. This action is irreversible.
+                    </p>
+<button class="w-full py-3 bg-error text-on-error font-label-md text-label-md rounded-lg hover:opacity-90 transition-opacity active:scale-[0.98]">Delete My Account</button>
+</section>
+<!-- Visual Asset / Ambient Background Decoration -->
+<div class="relative w-full h-48 rounded-xl overflow-hidden hidden lg:block">
+<div class="absolute inset-0 flex flex-col items-center justify-center p-lg text-center bg-background/40 backdrop-blur-sm">
+<span class="material-symbols-outlined text-primary text-4xl mb-2">shield</span>
+<p class="font-label-md text-label-md text-primary">Biometric Sync Active</p>
+<p class="text-[12px] text-on-surface-variant">Your identity is protected by end-to-end encryption.</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-16 px-md pb-safe bg-surface-container rounded-t-xl shadow-lg border-t border-outline-variant/30">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant px-4 py-1 rounded-full transition-colors active:scale-95" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-[10px]">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant px-4 py-1 rounded-full transition-colors active:scale-95" href="#">
+<span class="material-symbols-outlined">insert_chart</span>
+<span class="font-label-md text-[10px]">Reports</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant px-4 py-1 rounded-full transition-colors active:scale-95" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="font-label-md text-[10px]">AI Chat</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-4 py-1 transition-transform active:scale-95" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="font-label-md text-[10px]">Settings</span>
+</a>
+</nav>
+<script>
+        // Micro-interactions for the danger zone
+        const deleteBtn = document.querySelector('.bg-error');
+        if(deleteBtn) {
+            deleteBtn.addEventListener('mouseenter', () => {
+                document.querySelector('.danger-zone-glow').classList.add('shadow-[0_0_30px_rgba(255,180,171,0.15)]');
+            });
+            deleteBtn.addEventListener('mouseleave', () => {
+                document.querySelector('.danger-zone-glow').classList.remove('shadow-[0_0_30px_rgba(255,180,171,0.15)]');
+            });
+        }
+    </script>
+</body></html>

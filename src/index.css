@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 15% 7%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 12% 12%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 240 12% 12%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 142 76% 45%;
+    --primary-foreground: 240 15% 7%;
+    --primary-glow: 142 86% 65%;
+
+    --secondary: 200 95% 55%;
+    --secondary-foreground: 240 15% 7%;
+
+    --muted: 240 8% 20%;
+    --muted-foreground: 240 5% 65%;
+
+    --accent: 240 8% 20%;
+    --accent-foreground: 0 0% 95%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 240 15% 7%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 240 15% 7%;
+
+    --border: 240 8% 20%;
+    --input: 240 8% 20%;
+    --ring: 142 76% 45%;
+
+    --radius: 1rem;
+
+    /* Shell dimensions, shared between the nav components and page container */
+    --desktop-nav-height: 72px;
+    --mobile-header-height: 3.5rem;
+    --mobile-nav-height: 4rem;
+
+    /* Financial app gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)), hsl(200 100% 70%));
+    --gradient-hero: linear-gradient(135deg, hsl(240 15% 7%), hsl(240 12% 12%));
+    --gradient-card: linear-gradient(135deg, hsl(var(--card)), hsl(240 10% 15%));
+    
+    /* Shadows */
+    --shadow-glow: 0 0 40px hsl(var(--primary) / 0.3);
+    --shadow-card: 0 20px 40px -12px hsl(240 15% 7% / 0.4);
+    
+    /* Animations */
+    --transition-smooth: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  summary::-webkit-details-marker,
+  summary::marker {
+    display: none;
+    content: none;
+  }
+
+  details > summary {
+    list-style: none;
+  }
+
+  summary {
+    display: flex;
+    align-items: center;
+  }
+  
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

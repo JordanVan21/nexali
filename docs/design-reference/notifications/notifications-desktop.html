@@ -1,0 +1,446 @@
+<!DOCTYPE html><html class="dark" lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@600;700&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"surface-container-low":"#1a1c20","surface-container-lowest":"#0c0e12","inverse-surface":"#e2e2e8","inverse-on-surface":"#2f3035","inverse-primary":"#005ac2","primary-fixed":"#d8e2ff","tertiary-fixed":"#ffddb8","outline-variant":"#424754","on-tertiary-fixed":"#2a1700","on-tertiary-container":"#3e2400","on-error-container":"#ffdad6","error-container":"#93000a","surface-bright":"#37393e","on-primary-fixed":"#001a42","primary-fixed-dim":"#adc6ff","surface-container":"#1e2024","outline":"#8c909f","on-secondary":"#003915","on-secondary-fixed-variant":"#005321","surface-container-high":"#282a2e","error":"#ffb4ab","on-error":"#690005","on-background":"#e2e2e8","on-surface":"#e2e2e8","secondary-fixed":"#6bff8f","on-secondary-fixed":"#002109","secondary":"#4ae176","secondary-container":"#00b954","tertiary-container":"#ca8100","background":"#111317","surface-dim":"#111317","surface-container-highest":"#333539","primary-container":"#4d8eff","surface-variant":"#333539","on-primary":"#002e6a","on-surface-variant":"#c2c6d6","on-primary-fixed-variant":"#004395","on-primary-container":"#00285d","primary":"#adc6ff","secondary-fixed-dim":"#4ae176","tertiary-fixed-dim":"#ffb95f","on-tertiary-fixed-variant":"#653e00","tertiary":"#ffb95f","surface-tint":"#adc6ff","surface":"#111317","on-secondary-container":"#004119","on-tertiary":"#472a00"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"gutter":"24px","container-max":"1200px","sm":"8px","xs":"4px","xl":"40px","base":"4px","lg":"24px","md":"16px"},"fontFamily":{"headline-lg-mobile":["Hanken Grotesk"],"body-lg":["Inter"],"numeric-data":["JetBrains Mono"],"label-md":["Inter"],"headline-xl":["Hanken Grotesk"],"headline-lg":["Hanken Grotesk"],"headline-md":["Hanken Grotesk"],"body-md":["Inter"]},"fontSize":{"headline-lg-mobile":["24px",{"lineHeight":"32px","fontWeight":"600"}],"body-lg":["18px",{"lineHeight":"28px","fontWeight":"400"}],"numeric-data":["16px",{"lineHeight":"24px","fontWeight":"500"}],"label-md":["14px",{"lineHeight":"20px","fontWeight":"500"}],"headline-xl":["40px",{"lineHeight":"48px","letterSpacing":"-0.02em","fontWeight":"700"}],"headline-lg":["32px",{"lineHeight":"40px","letterSpacing":"-0.01em","fontWeight":"600"}],"headline-md":["24px",{"lineHeight":"32px","fontWeight":"600"}],"body-md":["16px",{"lineHeight":"24px","fontWeight":"400"}]}}}};</script></head><body class="bg-background font-body-md text-on-surface min-h-screen antialiased selection:bg-primary-container selection:text-on-primary-container"><header class="fixed top-0 left-0 right-0 w-full z-50 bg-background border-b border-outline-variant/40"><div class="h-14 max-w-container-max mx-auto px-lg flex items-center justify-between"><div class="flex items-center gap-sm"><span class="material-symbols-outlined text-primary text-[24px]">account_balance</span><span class="font-headline-md text-headline-md text-on-surface tracking-tight">Apex Finance</span></div><nav class="hidden md:flex items-center h-full gap-lg" data-active-classes="text-on-surface border-b-2 border-primary"><a class="h-full flex items-center text-on-surface-variant hover:text-on-surface font-label-md text-label-md border-b-2 border-transparent transition-colors" data-path="dashboard" href="#">Dashboard</a><a class="h-full flex items-center text-on-surface-variant hover:text-on-surface font-label-md text-label-md border-b-2 border-transparent transition-colors" data-path="transactions" href="#">Transactions</a><a aria-current="page" class="h-full flex items-center font-label-md transition-colors text-on-surface border-b-2 border-primary" data-path="budgets" href="#">Budgets</a><a class="h-full flex items-center text-on-surface-variant hover:text-on-surface font-label-md text-label-md border-b-2 border-transparent transition-colors" data-path="reports" href="#">Reports</a><a class="h-full flex items-center text-on-surface-variant hover:text-on-surface font-label-md text-label-md border-b-2 border-transparent transition-colors" data-path="assistant" href="#">Assistant</a></nav><div class="flex items-center gap-md"><button aria-label="Notifications" class="p-xs rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">notifications</span></button><button aria-label="Settings" class="p-xs rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">settings</span></button><div class="flex items-center gap-xs pl-xs cursor-pointer select-none group"><img alt="Profile" class="w-8 h-8 rounded-full object-cover ring-1 ring-outline-variant/60" src="https://lh3.googleusercontent.com/aida/AEtjO1UUdDb-NbAUz0p8HC0KhCRzMaRMuZ5wTj25-ctzrLhPTKUkIP80pQjYV27EW9KeQ6YmYWl5gTARbsORZSbOzLfkjXqwAeiH2DMECnGsVzhZqQ7XrUAs8_vYIkoMYYeeEReLqBcQZUq0Uq-FkY1YC_3FGTANjChS1mcIv9kffQShYBZiGyQMbceoAoxzg7M9no1ZCBf0T5aztrQokI7SyFOsO0KvCBUSgyHUBCb_sHjwAsUYpst-1WDSrFrFkoNaMfM_lB0OFf04bQ"><span class="material-symbols-outlined text-on-surface-variant group-hover:text-on-surface text-[18px] transition-colors">expand_more</span></div></div></div></header><main class="w-full pt-14 bg-background min-h-[calc(100vh-56px)] flex flex-col"><div class="max-w-container-max w-full mx-auto px-lg py-xl flex-1"><div class="flex flex-col w-full">
+<div class="flex flex-col md:flex-row items-start md:items-end justify-between gap-md pb-lg">
+<div class="flex flex-col gap-xs">
+<div class="flex items-center gap-sm">
+<span class="px-sm py-xs rounded-full bg-primary/10 text-primary font-numeric-data text-label-md tracking-wider uppercase">Audit Stream</span>
+<span class="inline-flex items-center gap-xs text-on-surface-variant font-label-md text-label-md">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+          Live Sync Active
+        </span>
+</div>
+<h1 class="font-headline-xl text-headline-xl text-on-surface tracking-tight">Notifications</h1>
+</div>
+<div class="flex items-center gap-sm w-full md:w-auto justify-between md:justify-end">
+<div class="flex items-center gap-xs px-md py-xs rounded-lg bg-surface-container-low text-on-surface-variant font-numeric-data text-label-md shadow-sm">
+<span class="material-symbols-outlined text-[18px] text-primary">mark_email_unread</span>
+<span id="unread-counter">4 unread</span>
+</div>
+<button class="flex items-center gap-xs px-md py-sm rounded-lg bg-surface-container-high hover:bg-surface-variant text-on-surface hover:text-primary transition-all shadow-sm font-label-md text-label-md cursor-pointer" id="mark-all-read-btn" type="button">
+<span class="material-symbols-outlined text-[18px]">done_all</span>
+<span>Mark all as read</span>
+</button>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start">
+<div class="lg:col-span-8 flex flex-col gap-md">
+<div class="flex items-center gap-xs p-xs rounded-xl bg-surface-container-lowest overflow-x-auto shadow-sm">
+<button class="filter-tab px-md py-xs rounded-lg bg-surface-container text-on-surface font-label-md text-label-md transition-all whitespace-nowrap cursor-pointer" data-filter="all" type="button">
+          All <span class="ml-xs text-on-surface-variant font-numeric-data text-[12px]">8</span>
+</button>
+<button class="filter-tab px-md py-xs rounded-lg hover:bg-surface-container/60 text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-all whitespace-nowrap cursor-pointer" data-filter="unread" type="button">
+          Unread <span class="ml-xs px-xs py-0.5 rounded-full bg-primary/20 text-primary font-numeric-data text-[11px]">4</span>
+</button>
+<button class="filter-tab px-md py-xs rounded-lg hover:bg-surface-container/60 text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-all whitespace-nowrap cursor-pointer" data-filter="financial" type="button">
+          Financial Alerts
+        </button>
+<button class="filter-tab px-md py-xs rounded-lg hover:bg-surface-container/60 text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-all whitespace-nowrap cursor-pointer" data-filter="security" type="button">
+          Security
+        </button>
+<button class="filter-tab px-md py-xs rounded-lg hover:bg-surface-container/60 text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-all whitespace-nowrap cursor-pointer" data-filter="system" type="button">
+          System
+        </button>
+</div>
+<div class="flex flex-col gap-sm" id="notifications-stream">
+<div class="notification-card group relative flex items-start justify-between gap-md p-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all shadow-sm" data-category="financial" data-status="unread">
+<div class="flex items-start gap-md min-w-0">
+<div class="relative shrink-0 w-10 h-10 rounded-xl bg-tertiary/15 flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-[22px]">trending_up</span>
+<span class="unread-dot absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-surface-container-low"></span>
+</div>
+<div class="flex flex-col gap-xs min-w-0">
+<div class="flex items-center gap-sm flex-wrap">
+<span class="font-headline-md text-[16px] leading-[22px] text-on-surface font-medium">Budget Threshold Exceeded</span>
+<span class="px-xs py-0.5 rounded bg-tertiary/20 text-tertiary font-numeric-data text-[11px] uppercase">Financial</span>
+<span class="font-numeric-data text-on-surface-variant text-[12px]">3 mins ago</span>
+</div>
+<p class="font-body-md text-label-md text-on-surface-variant leading-relaxed">
+                Marketing &amp; Growth department spend has reached 92% of the quarterly allocation ($84,200 of $91,500).
+              </p>
+<div class="flex items-center gap-sm pt-xs">
+<button class="px-md py-xs rounded-lg bg-primary text-on-primary font-label-md text-[13px] hover:bg-primary-fixed transition-colors cursor-pointer shadow-sm" type="button">
+                  Review Budget
+                </button>
+<button class="px-md py-xs rounded-lg bg-surface-container-high hover:bg-surface-variant text-on-surface-variant hover:text-on-surface font-label-md text-[13px] transition-colors cursor-pointer" type="button">
+                  Adjust Limit
+                </button>
+</div>
+</div>
+</div>
+<button aria-label="Dismiss notification" class="dismiss-btn opacity-60 hover:opacity-100 p-xs text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container-high transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<div class="notification-card group relative flex items-start justify-between gap-md p-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all shadow-sm" data-category="security" data-status="unread">
+<div class="flex items-start gap-md min-w-0">
+<div class="relative shrink-0 w-10 h-10 rounded-xl bg-error/15 flex items-center justify-center text-error">
+<span class="material-symbols-outlined text-[22px]">lock_reset</span>
+<span class="unread-dot absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-surface-container-low"></span>
+</div>
+<div class="flex flex-col gap-xs min-w-0">
+<div class="flex items-center gap-sm flex-wrap">
+<span class="font-headline-md text-[16px] leading-[22px] text-on-surface font-medium">New Device Authorization Request</span>
+<span class="px-xs py-0.5 rounded bg-error/20 text-error font-numeric-data text-[11px] uppercase">Security</span>
+<span class="font-numeric-data text-on-surface-variant text-[12px]">18 mins ago</span>
+</div>
+<p class="font-body-md text-label-md text-on-surface-variant leading-relaxed">
+                MacBook Pro 16 inch attempted login from Zurich, Switzerland (IP 194.230.14.92 via Safari 17.4).
+              </p>
+<div class="flex items-center gap-sm pt-xs">
+<button class="px-md py-xs rounded-lg bg-secondary text-on-secondary font-label-md text-[13px] hover:bg-secondary-fixed transition-colors cursor-pointer shadow-sm" type="button">
+                  Approve Device
+                </button>
+<button class="px-md py-xs rounded-lg bg-surface-container-high hover:bg-surface-variant text-error font-label-md text-[13px] transition-colors cursor-pointer" type="button">
+                  Block Session
+                </button>
+</div>
+</div>
+</div>
+<button aria-label="Dismiss notification" class="dismiss-btn opacity-60 hover:opacity-100 p-xs text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container-high transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<div class="notification-card group relative flex items-start justify-between gap-md p-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all shadow-sm" data-category="financial" data-status="unread">
+<div class="flex items-start gap-md min-w-0">
+<div class="relative shrink-0 w-10 h-10 rounded-xl bg-secondary/15 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[22px]">payments</span>
+<span class="unread-dot absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-surface-container-low"></span>
+</div>
+<div class="flex flex-col gap-xs min-w-0">
+<div class="flex items-center gap-sm flex-wrap">
+<span class="font-headline-md text-[16px] leading-[22px] text-on-surface font-medium">Inbound Wire Cleared ($342,000.00 USD)</span>
+<span class="px-xs py-0.5 rounded bg-secondary/20 text-secondary font-numeric-data text-[11px] uppercase">Financial</span>
+<span class="font-numeric-data text-on-surface-variant text-[12px]">1 hour ago</span>
+</div>
+<p class="font-body-md text-label-md text-on-surface-variant leading-relaxed">
+                Settlement completed for Enterprise Series C tranche disbursement from Horizon Trust Corp.
+              </p>
+<div class="flex items-center gap-sm pt-xs">
+<button class="px-md py-xs rounded-lg bg-primary text-on-primary font-label-md text-[13px] hover:bg-primary-fixed transition-colors cursor-pointer shadow-sm" type="button">
+                  View Transaction
+                </button>
+<button class="px-md py-xs rounded-lg bg-surface-container-high hover:bg-surface-variant text-on-surface-variant hover:text-on-surface font-label-md text-[13px] transition-colors cursor-pointer" type="button">
+                  Download Receipt
+                </button>
+</div>
+</div>
+</div>
+<button aria-label="Dismiss notification" class="dismiss-btn opacity-60 hover:opacity-100 p-xs text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container-high transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<div class="notification-card group relative flex items-start justify-between gap-md p-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all shadow-sm" data-category="system" data-status="unread">
+<div class="flex items-start gap-md min-w-0">
+<div class="relative shrink-0 w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[22px]">database</span>
+<span class="unread-dot absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-surface-container-low"></span>
+</div>
+<div class="flex flex-col gap-xs min-w-0">
+<div class="flex items-center gap-sm flex-wrap">
+<span class="font-headline-md text-[16px] leading-[22px] text-on-surface font-medium">Core Ledger Re-indexing Completed</span>
+<span class="px-xs py-0.5 rounded bg-primary/20 text-primary font-numeric-data text-[11px] uppercase">System</span>
+<span class="font-numeric-data text-on-surface-variant text-[12px]">3 hours ago</span>
+</div>
+<p class="font-body-md text-label-md text-on-surface-variant leading-relaxed">
+                Automated monthly checksum verification verified 1,842,910 accounts with zero parity mismatches.
+              </p>
+<div class="flex items-center gap-sm pt-xs">
+<button class="px-md py-xs rounded-lg bg-surface-container-high hover:bg-surface-variant text-on-surface font-label-md text-[13px] transition-colors cursor-pointer" type="button">
+                  View Integrity Logs
+                </button>
+</div>
+</div>
+</div>
+<button aria-label="Dismiss notification" class="dismiss-btn opacity-60 hover:opacity-100 p-xs text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container-high transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<div class="notification-card group relative flex items-start justify-between gap-md p-md rounded-xl bg-surface-container-lowest hover:bg-surface-container-low transition-all shadow-sm opacity-85" data-category="security" data-status="read">
+<div class="flex items-start gap-md min-w-0">
+<div class="shrink-0 w-10 h-10 rounded-xl bg-surface-container-high flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[22px]">key</span>
+</div>
+<div class="flex flex-col gap-xs min-w-0">
+<div class="flex items-center gap-sm flex-wrap">
+<span class="font-headline-md text-[16px] leading-[22px] text-on-surface font-medium">API Token Expiring in 48 Hours</span>
+<span class="px-xs py-0.5 rounded bg-surface-variant text-on-surface-variant font-numeric-data text-[11px] uppercase">Security</span>
+<span class="font-numeric-data text-on-surface-variant text-[12px]">Yesterday, 14:15</span>
+</div>
+<p class="font-body-md text-label-md text-on-surface-variant leading-relaxed">
+                Production Gateway key prod_apex_live_89a will lapse on March 30. Rotate to prevent webhook disruption.
+              </p>
+<div class="flex items-center gap-sm pt-xs">
+<button class="px-md py-xs rounded-lg bg-surface-container-high hover:bg-surface-variant text-on-surface font-label-md text-[13px] transition-colors cursor-pointer" type="button">
+                  Rotate Token
+                </button>
+</div>
+</div>
+</div>
+<button aria-label="Dismiss notification" class="dismiss-btn opacity-60 hover:opacity-100 p-xs text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container-high transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<div class="notification-card group relative flex items-start justify-between gap-md p-md rounded-xl bg-surface-container-lowest hover:bg-surface-container-low transition-all shadow-sm opacity-85" data-category="financial" data-status="read">
+<div class="flex items-start gap-md min-w-0">
+<div class="shrink-0 w-10 h-10 rounded-xl bg-surface-container-high flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[22px]">receipt_long</span>
+</div>
+<div class="flex flex-col gap-xs min-w-0">
+<div class="flex items-center gap-sm flex-wrap">
+<span class="font-headline-md text-[16px] leading-[22px] text-on-surface font-medium">Automated Vendor Invoice Settled</span>
+<span class="px-xs py-0.5 rounded bg-surface-variant text-on-surface-variant font-numeric-data text-[11px] uppercase">Financial</span>
+<span class="font-numeric-data text-on-surface-variant text-[12px]">Yesterday, 09:40</span>
+</div>
+<p class="font-body-md text-label-md text-on-surface-variant leading-relaxed">
+                Payment of $14,290.00 to Cloudflare Inc. successfully routed through Corporate Reserve account.
+              </p>
+<div class="flex items-center gap-sm pt-xs">
+<button class="px-md py-xs rounded-lg bg-surface-container-high hover:bg-surface-variant text-on-surface font-label-md text-[13px] transition-colors cursor-pointer" type="button">
+                  View Transaction
+                </button>
+</div>
+</div>
+</div>
+<button aria-label="Dismiss notification" class="dismiss-btn opacity-60 hover:opacity-100 p-xs text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container-high transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<div class="notification-card group relative flex items-start justify-between gap-md p-md rounded-xl bg-surface-container-lowest hover:bg-surface-container-low transition-all shadow-sm opacity-85" data-category="system" data-status="read">
+<div class="flex items-start gap-md min-w-0">
+<div class="shrink-0 w-10 h-10 rounded-xl bg-surface-container-high flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[22px]">build_circle</span>
+</div>
+<div class="flex flex-col gap-xs min-w-0">
+<div class="flex items-center gap-sm flex-wrap">
+<span class="font-headline-md text-[16px] leading-[22px] text-on-surface font-medium">Scheduled Architecture Maintenance</span>
+<span class="px-xs py-0.5 rounded bg-surface-variant text-on-surface-variant font-numeric-data text-[11px] uppercase">System</span>
+<span class="font-numeric-data text-on-surface-variant text-[12px]">2 days ago</span>
+</div>
+<p class="font-body-md text-label-md text-on-surface-variant leading-relaxed">
+                Apex Infrastructure upgrades planned for Sunday 02:00 UTC. Zero downtime anticipated for main portal.
+              </p>
+<div class="flex items-center gap-sm pt-xs">
+<button class="px-md py-xs rounded-lg bg-surface-container-high hover:bg-surface-variant text-on-surface font-label-md text-[13px] transition-colors cursor-pointer" type="button">
+                  View Schedule
+                </button>
+</div>
+</div>
+</div>
+<button aria-label="Dismiss notification" class="dismiss-btn opacity-60 hover:opacity-100 p-xs text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container-high transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<div class="notification-card group relative flex items-start justify-between gap-md p-md rounded-xl bg-surface-container-lowest hover:bg-surface-container-low transition-all shadow-sm opacity-85" data-category="security" data-status="read">
+<div class="flex items-start gap-md min-w-0">
+<div class="shrink-0 w-10 h-10 rounded-xl bg-surface-container-high flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[22px]">shield</span>
+</div>
+<div class="flex flex-col gap-xs min-w-0">
+<div class="flex items-center gap-sm flex-wrap">
+<span class="font-headline-md text-[16px] leading-[22px] text-on-surface font-medium">Quarterly Compliance Attestation Ready</span>
+<span class="px-xs py-0.5 rounded bg-surface-variant text-on-surface-variant font-numeric-data text-[11px] uppercase">Security</span>
+<span class="font-numeric-data text-on-surface-variant text-[12px]">4 days ago</span>
+</div>
+<p class="font-body-md text-label-md text-on-surface-variant leading-relaxed">
+                SOC2 Type II external audit documentation package compiled and ready for authorized sign-off.
+              </p>
+<div class="flex items-center gap-sm pt-xs">
+<button class="px-md py-xs rounded-lg bg-surface-container-high hover:bg-surface-variant text-on-surface font-label-md text-[13px] transition-colors cursor-pointer" type="button">
+                  Review Packet
+                </button>
+</div>
+</div>
+</div>
+<button aria-label="Dismiss notification" class="dismiss-btn opacity-60 hover:opacity-100 p-xs text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container-high transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+</div>
+<div class="hidden flex-col items-center justify-center p-xl rounded-xl bg-surface-container-low text-center gap-md" id="empty-state">
+<div class="w-14 h-14 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[28px]">notifications_off</span>
+</div>
+<div class="flex flex-col gap-xs">
+<p class="font-headline-md text-headline-md text-on-surface">No alerts in this category</p>
+<p class="font-body-md text-on-surface-variant text-label-md max-w-sm">
+            All system logs and financial transactions are currently reconciled with your active policy rules.
+          </p>
+</div>
+</div>
+</div>
+<div class="lg:col-span-4 flex flex-col gap-md">
+<div class="p-md rounded-xl bg-surface-container-low flex flex-col gap-md shadow-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Priority Delivery</span>
+<span class="font-numeric-data text-[12px] text-secondary">Active</span>
+</div>
+<div class="flex flex-col gap-sm">
+<div class="flex items-center justify-between p-sm rounded-lg bg-surface-container-lowest">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary text-[20px]">smartphone</span>
+<span class="font-label-md text-label-md text-on-surface">Instant Push</span>
+</div>
+<span class="font-numeric-data text-[12px] text-on-surface-variant">Enabled</span>
+</div>
+<div class="flex items-center justify-between p-sm rounded-lg bg-surface-container-lowest">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-secondary text-[20px]">sms</span>
+<span class="font-label-md text-label-md text-on-surface">Critical SMS</span>
+</div>
+<span class="font-numeric-data text-[12px] text-on-surface-variant">Tier 1 Only</span>
+</div>
+<div class="flex items-center justify-between p-sm rounded-lg bg-surface-container-lowest">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-tertiary text-[20px]">mail</span>
+<span class="font-label-md text-label-md text-on-surface">Daily Digest</span>
+</div>
+<span class="font-numeric-data text-[12px] text-on-surface-variant">07:00 UTC</span>
+</div>
+</div>
+</div>
+<div class="p-md rounded-xl bg-surface-container-low flex flex-col gap-md shadow-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Security Health Pulse</span>
+<span class="font-numeric-data text-[12px] text-primary">99.8% OK</span>
+</div>
+<div class="flex items-center gap-md">
+<svg class="w-16 h-16 shrink-0 -rotate-90" viewBox="0 0 36 36">
+<path class="text-surface-container-highest" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3.5"></path>
+<path class="text-secondary" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="92, 100" stroke-linecap="round" stroke-width="3.5"></path>
+</svg>
+<div class="flex flex-col">
+<span class="font-numeric-data text-headline-md text-on-surface">24/24</span>
+<span class="font-body-md text-label-md text-on-surface-variant">Guards responsive without delay anomalies</span>
+</div>
+</div>
+</div>
+<div class="relative overflow-hidden rounded-xl bg-surface-container-lowest shadow-sm flex flex-col">
+<div class="h-28 w-full bg-cover bg-center" data-alt="Abstract sleek dark architecture with subtle illuminated neon blue and green data traces across high tech glass panels in an executive modern fintech facility." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDKAAI2LgLdXq4GC1MK9ymvwlcabn5WUKRA5tBFpUx2-OuSDi2UWF61jFhBWe1l1OHQQw2o-Xyowkv8wPCVo3Tsd1tjQfclsilYzWUdROXeIaeS2imp3aMrZwigFDahyFuUIwGFeSE5Js6zWkJuYY2mgTwvMna_uerLI3vg7LZmgG0ZND2AOs3cWYpVgAZjKz0Un1mWinEc40ol0tP9Xrt1DAohlSZL8NsxsF2uvf6VP2AUhPYtNbcv')"></div>
+<div class="p-md flex flex-col gap-xs">
+<span class="font-label-md text-label-md text-on-surface font-medium">Automated Alert Routing</span>
+<p class="font-body-md text-[13px] text-on-surface-variant leading-relaxed">
+            Direct ledger alerts to dedicated Webhook endpoints or secure Slack channels with custom thresholds.
+          </p>
+<a class="inline-flex items-center gap-xs font-label-md text-[13px] text-primary hover:text-primary-fixed mt-xs group" href="#">
+<span>Configure webhooks</span>
+<span class="material-symbols-outlined text-[16px] group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+<script>
+    (function () {
+      const bellButton = document.querySelector('header button[aria-label="Notifications"]');
+      if (bellButton) {
+        bellButton.classList.remove('text-on-surface-variant');
+        bellButton.classList.add('text-primary', 'bg-primary/10');
+      }
+
+      const stream = document.getElementById('notifications-stream');
+      const emptyState = document.getElementById('empty-state');
+      const counter = document.getElementById('unread-counter');
+      const markAllBtn = document.getElementById('mark-all-read-btn');
+      const filterTabs = document.querySelectorAll('.filter-tab');
+
+      function updateUnreadCount() {
+        const unreadItems = stream.querySelectorAll('[data-status="unread"]');
+        const count = unreadItems.length;
+        if (counter) {
+          counter.textContent = count > 0 ? `${count} unread` : 'All read';
+        }
+        const unreadTabBadge = document.querySelector('[data-filter="unread"] span');
+        if (unreadTabBadge) {
+          unreadTabBadge.textContent = count;
+          if (count === 0) {
+            unreadTabBadge.classList.add('opacity-40');
+          } else {
+            unreadTabBadge.classList.remove('opacity-40');
+          }
+        }
+      }
+
+      function applyFilter(filter) {
+        const cards = stream.querySelectorAll('.notification-card');
+        let visibleCount = 0;
+
+        cards.forEach((card) => {
+          const category = card.getAttribute('data-category');
+          const status = card.getAttribute('data-status');
+
+          let match = false;
+          if (filter === 'all') match = true;
+          else if (filter === 'unread') match = status === 'unread';
+          else if (filter === category) match = true;
+
+          if (match) {
+            card.classList.remove('hidden');
+            visibleCount++;
+          } else {
+            card.classList.add('hidden');
+          }
+        });
+
+        if (visibleCount === 0) {
+          emptyState.classList.remove('hidden');
+          emptyState.classList.add('flex');
+        } else {
+          emptyState.classList.add('hidden');
+          emptyState.classList.remove('flex');
+        }
+      }
+
+      filterTabs.forEach((tab) => {
+        tab.addEventListener('click', () => {
+          filterTabs.forEach((t) => {
+            t.classList.remove('bg-surface-container', 'text-on-surface');
+            t.classList.add('text-on-surface-variant');
+          });
+          tab.classList.add('bg-surface-container', 'text-on-surface');
+          tab.classList.remove('text-on-surface-variant');
+          applyFilter(tab.getAttribute('data-filter'));
+        });
+      });
+
+      if (markAllBtn) {
+        markAllBtn.addEventListener('click', () => {
+          const unreadCards = stream.querySelectorAll('[data-status="unread"]');
+          unreadCards.forEach((card) => {
+            card.setAttribute('data-status', 'read');
+            card.classList.remove('bg-surface-container-low');
+            card.classList.add('bg-surface-container-lowest', 'opacity-85');
+            const dot = card.querySelector('.unread-dot');
+            if (dot) dot.remove();
+          });
+          updateUnreadCount();
+
+          const activeTab = document.querySelector('.filter-tab.bg-surface-container');
+          if (activeTab && activeTab.getAttribute('data-filter') === 'unread') {
+            applyFilter('unread');
+          }
+        });
+      }
+
+      stream.addEventListener('click', (event) => {
+        const dismissBtn = event.target.closest('.dismiss-btn');
+        if (dismissBtn) {
+          const card = dismissBtn.closest('.notification-card');
+          if (card) {
+            card.style.transition = 'all 0.2s ease-out';
+            card.style.opacity = '0';
+            card.style.transform = 'translateX(12px)';
+            setTimeout(() => {
+              card.remove();
+              updateUnreadCount();
+              const activeTab = document.querySelector('.filter-tab.bg-surface-container');
+              const filter = activeTab ? activeTab.getAttribute('data-filter') : 'all';
+              applyFilter(filter);
+            }, 200);
+          }
+        }
+      });
+
+      updateUnreadCount();
+    })();
+  </script>
+</div></div><footer class="w-full bg-surface-container-lowest border-t border-outline-variant/30 py-lg mt-auto"><div class="max-w-container-max mx-auto px-lg flex flex-col sm:flex-row items-center justify-between gap-md text-on-surface-variant font-label-md text-label-md"><div class="flex items-center gap-sm"><span class="material-symbols-outlined text-primary text-[20px]">account_balance</span><span>© 2025 Apex Finance Inc. All rights reserved.</span></div><div class="flex items-center gap-lg"><a class="hover:text-on-surface transition-colors" href="#">Privacy Policy</a><a class="hover:text-on-surface transition-colors" href="#">Terms of Service</a><a class="hover:text-on-surface transition-colors" href="#">Security</a><a class="hover:text-on-surface transition-colors" href="#">Help Center</a></div></div></footer></main></body></html>
