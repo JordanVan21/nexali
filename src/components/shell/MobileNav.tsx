@@ -7,10 +7,13 @@ import { cn } from "../../lib/utils";
 
 const tabClass = (active: boolean) =>
   cn(
-    "flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg py-1 text-xs font-medium transition-colors",
+    "flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg py-1 text-xs font-medium leading-tight transition-colors",
+    "max-[340px]:gap-0.5 max-[340px]:text-[10px]",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
     active ? "text-primary" : "text-muted-foreground hover:text-foreground"
   );
+
+const tabLabelClass = "w-full text-center leading-tight break-words";
 
 type MoreTabButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { active: boolean };
 
@@ -21,7 +24,7 @@ const MoreTabButton = forwardRef<HTMLButtonElement, MoreTabButtonProps>(function
   return (
     <button ref={ref} type="button" aria-label="More" className={tabClass(active)} {...props}>
       <MoreHorizontal className="h-5 w-5" aria-hidden="true" strokeWidth={active ? 2.5 : 2} />
-      <span>More</span>
+      <span className={tabLabelClass}>More</span>
     </button>
   );
 });
@@ -39,7 +42,7 @@ export function MobileNav() {
   return (
     <nav
       aria-label="Bottom"
-      className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(var(--mobile-nav-height)+env(safe-area-inset-bottom))] items-stretch gap-1 border-t border-primary/10 bg-gradient-card px-2 pb-[env(safe-area-inset-bottom)] shadow-card backdrop-blur-md md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(var(--mobile-nav-height)+env(safe-area-inset-bottom))] items-stretch gap-1 border-t border-primary/10 bg-gradient-card px-2 pb-[env(safe-area-inset-bottom)] shadow-card backdrop-blur-md max-[340px]:gap-0.5 max-[340px]:px-1 md:hidden"
     >
       {mobileBottomNavRoutes.map((route) => {
         const active = isRouteActive(location.pathname, route.path);
@@ -47,7 +50,7 @@ export function MobileNav() {
         return (
           <Link key={route.path} to={route.path} aria-current={active ? "page" : undefined} className={tabClass(active)}>
             <Icon className="h-5 w-5" aria-hidden="true" strokeWidth={active ? 2.5 : 2} />
-            <span>{route.label}</span>
+            <span className={tabLabelClass}>{route.label}</span>
           </Link>
         );
       })}

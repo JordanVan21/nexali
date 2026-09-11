@@ -179,7 +179,9 @@ export default function Dashboard() {
         <div className="flex-1">
           <div className="text-2xl md:text-4xl lg:text-6xl font-extrabold text-foreground mb-8">
             {profile.isLoading ? "Welcome..." : typed}
-            <span className="animate-pulse">|</span>
+            {(profile.isLoading || typed.length > 0) && (
+              <span className="animate-pulse">|</span>
+            )}
           </div>
         </div>
       </div>
