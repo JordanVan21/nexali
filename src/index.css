@@ -13,12 +13,22 @@
     --popover: 240 12% 12%;
     --popover-foreground: 0 0% 95%;
 
-    --primary: 142 76% 45%;
-    --primary-foreground: 240 15% 7%;
-    --primary-glow: 142 86% 65%;
+    /* Nexali brand primary: periwinkle blue (~#ADC6FF), a light/bright
+       accent, so its foreground stays dark for contrast (see AA note
+       below) rather than the light text used on darker accent colors. */
+    --primary: 222 100% 84%;
+    --primary-foreground: 224 71% 8%;
+    --primary-glow: 222 100% 91%;
+    --primary-hover: 222 85% 76%;
+    --primary-muted: 222 35% 22%;
+    --primary-border: 222 70% 58%;
+    --primary-ring: 222 90% 72%;
 
-    --secondary: 200 95% 55%;
-    --secondary-foreground: 240 15% 7%;
+    /* Secondary: a muted cool-gray accent, deliberately distinct from
+       primary blue so the two don't compete for attention now that blue
+       is the brand color rather than a secondary accent. */
+    --secondary: 222 18% 30%;
+    --secondary-foreground: 0 0% 95%;
 
     --muted: 240 8% 20%;
     --muted-foreground: 240 5% 65%;
@@ -37,7 +47,7 @@
 
     --border: 240 8% 20%;
     --input: 240 8% 20%;
-    --ring: 142 76% 45%;
+    --ring: 222 90% 72%;
 
     --radius: 1rem;
 
@@ -48,7 +58,7 @@
 
     /* Financial app gradients */
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
-    --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)), hsl(200 100% 70%));
+    --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)), hsl(222 18% 45%));
     --gradient-hero: linear-gradient(135deg, hsl(240 15% 7%), hsl(240 12% 12%));
     --gradient-card: linear-gradient(135deg, hsl(var(--card)), hsl(240 10% 15%));
     
@@ -96,8 +106,25 @@
     @apply border-border;
   }
 
+  /* Guarantees the dark Nexali background fills at least the full viewport
+     on every page, even when a page's own content is shorter than the
+     screen (e.g. Transactions with few rows). Without this, body's
+     rendered box only extends as tall as its content, and the browser's
+     default white canvas shows through below it. Belt-and-suspenders with
+     the min-h-screen wrapper each top-level page/layout also provides. */
+  html {
+    min-height: 100%;
+  }
+
   body {
     @apply bg-background text-foreground;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  #root {
+    min-height: 100vh;
+    min-height: 100dvh;
   }
 
 }

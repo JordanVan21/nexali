@@ -1,426 +1,338 @@
-import { Fragment, useEffect, useState } from "react";
-import { TransactionNavbar } from "./TransactionFilterBar.tsx";
-import Modal from "./Modal.tsx";
-import { useDeleteTransaction } from "../features/transactions/useTransactions.ts";
-import { type TransactionWithCat, type TxId } from "../lib/transactions.ts";
-import { Button } from "./ui/button.tsx";
-import { useUserInfo } from "../shared/useUserId.ts";
-import { useIsMobile } from "../hooks/useMobile.tsx";
-import { Card, CardContent } from "./ui/card.tsx";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Edit,
-  Trash2,
-  ChevronsLeft,
-  ChevronsRight,
-} from "lucide-react";
+import { useState } from "react";
+import { Edit, Trash2, TrendingDown, TrendingUp, Receipt, SearchX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { useDeleteTransaction, useTransactionWithFilters } from "../features/transactions/useTransactions";
+import { type TransactionWithCat } from "../lib/transactions";
+import { hasActiveFilters, type Filters } from "../features/querykeys";
+import { useUserInfo } from "../shared/useUserId";
+import { formatCurrency } from "../lib/format";
+import { getCategoryIcon } from "../lib/categoryIcon";
+import { getErrorMessage, cn } from "../lib/utils";
+import { Button } from "./ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "./ui/select.tsx";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "./ui/table.tsx";
-import { type Filters } from "../features/querykeys.ts";
-import { useTransactionWithFilters } from "../features/transactions/useTransactions.ts";
+} from "./ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import { Skeleton } from "./states/Skeleton";
+import { EmptyState } from "./states/EmptyState";
+import { ErrorState } from "./states/ErrorState";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { MobileTransactionCard } from "./MobileTransactionCard";
 
-interface TableProps {
+interface TransactionTableProps {
   itemsPerPage?: number;
   filters: Filters;
-  onFiltersChange: (filters: Filters) => void;
+  onAddTransaction: () => void;
+  onEditTransaction: (tx: TransactionWithCat) => void;
 }
 
-function TransactionTable({ itemsPerPage = 10, filters, onFiltersChange }: TableProps) {
-  const [activeId, setActiveId] = useState<TxId | null>(null);
-  const [editingTx, setEditingTx] = useState<TransactionWithCat | null>(null);
+/** Up to 5 page numbers centered around the current page. */
+function visiblePageNumbers(currentPage: number, totalPages: number): number[] {
+  const count = Math.min(totalPages, 5);
+  let start = 1;
+  if (totalPages > 5) {
+    if (currentPage <= 3) start = 1;
+    else if (currentPage >= totalPages - 2) start = totalPages - 4;
+    else start = currentPage - 2;
+  }
+  return Array.from({ length: count }, (_, i) => start + i);
+}
+
+function TableSkeleton() {
+  return (
+    <div className="space-y-2 p-4 sm:p-6" aria-hidden="true">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <Skeleton key={i} className="h-14 w-full" />
+      ))}
+    </div>
+  );
+}
+
+export function TransactionTable({
+  itemsPerPage = 10,
+  filters,
+  onAddTransaction,
+  onEditTransaction,
+}: TransactionTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(itemsPerPage);
+  const [pendingDelete, setPendingDelete] = useState<TransactionWithCat | null>(null);
 
   const { userId } = useUserInfo();
-  const isMobile = useIsMobile();
-
-  const txQuery = useTransactionWithFilters(userId, filters)
-    
+  const txQuery = useTransactionWithFilters(userId, filters);
   const delTx = useDeleteTransaction(userId);
 
-  const handleRowClick = (id: TxId) =>
-    setActiveId((prev) => (prev === id ? null : id));
-
-  const handleEdit = (tx: TransactionWithCat) => {
-    setEditingTx(tx);
-  };
-
-  useEffect(() => {
-    const dlg = document.getElementById(
-      "edit_modal"
-    ) as HTMLDialogElement | null;
-    if (!dlg) return;
-
-    try {
-      if (editingTx && !dlg.open) {
-        dlg.showModal();
-      } else if (!editingTx && dlg.open) {
-        dlg.close();
-      }
-    } catch (e) {
-      console.warn("Dialog open/close race:", e);
-    }
-  }, [editingTx]);
-
-  // Accept TxId, not string
-  const handleDelete = (id: TxId) => {
-    if (!confirm("Delete this transaction?")) return;
-    delTx.mutate(id, {
-      onSuccess: () => setActiveId(null),
-      onError: (e) => alert(e.message || "Delete failed"),
-    });
-  };
-
-  if (txQuery.isLoading)
-    return <div className="p-4 text-base-content">Loading transactions…</div>;
-  if (txQuery.isError) {
-    return (
-      <div className="p-4 text-destructive">
-        {txQuery.error?.message ?? "Failed to load transactions"}
-      </div>
-    );
-  }
-
   const transactions = (txQuery.data ?? []) as TransactionWithCat[];
-
-  const totalPages = Math.ceil(transactions.length / pageSize);
+  const totalPages = Math.max(1, Math.ceil(transactions.length / pageSize));
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
   const currentTransactions = transactions.slice(startIndex, endIndex);
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    setActiveId(null);
-  };
-
+  const handlePageChange = (page: number) => setCurrentPage(page);
   const handlePageSizeChange = (newPageSize: string) => {
-    setPageSize(parseInt(newPageSize));
+    setPageSize(parseInt(newPageSize, 10));
     setCurrentPage(1);
-    setActiveId(null);
   };
 
-  const MobileTransactionCard = ({
-    tx,
-    index,
-  }: {
-    tx: TransactionWithCat;
-    index: number;
-  }) => {
-    const isExpanded = activeId === tx.id;
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    delTx.mutate(pendingDelete.id, {
+      onSuccess: () => setPendingDelete(null),
+    });
+  };
 
+  if (txQuery.isLoading) {
+    return <TableSkeleton />;
+  }
+
+  if (txQuery.isError) {
     return (
-      <Card className="mb-3 border-border/20 bg-card/50">
-        <CardContent className="p-4">
-          <div className="cursor-pointer" onClick={() => handleRowClick(tx.id)}>
-            <div className="flex justify-between items-start mb-2">
-              <div className="flex-1">
-                <div className="font-medium text-foreground text-sm">
-                  {tx.categories?.name ?? "Unknown"}
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  #{startIndex + index + 1} • {tx.categories?.type ?? "Unknown"}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="font-semibold text-foreground">
-                  ${tx.amount}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {tx.created_at
-                    ? new Date(tx.created_at).toLocaleDateString()
-                    : ""}
-                </div>
-              </div>
-            </div>
-            {tx.note && (
-              <div className="text-sm text-muted-foreground bg-accent/20 rounded-md p-2 mt-2">
-                {tx.note}
-              </div>
-            )}
-          </div>
-
-          {isExpanded && (
-            <div className="flex gap-2 mt-3 pt-3 border-t border-border/20">
-              <Button
-                size="sm"
-                variant="default"
-                onClick={() => handleEdit(tx)}
-                className="flex-1 gap-2"
-              >
-                <Edit className="h-4 w-4" />
-                Edit
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDelete(tx.id);
-                }}
-                disabled={delTx.isPending}
-                className="flex-1 gap-2"
-              >
-                <Trash2 className="h-4 w-4" />
-                {delTx.isPending ? "Deleting…" : "Delete"}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <div className="p-4 sm:p-6">
+        <ErrorState
+          title="Couldn't load transactions"
+          message={getErrorMessage(txQuery.error, "Please check your connection and try again.")}
+          onRetry={() => txQuery.refetch()}
+        />
+      </div>
     );
-  };
+  }
 
-  const PaginationControls = () => (
-    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 px-2">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <span>Show</span>
-        <Select
-          value={pageSize.toString()}
-          onValueChange={handlePageSizeChange}
-        >
-          <SelectTrigger className="w-20 h-8">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="5">5</SelectItem>
-            <SelectItem value="10">10</SelectItem>
-            <SelectItem value="20">20</SelectItem>
-            <SelectItem value="50">50</SelectItem>
-          </SelectContent>
-        </Select>
-        <span>per page</span>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">
-          {startIndex + 1}-{Math.min(endIndex, transactions.length)} of{" "}
-          {transactions.length}
-        </span>
-
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handlePageChange(1)}
-            disabled={currentPage === 1}
-            className="h-8 w-8 p-0"
-          >
-            <ChevronsLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="h-8 w-8 p-0"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-
-          {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-            let pageNum;
-            if (totalPages <= 5) {
-              pageNum = i + 1;
-            } else if (currentPage <= 3) {
-              pageNum = i + 1;
-            } else if (currentPage >= totalPages - 2) {
-              pageNum = totalPages - 4 + i;
-            } else {
-              pageNum = currentPage - 2 + i;
-            }
-
-            return (
-              <Button
-                key={pageNum}
-                variant={currentPage === pageNum ? "default" : "outline"}
-                size="sm"
-                onClick={() => handlePageChange(pageNum)}
-                className="h-8 w-8 p-0"
-              >
-                {pageNum}
+  if (transactions.length === 0) {
+    const filtered = hasActiveFilters(filters);
+    return (
+      <div className="p-4 sm:p-6">
+        <EmptyState
+          icon={filtered ? SearchX : Receipt}
+          title={filtered ? "No transactions match these filters" : "No transactions yet"}
+          description={
+            filtered
+              ? "Try widening your search or clearing a filter to see more results."
+              : "Add your first transaction to start tracking your spending."
+          }
+          action={
+            !filtered && (
+              <Button variant="hero" onClick={onAddTransaction}>
+                Add Transaction
               </Button>
-            );
-          })}
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="h-8 w-8 p-0"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handlePageChange(totalPages)}
-            disabled={currentPage === totalPages}
-            className="h-8 w-8 p-0"
-          >
-            <ChevronsRight className="h-4 w-4" />
-          </Button>
-        </div>
+            )
+          }
+        />
       </div>
-    </div>
-  );
+    );
+  }
 
   return (
     <div>
-      <TransactionNavbar
-        filters={filters}
-        onFiltersChange={onFiltersChange}
-        onTxCreated={async () => {
-          await txQuery.refetch();
-        }}
-      />
-      <Modal
-        tx={editingTx}
-        dialogId="edit_modal"
-        onTxCreated={async () => {
-          await txQuery.refetch();
-        }}
-        onClose={() => setEditingTx(null)}
-        showTrigger={false}
-      />
+      {/* Mobile: card list. Hidden at md and above via CSS, not JS, so there's no render-time flash of the wrong layout. */}
+      <ul className="space-y-3 p-4 md:hidden">
+        {currentTransactions.map((tx) => (
+          <MobileTransactionCard
+            key={tx.id}
+            tx={tx}
+            onEdit={onEditTransaction}
+            onDelete={setPendingDelete}
+          />
+        ))}
+      </ul>
 
-      <div className="p-4 sm:p-6">
-        {transactions.length === 0 ? (
-          <div className="p-12 text-center text-muted-foreground">
-            <div>No transactions yet</div>
-            <div>Add your first transaction to get started</div>
-          </div>
-        ) : (
-          <>
-            {isMobile ? (
-              <div>
-                {currentTransactions.map((tx, index) => (
-                  <MobileTransactionCard key={tx.id} tx={tx} index={index} />
-                ))}
-              </div>
-            ) : (
-              <div className="border border-border/20 rounded-lg overflow-hidden bg-card/30">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">#</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead className="min-w-[200px]">Note</TableHead>
-                      <TableHead className="min-w-[150px]">Merchant</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="w-32">Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {currentTransactions.map((tx, index) => {
-                      const isExpanded = activeId === tx.id;
-                      return (
-                        <Fragment key={tx.id}>
-                          <TableRow
-                            onClick={() => handleRowClick(tx.id)}
-                            className={`cursor-pointer transition-colors duration-200 ${
-                              isExpanded ? "bg-accent/20" : "hover:bg-accent/10"
-                            }`}
-                          >
-                            <TableCell className="font-mono text-sm">
-                              {startIndex + index + 1}
-                            </TableCell>
-                            <TableCell>
-                              <div className="font-medium">
-                                {tx.categories?.name ?? "Unknown"}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="max-w-[300px] truncate">
-                                {tx.note || "—"}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {" "}
-                              <div className="max-w-[200px] truncate">
-                                {tx.merchant || "—"}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <span
-                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                  tx.categories?.type === "income"
-                                    ? "bg-green-500/10 text-green-500"
-                                    : "bg-red-500/10 text-red-500"
-                                }`}
-                              >
-                                {tx.categories?.type ?? "Unknown"}
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-right font-mono">
-                              ${tx.amount}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground text-sm">
-                              {tx.created_at
-                                ? new Date(tx.created_at).toLocaleDateString()
-                                : "—"}
-                            </TableCell>
-                          </TableRow>
+      {/* Tablet/desktop: table. The bordered card surface itself is owned by
+          the page (Transactions.tsx) so the header, rows, and footer below
+          read as one integrated surface, matching the approved reference,
+          instead of a table-in-a-card-in-a-card. */}
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="w-28">Date</TableHead>
+              <TableHead className="min-w-[200px]">Merchant</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+              <TableHead className="w-24 text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {currentTransactions.map((tx) => {
+              const isIncome = tx.categories?.type === "income";
+              const categoryName = tx.categories?.name ?? "Uncategorized";
+              const amountLabel = `${isIncome ? "+" : "-"}${formatCurrency(Math.abs(tx.amount))}`;
+              const MerchantIcon = getCategoryIcon(categoryName);
 
-                          {isExpanded && (
-                            <TableRow className="bg-accent/10">
-                              <TableCell colSpan={7} className="py-4">
-                                <div className="flex justify-end gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="default"
-                                    onClick={() => handleEdit(tx)}
-                                    className="gap-2"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                    Edit
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDelete(tx.id);
-                                    }}
-                                    disabled={delTx.isPending}
-                                    className="gap-2"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                    {delTx.isPending ? "Deleting…" : "Delete"}
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </Fragment>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-
-            <PaginationControls />
-          </>
-        )}
+              return (
+                <TableRow key={tx.id}>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {tx.created_at ? new Date(tx.created_at).toLocaleDateString() : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/40 text-foreground/80"
+                        aria-hidden="true"
+                      >
+                        <MerchantIcon className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="max-w-[240px] truncate font-medium text-foreground">
+                          {tx.merchant || categoryName}
+                        </div>
+                        {tx.note && (
+                          <div className="max-w-[240px] truncate text-xs text-muted-foreground">
+                            {tx.note}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center rounded-full border border-border/40 bg-accent/20 px-2 py-0.5 text-xs font-medium text-foreground">
+                      {categoryName}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 text-sm font-medium",
+                        isIncome ? "text-success" : "text-destructive"
+                      )}
+                    >
+                      {isIncome ? (
+                        <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
+                      ) : (
+                        <TrendingDown className="h-3.5 w-3.5" aria-hidden="true" />
+                      )}
+                      {isIncome ? "Income" : "Expense"}
+                    </span>
+                  </TableCell>
+                  <TableCell
+                    className={cn(
+                      "text-right font-semibold [font-variant-numeric:tabular-nums]",
+                      isIncome ? "text-success" : "text-destructive"
+                    )}
+                  >
+                    {amountLabel}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label={`Edit transaction: ${tx.merchant || categoryName}, ${amountLabel}`}
+                        onClick={() => onEditTransaction(tx)}
+                      >
+                        <Edit className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                        aria-label={`Delete transaction: ${tx.merchant || categoryName}, ${amountLabel}`}
+                        onClick={() => setPendingDelete(tx)}
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       </div>
+
+      {/* Pagination footer: same surface as the table/list above it, per the
+          approved reference (range/count left, pagination right). */}
+      <div className="flex flex-col items-center justify-between gap-3 border-t border-border/20 px-4 py-3 sm:flex-row md:px-6">
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <span>
+            {startIndex + 1}-{Math.min(endIndex, transactions.length)} of {transactions.length}
+          </span>
+          <div className="hidden items-center gap-2 sm:flex">
+            <span aria-hidden="true">·</span>
+            <Select value={pageSize.toString()} onValueChange={handlePageSizeChange}>
+              <SelectTrigger className="h-7 w-16 text-xs" aria-label="Rows per page">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5</SelectItem>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+            <span>per page</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="First page"
+            onClick={() => handlePageChange(1)}
+            disabled={currentPage === 1}
+          >
+            <ChevronsLeft className="h-4 w-4" aria-hidden="true" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Previous page"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+          </Button>
+          {visiblePageNumbers(currentPage, totalPages).map((pageNum) => (
+            <Button
+              key={pageNum}
+              variant={currentPage === pageNum ? "default" : "ghost"}
+              size="icon"
+              aria-label={`Page ${pageNum}`}
+              aria-current={currentPage === pageNum ? "page" : undefined}
+              onClick={() => handlePageChange(pageNum)}
+            >
+              {pageNum}
+            </Button>
+          ))}
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Next page"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Last page"
+            onClick={() => handlePageChange(totalPages)}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronsRight className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        </div>
+      </div>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+        title="Delete transaction?"
+        description={
+          pendingDelete
+            ? `This will permanently delete the ${formatCurrency(pendingDelete.amount)} ${
+                pendingDelete.merchant || pendingDelete.categories?.name || "transaction"
+              } entry. This can't be undone.`
+            : ""
+        }
+        onConfirm={confirmDelete}
+        isPending={delTx.isPending}
+        errorMessage={delTx.isError ? getErrorMessage(delTx.error, "Failed to delete transaction.") : null}
+      />
     </div>
   );
 }
-
-export default TransactionTable;

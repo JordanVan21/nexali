@@ -1,12 +1,12 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Mail, User } from "lucide-react";
 import { useSignUp } from "../features/user/useSignIn";
 import { useRedirectIfAuthenticated } from "../features/user/useRedirectIfAuthenticated";
 import { AuthLayout } from "../components/auth/AuthLayout";
 import { PasswordField } from "../components/auth/PasswordField";
-import { Label } from "../components/ui/label";
-import { Input } from "../components/ui/input";
+import { TextField } from "../components/auth/TextField";
 import { Button } from "../components/ui/button";
 import { StatusBanner } from "../components/states/StatusBanner";
 import { normalizeAuthError } from "../lib/authErrors";
@@ -70,37 +70,29 @@ export default function SignUp() {
       }
     >
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
-        <div>
-          <Label htmlFor="fullName" className="text-card-foreground">
-            Full name
-          </Label>
-          <Input
-            id="fullName"
-            type="text"
-            autoComplete="name"
-            placeholder="Jordan Van"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            required
-            className="mt-2"
-          />
-        </div>
+        <TextField
+          id="fullName"
+          label="Full name"
+          icon={User}
+          type="text"
+          autoComplete="name"
+          placeholder="Jordan Van"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          required
+        />
 
-        <div>
-          <Label htmlFor="email" className="text-card-foreground">
-            Email
-          </Label>
-          <Input
-            id="email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="mt-2"
-          />
-        </div>
+        <TextField
+          id="email"
+          label="Email"
+          icon={Mail}
+          type="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
 
         <PasswordField
           id="password"

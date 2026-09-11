@@ -1,10 +1,9 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, KeyRound, Mail } from "lucide-react";
 import { AuthLayout } from "../components/auth/AuthLayout";
-import { Label } from "../components/ui/label";
-import { Input } from "../components/ui/input";
+import { TextField } from "../components/auth/TextField";
 import { Button } from "../components/ui/button";
 import { StatusBanner } from "../components/states/StatusBanner";
 import { requestPasswordReset } from "../lib/auth";
@@ -32,8 +31,9 @@ export default function ForgotPassword() {
 
   return (
     <AuthLayout
-      title="Reset your password"
-      subtitle="Enter your email and we'll send you a link to reset your password."
+      title="Reset Your Password"
+      subtitle="Enter your email address and we'll send you instructions to reset your password."
+      icon={KeyRound}
       footer={
         <Link to="/signin" className="inline-flex items-center gap-1.5 text-primary hover:underline">
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -48,21 +48,17 @@ export default function ForgotPassword() {
         </StatusBanner>
       ) : (
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
-          <div>
-            <Label htmlFor="email" className="text-card-foreground">
-              Email
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="mt-2"
-            />
-          </div>
+          <TextField
+            id="email"
+            label="Email"
+            icon={Mail}
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
 
           {status === "error" && errorMessage && (
             <StatusBanner variant="error">{errorMessage}</StatusBanner>

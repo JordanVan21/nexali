@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Landmark, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { Button } from "../ui/button";
+import { BrandMark } from "../BrandMark";
 
 /**
  * Header for public (unauthenticated) pages, currently just the Landing
@@ -20,7 +21,7 @@ export function PublicHeader() {
           to="/"
           className="flex items-center gap-2 rounded-lg text-lg font-bold text-foreground transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          <Landmark className="h-6 w-6 text-primary" aria-hidden="true" />
+          <BrandMark size="sm" />
           Nexali
         </Link>
 

@@ -154,7 +154,7 @@ export default function ResetPassword() {
   }
 
   return (
-    <AuthLayout title="Create a new password" subtitle="Choose a new password for your account.">
+    <AuthLayout title="Create New Password" subtitle="Choose a strong password to secure your Nexali account.">
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
         <PasswordField
           id="password"

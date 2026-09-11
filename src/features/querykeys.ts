@@ -13,6 +13,20 @@ export type Filters = {
   offset?: number;
 };
 
+/** True when any user-facing filter (not sort/pagination) is active. */
+export function hasActiveFilters(f: Filters): boolean {
+  return !!(
+    f.search ||
+    f.fromISO ||
+    f.toISO ||
+    (f.categoryIds?.length ?? 0) > 0 ||
+    (f.categoryNames?.length ?? 0) > 0 ||
+    (f.types?.length ?? 0) > 0 ||
+    f.minAmount !== undefined ||
+    f.maxAmount !== undefined
+  );
+}
+
 export function normalizeFilters(f: Filters) {
   const nf = {
     ...f,

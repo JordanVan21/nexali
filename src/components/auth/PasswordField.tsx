@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 import type { ReactNode } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Lock } from "lucide-react";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import { cn } from "../../lib/utils";
@@ -52,6 +52,10 @@ export function PasswordField({
         {labelExtra}
       </div>
       <div className="relative mt-2">
+        <Lock
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+          aria-hidden="true"
+        />
         <Input
           id={inputId}
           type={visible ? "text" : "password"}
@@ -63,7 +67,7 @@ export function PasswordField({
           minLength={minLength}
           aria-invalid={invalid || undefined}
           aria-describedby={invalid && errorMessage ? errorId : undefined}
-          className="pr-10"
+          className="pl-10 pr-10"
         />
         <button
           type="button"

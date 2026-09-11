@@ -1,7 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
-import { Landmark, Bell, Settings } from "lucide-react";
+import { Bell, Settings } from "lucide-react";
 import { desktopPrimaryRoutes, isRouteActive } from "../../lib/routes";
 import { ProfileMenu } from "./ProfileMenu";
+import { BrandMark } from "../BrandMark";
 import { cn } from "../../lib/utils";
 
 const iconLinkClass =
@@ -33,31 +34,32 @@ export function AppNav() {
           to="/dashboard"
           className="flex shrink-0 items-center gap-2 rounded-lg text-lg font-bold text-foreground transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          <Landmark className="h-6 w-6 text-primary" aria-hidden="true" />
+          <BrandMark tone="solid" size="sm" />
           <span className="hidden sm:inline">Nexali</span>
         </Link>
 
-        <div className="flex min-w-0 flex-1 items-center justify-center gap-1">
+        {/* Text-only, matching navigation/navbar-desktop.png — the approved
+            reference has no icons in the center desktop nav (icons are a
+            mobile-nav convention there). Tighter horizontal padding at md
+            (tablet) than lg (desktop/laptop) is the tablet adaptation. */}
+        <div className="flex h-full min-w-0 flex-1 items-stretch justify-center gap-0.5 lg:gap-1">
           {desktopPrimaryRoutes.map((route) => {
             const active = isRouteActive(location.pathname, route.path);
-            const Icon = route.icon;
             return (
               <Link
                 key={route.path}
                 to={route.path}
                 aria-current={active ? "page" : undefined}
                 aria-label={route.label}
-                title={route.label}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors lg:px-4",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                  "flex items-center whitespace-nowrap border-b-2 px-2 text-sm font-medium transition-colors lg:px-4",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                   active
-                    ? "bg-primary text-primary-foreground shadow-glow"
-                    : "text-foreground/80 hover:bg-accent/30 hover:text-foreground"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-foreground/80 hover:text-foreground"
                 )}
               >
-                <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="hidden lg:inline">{route.label}</span>
+                {route.label}
               </Link>
             );
           })}

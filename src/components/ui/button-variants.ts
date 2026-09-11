@@ -5,7 +5,7 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        default: "bg-primary text-primary-foreground hover:bg-primary-hover",
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline:
@@ -14,8 +14,13 @@ export const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        hero: "bg-gradient-primary text-primary-foreground hover:shadow-glow transition-all duration-300 hover:scale-105",
-        glow: "bg-gradient-secondary text-secondary-foreground hover:shadow-glow animate-glow-pulse",
+        // Restrained flat primary treatment matching the approved reference
+        // (a solid light-blue surface with dark text), not a gradient/glow
+        // effect. Kept as its own variant name so the many existing "hero"
+        // call sites (primary CTAs across auth, landing, transactions)
+        // didn't need touching to pick up the corrected look.
+        hero: "bg-primary text-primary-foreground hover:bg-primary-hover transition-colors",
+        glow: "bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors",
       },
       size: {
         default: "h-10 px-4 py-2",

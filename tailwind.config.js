@@ -23,7 +23,11 @@ module.exports = {
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
 					foreground: 'hsl(var(--primary-foreground))',
-					glow: 'hsl(var(--primary-glow))'
+					glow: 'hsl(var(--primary-glow))',
+					hover: 'hsl(var(--primary-hover))',
+					muted: 'hsl(var(--primary-muted))',
+					border: 'hsl(var(--primary-border))',
+					ring: 'hsl(var(--primary-ring))'
 				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',

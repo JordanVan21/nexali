@@ -28,7 +28,7 @@ When references disagree, use this priority order:
 In practice, this means:
 
 - Use the Stitch screenshots for layout, composition, component placement, spacing relationships, page hierarchy, and overall visual direction.
-- Use `docs/DESIGN_SYSTEM.md` for color roles specifically: green is the primary product color and blue is the secondary and accent color. `shared/design-tokens.md` assigns blue as primary and green as secondary; that assignment does not apply. Do not switch the application to a blue-primary system because of the Stitch token file.
+- Use `docs/DESIGN_SYSTEM.md` for color roles specifically: **blue (periwinkle, ~`#ADC6FF`) is the primary product color**; green is reserved for semantic meaning (income, success, positive movement), not brand/primary emphasis. This matches `shared/design-tokens.md`'s original `primary` assignment. (An earlier revision of this README said the opposite — green primary, blue secondary — reversed in the post-Phase-3 visual audit pass; see `docs/DESIGN_SYSTEM.md`'s revision note.)
 - A dedicated mobile reference (`dashboard-mobile.png`) overrides generic responsive assumptions where one exists.
 - Tablet layouts are derived responsively from the desktop and mobile references; no tablet reference exists in this export.
 - Existing working business logic is not changed just to match a screenshot.

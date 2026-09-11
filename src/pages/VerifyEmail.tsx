@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, MailCheck } from "lucide-react";
+import { ArrowLeft, Mail, MailCheck } from "lucide-react";
 import { AuthLayout } from "../components/auth/AuthLayout";
-import { Label } from "../components/ui/label";
-import { Input } from "../components/ui/input";
+import { TextField } from "../components/auth/TextField";
 import { Button } from "../components/ui/button";
 import { StatusBanner } from "../components/states/StatusBanner";
 import { supabase } from "../supabaseClient";
@@ -126,12 +125,13 @@ export default function VerifyEmail() {
 
   return (
     <AuthLayout
-      title="Verify your email"
+      title="Verify Your Email Address"
       subtitle={
         stateEmail
           ? `We've sent a confirmation link to ${stateEmail}. Click it to activate your account.`
           : "We've sent a confirmation link to your email. Click it to activate your account."
       }
+      icon={MailCheck}
       footer={
         <Link to="/signin" className="inline-flex items-center gap-1.5 text-primary hover:underline">
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -139,23 +139,18 @@ export default function VerifyEmail() {
         </Link>
       }
     >
-      <div className="flex flex-col items-center gap-4 text-center">
-        <MailCheck className="h-10 w-10 text-primary" aria-hidden="true" />
-        <p className="text-sm text-muted-foreground">
-          Didn&apos;t get the email? Check your spam folder, or request a new one below.
-        </p>
-      </div>
+      <p className="mb-6 text-center text-sm text-muted-foreground">
+        Didn&apos;t get the email? Check your spam folder, or request a new one below.
+      </p>
 
-      <div className="mt-6">
-        <ResendForm
-          email={email}
-          setEmail={setEmail}
-          resendStatus={resendStatus}
-          resendError={resendError}
-          cooldown={cooldown}
-          onResend={handleResend}
-        />
-      </div>
+      <ResendForm
+        email={email}
+        setEmail={setEmail}
+        resendStatus={resendStatus}
+        resendError={resendError}
+        cooldown={cooldown}
+        onResend={handleResend}
+      />
     </AuthLayout>
   );
 }
@@ -172,20 +167,16 @@ type ResendFormProps = {
 function ResendForm({ email, setEmail, resendStatus, resendError, cooldown, onResend }: ResendFormProps) {
   return (
     <div className="space-y-3">
-      <div>
-        <Label htmlFor="resendEmail" className="text-card-foreground">
-          Email
-        </Label>
-        <Input
-          id="resendEmail"
-          type="email"
-          autoComplete="email"
-          placeholder="you@example.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="mt-2"
-        />
-      </div>
+      <TextField
+        id="resendEmail"
+        label="Email"
+        icon={Mail}
+        type="email"
+        autoComplete="email"
+        placeholder="you@example.com"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
 
       {resendStatus === "sent" && cooldown > 0 && (
         <StatusBanner variant="success">Verification email sent. Check your inbox.</StatusBanner>

@@ -6,6 +6,8 @@
 
 This is a *v0 draft*. Section 13 lists every value that should be confirmed (or replaced) against approved Stitch screens before implementation begins. Nothing here is final.
 
+**Revision (visual audit pass, post-Phase 3):** the color-priority decision in §2.1 below is reversed. Earlier drafts of this document made green the primary interface color; that is no longer correct. **Nexali's primary interface color is a periwinkle blue (~`#ADC6FF`)**, matching the approved Stitch/reference direction and `docs/design-reference/shared/design-tokens.md`'s original `primary` value. Green is reserved for semantic meaning only (income, success, positive movement) and must not be used for generic primary actions, navigation-active states, or brand emphasis. See §2.1 for the full token set.
+
 ---
 
 ## Brand
@@ -19,13 +21,13 @@ Earlier planning material and the raw Stitch export in `docs/design-reference/` 
 
 ## 0. Starting point — what already exists
 
-The current app already has a coherent seed: a dark, green/blue financial dashboard aesthetic with gradients and rounded cards (`src/index.css`, `tailwind.config.js`). The design system below **keeps that seed** and formalizes it — it does not invent a new visual identity. Concretely, it keeps:
+The current app already has a coherent seed: a dark financial dashboard aesthetic with gradients and rounded cards (`src/index.css`, `tailwind.config.js`). The design system below **keeps that seed** and formalizes it — it does not invent a new visual identity. Concretely, it keeps:
 
-- The dark-first `--background`/`--card`/`--primary` (green) / `--secondary` (blue) HSL token structure.
+- The dark-first `--background`/`--card`/`--primary` (periwinkle blue) / `--secondary` (muted cool gray) HSL token structure.
 - `bg-gradient-card`, `bg-gradient-hero`, `bg-gradient-primary` as the app's signature surfaces.
 - shadcn/Radix UI primitives (`Button`, `Input`, `Select`, `Popover`, `DropdownMenu`, `Sheet`) as the component foundation — proven, accessible, and already integrated.
 
-What it fixes: five different border-radius values in use with no rule for which to pick (`rounded-full`, `rounded-xl`, `rounded-lg`, `rounded-2xl`, and the `rounded-x1` typo), a `--success` color referenced in `Card.tsx` that doesn't exist in either token set, a `.dark` class block in `index.css` that nothing ever toggles and that would replace the green accent with near-white if it were, hardcoded `text-white` scattered through form controls instead of theme tokens, and financial status (budget gauge) conveyed by color alone.
+What it fixes: five different border-radius values in use with no rule for which to pick (`rounded-full`, `rounded-xl`, `rounded-lg`, `rounded-2xl`, and the `rounded-x1` typo), a `--success` color referenced in `Card.tsx` that doesn't exist in either token set, a `.dark` class block in `index.css` that nothing ever toggles and that would replace the primary accent with near-white if it were, hardcoded `text-white` scattered through form controls instead of theme tokens, and financial status (budget gauge) conveyed by color alone.
 
 ---
 
@@ -54,30 +56,34 @@ All colors are defined as HSL triples in CSS custom properties (as today) and ma
 | `--card` | `240 12% 12%` | Card surface | Keep |
 | `--card-foreground` | `0 0% 95%` | Text on cards | Keep |
 | `--popover` / `--popover-foreground` | `240 12% 12%` / `0 0% 95%` | Dropdowns, popovers | Keep |
-| `--primary` | `142 76% 45%` (green) | Primary actions, income, positive | Keep |
-| `--primary-foreground` | `240 15% 7%` | Text on primary | Keep |
-| `--primary-glow` | `142 86% 65%` | Gradient highlight, glow shadow | Keep |
-| `--secondary` | `200 95% 55%` (blue) | Secondary actions, accents | Keep |
-| `--secondary-foreground` | `240 15% 7%` | Text on secondary | Keep |
+| `--primary` | `222 100% 84%` (periwinkle blue, ~`#ADC6FF`) | Primary actions, active nav, links, focus accents, selected states | **Brand color.** Was green through Phase 3; reversed in the visual audit pass — see the revision note above |
+| `--primary-foreground` | `224 71% 8%` | Text on primary | Dark, not white — `--primary` is a light/bright surface, so its foreground must stay dark for contrast (WCAG AA) |
+| `--primary-glow` | `222 100% 91%` | Gradient highlight (`bg-gradient-primary`) | Lighter tint of primary |
+| `--primary-hover` | `222 85% 76%` | Hover state for solid primary buttons | New |
+| `--primary-muted` | `222 35% 22%` | Solid muted-primary surface (e.g. a selected badge background where opacity blending isn't suitable) | New |
+| `--primary-border` | `222 70% 58%` | Stronger primary border (e.g. a focused/active input border) | New |
+| `--primary-ring` | `222 90% 72%` | Focus ring source value | New — `--ring` now points at this |
+| `--secondary` | `222 18% 30%` (muted cool gray) | Secondary/tertiary actions, less-prominent accents | Deliberately **not** a second blue — with blue now the brand primary, secondary is a desaturated neutral so the two don't compete for attention |
+| `--secondary-foreground` | `0 0% 95%` | Text on secondary | Light, since secondary is a darker muted surface |
 | `--muted` / `--muted-foreground` | `240 8% 20%` / `240 5% 65%` | De-emphasized surfaces/text | Keep |
 | `--accent` / `--accent-foreground` | `240 8% 20%` / `0 0% 95%` | Hover/selected surfaces | Keep |
 | `--destructive` / `--destructive-foreground` | `0 84% 60%` / `0 0% 98%` | Errors, delete, expenses, over-budget | Keep |
-| `--success` | *(does not exist)* | Positive confirmation, under-budget | **New** — add `142 71% 45%` (a slightly desaturated variant of `--primary` so it reads distinctly from the brand green in context, e.g. `142 71% 45%` vs. primary's `142 76% 45%`) — **needs Stitch/visual confirmation, see §13** |
-| `--warning` | *(does not exist)* | Approaching budget limit (75–95%) | **New** — add `38 92% 50%` (amber) so the existing three-tier budget gauge (green/yellow/red in `Card.tsx`) has matching semantic tokens instead of inline `hsl(...)` literals |
+| `--success` | `142 71% 45%` (green) | Positive confirmation, income, under-budget | Implemented. **Semantic only** — never used for generic primary actions or brand emphasis, even though green was the old primary color |
+| `--warning` | `38 92% 50%` (amber) | Approaching budget limit (75–95%) | Implemented |
 | `--border` / `--input` | `240 8% 20%` | Borders, input borders | Keep |
-| `--ring` | `142 76% 45%` | Focus ring | Keep |
+| `--ring` | `222 90% 72%` (= `--primary-ring`) | Focus ring | Follows primary now, was green |
 | `--radius` | `1rem` | Base radius (see §5) | Keep as the *large* tier |
 
-**Primary and secondary roles are confirmed as final: green is primary, blue is secondary.** The Stitch-generated `docs/design-reference/shared/design-tokens.md` assigns the opposite (blue primary, green secondary); that assignment does not apply. This document is the color-priority source of truth per `docs/design-reference/README.md`'s Visual Source of Truth section.
+**Primary and secondary roles: blue is primary, green is reserved for semantic success/income/positive meaning only.** This reverses an earlier decision in this document that made green primary. It now matches the Stitch-generated `docs/design-reference/shared/design-tokens.md`'s original `primary: '#adc6ff'` assignment, which this document previously overrode; that override no longer applies. This document remains the color-priority source of truth per `docs/design-reference/README.md`'s Visual Source of Truth section — the README has been updated to match.
 
 ### 2.2 What's explicitly removed
 
-- **The `.dark` class block in `index.css`.** It's dead (nothing toggles a `.dark` class anywhere in the app), and if it were ever activated it would swap the signature green/blue financial palette for a generic near-white shadcn default — a regression, not a feature. If a light/dark theme toggle is added later (not currently scoped), it needs its own designed light palette that preserves the green/blue identity, not this leftover scaffold.
+- **The `.dark` class block in `index.css`.** It's dead (nothing toggles a `.dark` class anywhere in the app), and if it were ever activated it would swap the signature blue/dark financial palette for a generic near-white shadcn default — a regression, not a feature. If a light/dark theme toggle is added later (not currently scoped), it needs its own designed light palette that preserves the primary-blue identity, not this leftover scaffold.
 - **Inline hex/hsl color literals** in components (`#f87171`, `#34d399` in the old `Dashboard.tsx` — already removed during stabilization; `hsl(142 76% 36%)` / `hsl(48 96% 53%)` / `hsl(0 80% 60%)` in `Card.tsx`'s `getColor()` — to be replaced by `--success` / `--warning` / `--destructive` tokens).
 
 ### 2.3 Category / merchant color coding (new)
 
-Reports and category breakdowns need a stable, distinguishable color per category for charts and legends. Propose a fixed 8–10 color categorical palette derived from existing tokens plus a few additions (e.g., primary green, secondary blue, warning amber, a purple, a pink, a teal, muted gray for "Other"), assigned deterministically by category name hash so the same category always gets the same color across the Dashboard, Reports, and Assistant. **Needs Stitch confirmation** — see §13.
+Reports and category breakdowns need a stable, distinguishable color per category for charts and legends. Propose a fixed 8–10 color categorical palette derived from existing tokens plus a few additions (e.g., success green, warning amber, a purple, a pink, a teal, muted gray for "Other" — deliberately not built from primary blue, which is reserved for brand/interactive emphasis, not per-category coding), assigned deterministically by category name hash so the same category always gets the same color across the Dashboard, Reports, and Assistant. **Still needs Stitch confirmation** — see §13. (Transactions' category badges took the more conservative route in the meantime: one neutral badge style for every category, not a per-category color, since this palette isn't approved yet — see the Phase 3 visual audit report.)
 
 ### 2.4 Contrast
 
@@ -154,12 +160,12 @@ This isn't a new scale — it's Tailwind's existing default spacing scale (`4 = 
 | Token | Current value | Usage |
 |---|---|---|
 | `shadow-card` | `0 20px 40px -12px hsl(240 15% 7% / 0.4)` | Default resting elevation for cards |
-| `shadow-glow` | `0 0 40px hsl(var(--primary) / 0.3)` | Hover/active emphasis on primary actions and the brand's signature interactive glow — keep, but use *sparingly* (today it's on nearly every hover state, which dilutes it as a "this is important" signal) |
+| `shadow-glow` | `0 0 40px hsl(var(--primary) / 0.3)` | Reserved for surfaces not yet visually corrected (Budgets); no longer applied to primary buttons or nav |
 | `bg-gradient-card` | `linear-gradient(135deg, hsl(var(--card)), hsl(240 10% 15%))` | Default card surface — keep as the app's signature texture |
 | `bg-gradient-hero` | `linear-gradient(135deg, hsl(240 15% 7%), hsl(240 12% 12%))` | Full-page backgrounds (auth pages, landing) |
 | Border | `border border-border/20` (cards), `border border-border/10` (dividers) | Keep — subtle hairline, not a heavy outline |
 
-**Proposed rule:** `shadow-glow` is reserved for the single primary call-to-action per screen (e.g., "Add Transaction", "Sign In", the landing page CTA) — not applied to every secondary button and card hover, so it retains meaning.
+**Revised rule (visual audit pass):** primary call-to-action buttons (`variant="hero"`) are now a **flat** solid-`--primary` surface with a `--primary-hover` hover state, not a gradient-plus-glow-plus-scale treatment — the approved reference shows a plain light-blue button, and stacking glow/gradient/scale on top of an already-bright brand color read as excessive rather than as emphasis. `shadow-glow` is kept as a utility (still used by Budgets, not corrected this pass) but is no longer the pattern for a "this is important" primary action; the flat primary fill already carries that weight since it's the brightest surface on the page.
 
 ---
 
@@ -223,8 +229,8 @@ The existing `Button` primitive (`ui/button.tsx`) and its variant set (`default`
 
 Full navigation structure (desktop/mobile/tablet layouts, route lists, and the Assistant's placement) is proposed in `docs/FRONTEND_REVAMP_PLAN.md` §8. This section defines the *visual* system only.
 
-- **Desktop top nav:** sticky, `bg-gradient-card border-b border-primary/10`, current pattern — kept. Active-route styling (filled pill, `bg-primary shadow-glow`) — kept, it's clear and on-brand.
-- **Mobile bottom nav (new):** a fixed bottom tab bar for the 4–5 primary destinations (Dashboard, Transactions, Budgets, Assistant, More), replacing "everything lives in the hamburger `Sheet`" for primary navigation — the `Sheet` remains for secondary items (Profile, Settings, Sign Out) and filters. Bottom nav respects `env(safe-area-inset-bottom)`.
+- **Desktop top nav:** sticky, `bg-gradient-card border-b border-primary/10`, current pattern — kept. **Active-route styling (revised, visual audit pass):** primary-blue text with a bottom border indicator, matching `navigation/navbar-desktop.png` — not a filled pill. The earlier filled-pill-plus-glow treatment is retired; a filled `bg-primary` pill behind every nav label read as heavier than the approved reference and competed with the flat primary buttons elsewhere on the page.
+- **Mobile bottom nav (new):** a fixed bottom tab bar for the 4–5 primary destinations (Dashboard, Transactions, Budgets, Assistant, More), replacing "everything lives in the hamburger `Sheet`" for primary navigation — the `Sheet` remains for secondary items (Profile, Settings, Sign Out) and filters. Bottom nav respects `env(safe-area-inset-bottom)`. Active tab: a small primary-blue pill behind the icon only (matching `dashboard/dashboard-mobile.png`'s composition, in primary blue rather than that screenshot's green — active nav state is brand-primary, not semantic-success).
 - **Tablet:** desktop top nav down to a defined breakpoint (see revamp plan §7), collapsing to the mobile pattern below it — no dedicated tablet-only nav chrome, but content layout (grids, split panels) does get tablet-specific treatment (§7 of the revamp plan).
 - **Breadcrumbs/back:** not used today and not proposed — the app's hierarchy is flat (one level of pages under the authenticated shell), so a persistent nav is sufficient.
 
@@ -336,7 +342,7 @@ Full device-by-device behavior is specified in `docs/FRONTEND_REVAMP_PLAN.md` §
 
 These values are proposals, not decisions — flagged here and cross-referenced in the revamp plan's approval list (§13 there):
 
-1. Exact `--success` and `--warning` HSL values (§2.1) — need a visual check against the existing green `--primary` so "success" doesn't look identical to "primary action."
+1. ~~Exact `--success` and `--warning` HSL values (§2.1)~~ — resolved: implemented as `142 71% 45%` (green) and `38 92% 50%` (amber). No longer at risk of reading as "primary action" now that primary is blue, not green.
 2. The categorical chart palette for categories/merchants (§2.3) — needs enough distinguishable colors for a household with 8–10+ categories, tested against the dark background.
 3. Whether a light theme is in scope at all right now, given `.dark` is currently dead code (§2.2) — if yes, it needs its own designed palette, not the leftover shadcn default.
 4. Landing-page-only display typography (§3.2) — whether it stays system-font or adopts a display font.

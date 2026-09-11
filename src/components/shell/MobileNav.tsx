@@ -13,6 +13,16 @@ const tabClass = (active: boolean) =>
     active ? "text-primary" : "text-muted-foreground hover:text-foreground"
   );
 
+// A pill highlight behind the icon only (not the full tab width), matching
+// dashboard-mobile.png's active-tab treatment. Uses primary blue rather
+// than the screenshot's green, per this pass's explicit brand direction:
+// green is reserved for semantic success/income, not nav-active state.
+const iconWrapClass = (active: boolean) =>
+  cn(
+    "flex h-7 w-11 items-center justify-center rounded-full transition-colors",
+    active && "bg-primary"
+  );
+
 const tabLabelClass = "w-full text-center leading-tight break-words";
 
 type MoreTabButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { active: boolean };
@@ -23,7 +33,13 @@ const MoreTabButton = forwardRef<HTMLButtonElement, MoreTabButtonProps>(function
 ) {
   return (
     <button ref={ref} type="button" aria-label="More" className={tabClass(active)} {...props}>
-      <MoreHorizontal className="h-5 w-5" aria-hidden="true" strokeWidth={active ? 2.5 : 2} />
+      <span className={iconWrapClass(active)}>
+        <MoreHorizontal
+          className={cn("h-5 w-5", active && "text-primary-foreground")}
+          aria-hidden="true"
+          strokeWidth={active ? 2.5 : 2}
+        />
+      </span>
       <span className={tabLabelClass}>More</span>
     </button>
   );
@@ -49,7 +65,13 @@ export function MobileNav() {
         const Icon = route.icon;
         return (
           <Link key={route.path} to={route.path} aria-current={active ? "page" : undefined} className={tabClass(active)}>
-            <Icon className="h-5 w-5" aria-hidden="true" strokeWidth={active ? 2.5 : 2} />
+            <span className={iconWrapClass(active)}>
+              <Icon
+                className={cn("h-5 w-5", active && "text-primary-foreground")}
+                aria-hidden="true"
+                strokeWidth={active ? 2.5 : 2}
+              />
+            </span>
             <span className={tabLabelClass}>{route.label}</span>
           </Link>
         );

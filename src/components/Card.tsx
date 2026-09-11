@@ -1,39 +1,10 @@
-import TransactionTable from "./TransactionTable.tsx";
 import { PieChart, Pie, Cell, Tooltip } from "recharts";
 import type { Budget } from "../lib/budgets.ts";
 import { useSpentAmount } from "../features/budgets/useSpentAmount.ts";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useUserInfo } from "../shared/useUserId.ts";
-import { type Filters } from "../features/querykeys.ts";
 import { Button } from "./ui/button.tsx";
 import { Edit2, Trash2 } from "lucide-react";
-
-function Card() {
-  const [filters, setFilters] = useState<Filters>({
-    search: "",
-    fromISO: undefined,
-    toISO: undefined,
-    categoryIds: [],
-    types: [],
-    minAmount: undefined,
-    maxAmount: undefined,
-    sortBy: "date",
-    sortOrder: "desc"
-  });
-
-  return (
-    <div>
-      <div className="bg-gradient-card border border-border/20 shadow-card rounded-x1 backdrop-blur-md flex flex-col justify-start items-start min-h-[80vh] w-full overflow-hidden">
-        <div className="w-full border-b border-border/10"></div>
-        <div className="w-full">
-          <TransactionTable filters={filters} onFiltersChange={setFilters}/>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default Card;
 
 interface BudgetCardProps {
   budget: Budget;

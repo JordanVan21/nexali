@@ -1,12 +1,12 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Mail } from "lucide-react";
 import { useSignIn } from "../features/user/useSignIn";
 import { useRedirectIfAuthenticated } from "../features/user/useRedirectIfAuthenticated";
 import { AuthLayout } from "../components/auth/AuthLayout";
 import { PasswordField } from "../components/auth/PasswordField";
-import { Label } from "../components/ui/label";
-import { Input } from "../components/ui/input";
+import { TextField } from "../components/auth/TextField";
 import { Button } from "../components/ui/button";
 import { StatusBanner } from "../components/states/StatusBanner";
 import { normalizeAuthError } from "../lib/authErrors";
@@ -54,21 +54,17 @@ export default function SignIn() {
       }
     >
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
-        <div>
-          <Label htmlFor="email" className="text-card-foreground">
-            Email
-          </Label>
-          <Input
-            id="email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="mt-2"
-          />
-        </div>
+        <TextField
+          id="email"
+          label="Email"
+          icon={Mail}
+          type="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
 
         <PasswordField
           id="password"

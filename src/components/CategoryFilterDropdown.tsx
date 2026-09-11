@@ -1,4 +1,5 @@
 import React from "react";
+import { Check } from "lucide-react";
 import {
   DropdownMenuContent,
   DropdownMenuLabel,
@@ -52,23 +53,28 @@ export function CategoryFilterDropdown({
             Loading Categories...
             </DropdownMenuItem>
         ) : categories.length > 0 ? (
-          categories.map((category) => (
-            <DropdownMenuItem
-              key={category.id}
-              onClick={() => handleToggleCategory(category.name)}
-              className="flex items-center justify-between"
-            >
-              <span className="flex items-center gap-2">
-                {category.name}
-                {selectedCategories.includes(category.name) && (
-                  <span className="text-green-500">✓</span>
-                )}
-              </span>
-              <span className="text-muted-foreground text-xs">
-                ({categoryTransactionCounts[category.name] || 0})
-              </span>
-            </DropdownMenuItem>
-          ))
+          categories.map((category) => {
+            const selected = selectedCategories.includes(category.name);
+            return (
+              <DropdownMenuItem
+                key={category.id}
+                onClick={() => handleToggleCategory(category.name)}
+                aria-pressed={selected}
+                className="flex items-center justify-between gap-2"
+              >
+                <span className="flex items-center gap-2">
+                  <Check
+                    className={selected ? "h-3.5 w-3.5 text-primary" : "h-3.5 w-3.5 opacity-0"}
+                    aria-hidden="true"
+                  />
+                  {category.name}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  ({categoryTransactionCounts[category.name] || 0})
+                </span>
+              </DropdownMenuItem>
+            );
+          })
         ) : (
           <DropdownMenuItem disabled>No categories found</DropdownMenuItem>
         )}

@@ -13,15 +13,15 @@ import { WithErrorBoundary } from "./ErrorBoundary";
  */
 export default function AppLayout() {
   return (
-    <>
+    <div className="flex min-h-screen flex-col bg-background">
       <AppNav />
       <MobileHeader />
-      <main className="pb-[calc(var(--mobile-nav-height)+env(safe-area-inset-bottom))] md:pb-0">
+      <main className="flex-1 pb-[calc(var(--mobile-nav-height)+env(safe-area-inset-bottom))] md:pb-0">
         <WithErrorBoundary>
           <Outlet />
         </WithErrorBoundary>
       </main>
       <MobileNav />
-    </>
+    </div>
   );
 }
