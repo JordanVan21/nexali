@@ -123,3 +123,37 @@ export function isSecondaryRouteActive(pathname: string): boolean {
 export function findRouteByPath(pathname: string): NavRoute | undefined {
   return NAV_ROUTES.find((r) => r.path === pathname);
 }
+
+/** Public (unauthenticated) route paths, kept alongside NAV_ROUTES as the single source of truth for route strings. */
+export const PUBLIC_ROUTES = {
+  landing: "/",
+  signIn: "/signin",
+  signUp: "/signup",
+  forgotPassword: "/forgot-password",
+  resetPassword: "/reset-password",
+  verifyEmail: "/verify-email",
+} as const;
+
+/** Where an authenticated user lands when there is no more specific destination. */
+export const DEFAULT_AUTHENTICATED_ROUTE = "/dashboard";
+
+/** Query param AuthGate uses to preserve the originally requested route across a sign-in. */
+export const REDIRECT_PARAM = "redirect";
+
+/**
+ * Validates that a redirect target is an internal application path before it
+ * is ever used for navigation. Rejects anything that could send the user to
+ * an external site: absolute URLs, protocol-relative URLs ("//host"),
+ * backslash tricks, and embedded schemes (javascript:, https:, etc). Only a
+ * string starting with exactly one "/" is accepted.
+ */
+export function getSafeRedirectPath(
+  candidate: string | null | undefined,
+  fallback: string = DEFAULT_AUTHENTICATED_ROUTE
+): string {
+  if (!candidate) return fallback;
+  if (candidate[0] !== "/") return fallback;
+  if (candidate.startsWith("//") || candidate.startsWith("/\\")) return fallback;
+  if (candidate.includes("://")) return fallback;
+  return candidate;
+}

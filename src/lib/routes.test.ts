@@ -6,6 +6,7 @@ import {
   mobileMenuSecondaryRoutes,
   isRouteActive,
   isSecondaryRouteActive,
+  getSafeRedirectPath,
 } from "./routes";
 
 describe("routes", () => {
@@ -62,5 +63,41 @@ describe("routes", () => {
     for (const path of ["/dashboard", "/transactions", "/budgets", "/assistant"]) {
       expect(isSecondaryRouteActive(path)).toBe(false);
     }
+  });
+});
+
+describe("getSafeRedirectPath", () => {
+  it("accepts a plain internal path", () => {
+    expect(getSafeRedirectPath("/transactions")).toBe("/transactions");
+  });
+
+  it("accepts an internal path with a query string", () => {
+    expect(getSafeRedirectPath("/transactions?month=3")).toBe("/transactions?month=3");
+  });
+
+  it("falls back to /dashboard when no candidate is given", () => {
+    expect(getSafeRedirectPath(null)).toBe("/dashboard");
+    expect(getSafeRedirectPath(undefined)).toBe("/dashboard");
+    expect(getSafeRedirectPath("")).toBe("/dashboard");
+  });
+
+  it("uses a custom fallback when provided", () => {
+    expect(getSafeRedirectPath(null, "/somewhere-else")).toBe("/somewhere-else");
+  });
+
+  it("rejects an absolute external URL", () => {
+    expect(getSafeRedirectPath("https://malicious-site.example")).toBe("/dashboard");
+  });
+
+  it("rejects a protocol-relative external URL", () => {
+    expect(getSafeRedirectPath("//malicious-site.example")).toBe("/dashboard");
+  });
+
+  it("rejects a javascript: scheme", () => {
+    expect(getSafeRedirectPath("javascript:alert(1)")).toBe("/dashboard");
+  });
+
+  it("rejects a backslash-prefixed target", () => {
+    expect(getSafeRedirectPath("/\\malicious-site.example")).toBe("/dashboard");
   });
 });

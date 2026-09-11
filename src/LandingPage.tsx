@@ -1,169 +1,117 @@
-import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { ArrowRight, PieChart, PiggyBank, Sparkles, Landmark } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { Card } from "./components/ui/card";
-import { ArrowRight, DollarSign, PieChart, TrendingUp, BarChart4 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { PublicHeader } from "./components/auth/PublicHeader";
+
+const FEATURES = [
+  {
+    icon: PieChart,
+    title: "Transactions & Categories",
+    description:
+      "Log income and expenses, organize them into categories, and search or filter your history in seconds.",
+  },
+  {
+    icon: PiggyBank,
+    title: "Budgets That Track Themselves",
+    description:
+      "Set a monthly budget per category and see what's spent, what's left, and when you're close to a limit.",
+  },
+  {
+    icon: Sparkles,
+    title: "Aura, Your Financial Assistant",
+    description:
+      "Ask Aura about your spending and budgets in plain language. Aura answers questions, it doesn't move money or change your data on its own.",
+  },
+];
 
 const LandingPage = () => {
-  const [showLoginButton, setShowLoginButton] = useState(false);
-  const [animationPhase, setAnimationPhase] = useState(0);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const timer1 = setTimeout(() => setAnimationPhase(1), 500);
-    const timer2 = setTimeout(() => setAnimationPhase(2), 1500);
-    const timer3 = setTimeout(() => setAnimationPhase(3), 2500);
-    const timer4 = setTimeout(() => setShowLoginButton(true), 3500);
-
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-      clearTimeout(timer4);
-    };
-  }, []);
-
-  const handleLoginClick = () => {
-    navigate("/signin");
-  };
-
-  const features = [
-    {
-      icon: <PieChart className="w-8 h-8" />,
-      title: "Visual Analytics",
-      description: "See your spending patterns with clean charts and easy-to-understand breakdowns"
-    },
-    {
-      icon: <TrendingUp className="w-8 h-8" />,
-      title: "Goal Tracking",
-      description: "Set savings goals and track your progress toward financial milestones"
-    },
-    {
-      icon: <BarChart4 className="w-8 h-8" />,
-      title: "Category Management",
-      description: "Organize expenses by categories to understand where your money goes"
-    }
-  ];
-
   return (
-    <div className="min-h-screen bg-gradient-hero text-foreground overflow-hidden">
-      {/* Hero Section */}
+    <div className="min-h-screen overflow-hidden bg-gradient-hero text-foreground">
+      <PublicHeader />
+
       <div className="relative">
-        <div 
-          className="absolute inset-0 opacity-20"
-        />
-        
-        <div className="relative z-10 container mx-auto px-6 pt-20 pb-32">
-          <div className="text-center max-w-4xl mx-auto">
-            {/* Main Headline */}
-            <div className={`transition-all duration-1000 ${animationPhase >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-              <h1 className="text-6xl md:text-7xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-6">
-                Take Control of
-                <br />
-                Your Finances
+        <div className="relative z-10 container mx-auto px-6 pb-24 pt-20 sm:pt-28">
+          <div className="mx-auto max-w-3xl text-center">
+            <div className="animate-fade-in">
+              <h1 className="mb-6 text-4xl font-bold leading-tight sm:text-5xl md:text-6xl">
+                <span className="bg-gradient-primary bg-clip-text text-transparent">
+                  Take control
+                </span>{" "}
+                of your finances
               </h1>
             </div>
 
-            {/* Subtitle */}
-            <div className={`transition-all duration-1000 delay-300 ${animationPhase >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-              <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-                The smart budget tracker that helps you save more, spend wisely, and achieve your financial goals with ease.
+            <div className="animate-fade-in">
+              <p className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
+                Nexali is a personal budget tracker. Track every transaction, set budgets by
+                category, and see where your money goes, with Aura on hand to answer questions
+                about it.
               </p>
             </div>
 
-            {/* Key Features Preview */}
-            <div className={`grid grid-cols-3 gap-8 max-w-lg mx-auto mb-12 transition-all duration-1000 delay-500 ${animationPhase >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-              <div className="text-center">
-                <PieChart className="w-8 h-8 text-primary mx-auto mb-2" />
-                <div className="text-sm text-muted-foreground font-medium">Visual Charts</div>
-              </div>
-              <div className="text-center">
-                <TrendingUp className="w-8 h-8 text-secondary mx-auto mb-2" />
-                <div className="text-sm text-muted-foreground font-medium">Goal Tracking</div>
-              </div>
-              <div className="text-center">
-                <BarChart4 className="w-8 h-8 text-primary-glow mx-auto mb-2" />
-                <div className="text-sm text-muted-foreground font-medium">Smart Categories</div>
-              </div>
-            </div>
-
-            {/* CTA Button Animation */}
-            <div className="relative">
-              {!showLoginButton ? (
-                <div className={`transition-all duration-1000 delay-700 ${animationPhase >= 3 ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
-                  <Button
-                    variant="hero"
-                    size="lg"
-                    className="text-lg px-12 py-6 rounded-2xl"
-                    onClick={() => setShowLoginButton(true)}
-                  >
-                    Get Started Free
-                    <ArrowRight className="ml-2 w-5 h-5" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="animate-scale-in">
-                  <Button
-                    variant="glow"
-                    size="lg"
-                    className="text-lg px-12 py-6 rounded-2xl"
-                    onClick={handleLoginClick}
-                  >
-                    <DollarSign className="mr-2 w-5 h-5" />
-                    Login to Dashboard
-                    <TrendingUp className="ml-2 w-5 h-5" />
-                  </Button>
-                </div>
-              )}
+            <div className="animate-fade-in flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Button asChild variant="hero" size="lg" className="rounded-2xl px-10 text-base">
+                <Link to="/signup">
+                  Get Started Free
+                  <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="rounded-2xl px-10 text-base">
+                <Link to="/signin">Sign In</Link>
+              </Button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Features Section */}
       <div className="container mx-auto px-6 py-20">
-        <div className={`text-center mb-16 transition-all duration-1000 ${animationPhase >= 2 ? 'opacity-100' : 'opacity-0'}`}>
-          <h2 className="text-4xl font-bold mb-4">Core Features</h2>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Simple yet powerful tools to help you manage your personal finances effectively.
+        <div className="mb-16 text-center">
+          <h2 className="mb-4 text-3xl font-bold sm:text-4xl">Everything you need to budget well</h2>
+          <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+            Simple, focused tools for managing your personal finances.
           </p>
         </div>
 
-        <div className={`grid md:grid-cols-3 gap-8 transition-all duration-1000 delay-300 ${animationPhase >= 3 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          {features.map((feature, index) => (
-            <Card 
-              key={index} 
-              className="p-8 bg-gradient-card border-border/50 hover:shadow-card transition-all duration-300 hover:scale-105"
+        <div className="grid gap-8 md:grid-cols-3">
+          {FEATURES.map((feature) => (
+            <Card
+              key={feature.title}
+              className="border-border/50 bg-gradient-card p-8 transition-all duration-300 hover:scale-[1.02] hover:shadow-card"
             >
-              <div className="text-primary mb-4">{feature.icon}</div>
-              <h3 className="text-xl font-semibold mb-3 text-card-foreground">{feature.title}</h3>
-              <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
+              <feature.icon className="mb-4 h-8 w-8 text-primary" aria-hidden="true" />
+              <h3 className="mb-3 text-xl font-semibold text-card-foreground">{feature.title}</h3>
+              <p className="leading-relaxed text-muted-foreground">{feature.description}</p>
             </Card>
           ))}
         </div>
       </div>
 
-      {/* Bottom CTA */}
-      <div className="container mx-auto px-6 pb-20">
-        <div className={`text-center bg-gradient-card rounded-3xl p-12 border border-border/50 transition-all duration-1000 ${showLoginButton ? 'opacity-100' : 'opacity-50'}`}>
-          <BarChart4 className="w-16 h-16 text-primary mx-auto mb-6" />
-          <h3 className="text-3xl font-bold mb-4">Ready to Start Budgeting?</h3>
-          <p className="text-muted-foreground mb-8 max-w-lg mx-auto">
-            A simple, personal budget tracker to help you take control of your spending habits.
+      <div className="container mx-auto px-6 pb-24">
+        <div className="rounded-3xl border border-border/50 bg-gradient-card p-12 text-center">
+          <Landmark className="mx-auto mb-6 h-14 w-14 text-primary" aria-hidden="true" />
+          <h3 className="mb-4 text-3xl font-bold">Ready to start budgeting?</h3>
+          <p className="mx-auto mb-8 max-w-lg text-muted-foreground">
+            Create a free Nexali account and start tracking your spending today.
           </p>
-          {showLoginButton && (
-            <Button
-              variant="hero"
-              size="lg"
-              onClick={handleLoginClick}
-              className="animate-bounce"
-            >
-              Start Your Journey
-              <ArrowRight className="ml-2 w-5 h-5" />
-            </Button>
-          )}
+          <Button asChild variant="hero" size="lg" className="rounded-2xl px-10">
+            <Link to="/signup">
+              Create Free Account
+              <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" />
+            </Link>
+          </Button>
         </div>
       </div>
+
+      <footer className="border-t border-border/50 py-8">
+        <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-6 text-sm text-muted-foreground sm:flex-row">
+          <div className="flex items-center gap-2 font-semibold text-foreground">
+            <Landmark className="h-4 w-4 text-primary" aria-hidden="true" />
+            Nexali
+          </div>
+          <p>&copy; {new Date().getFullYear()} Nexali. All rights reserved.</p>
+        </div>
+      </footer>
     </div>
   );
 };
