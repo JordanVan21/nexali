@@ -12,11 +12,12 @@ export function useProfile(userId?: string) {
     })
 }
 
-export type UpdateProfileVars = {
+export type UpdateProfileVars = Partial<{
     full_name: string;
     budget_reset_cycle: string;
     reset_day: number;
-};
+    timezone: string;
+}>;
 
 export function useUpdateProfile(userId: string) {
     const qc = useQueryClient();

@@ -12,6 +12,14 @@ class ResizeObserverStub {
 }
 globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver;
 
+// jsdom doesn't implement the Pointer Events capture methods or
+// scrollIntoView, which Radix UI's Select (and other popover-based
+// primitives) call when opening/navigating via pointer or keyboard.
+Element.prototype.hasPointerCapture ??= () => false;
+Element.prototype.setPointerCapture ??= () => {};
+Element.prototype.releasePointerCapture ??= () => {};
+Element.prototype.scrollIntoView ??= () => {};
+
 afterEach(() => {
   cleanup();
 });
