@@ -6,7 +6,8 @@ import { EmptyState } from "../components/states/EmptyState";
 import { ErrorState } from "../components/states/ErrorState";
 import { Skeleton } from "../components/states/Skeleton";
 import { TransactionDialog } from "../components/TransactionDialog";
-import { SummaryStatCard, type StatTrend, type StatTone } from "../components/dashboard/SummaryStatCard";
+import { SummaryStatCard } from "../components/dashboard/SummaryStatCard";
+import { trendForHigherIsBetter, trendForLowerIsBetter } from "../components/dashboard/statTrend";
 import { CashflowChartCard } from "../components/dashboard/CashflowChartCard";
 import { SpendingBreakdownCard } from "../components/dashboard/SpendingBreakdownCard";
 import { RecentActivityList } from "../components/dashboard/RecentActivityList";
@@ -15,36 +16,9 @@ import { AuraEntryCard } from "../components/dashboard/AuraEntryCard";
 import { DashboardSkeleton } from "../components/dashboard/DashboardSkeleton";
 import { useProfile } from "../features/profiles/useProfile";
 import { useDashboardData } from "../features/dashboard/useDashboardData";
-import { percentChange } from "../features/dashboard/dashboardMath";
 import { formatCurrency } from "../lib/format";
 import { useUserInfo } from "../shared/useUserId";
 import type { TransactionWithCat } from "../lib/transactions";
-
-/** Direction + color for a metric where a bigger number is the good outcome (income, net). */
-function trendForHigherIsBetter(current: number, previous: number): { trend: StatTrend; tone: StatTone; label: string } {
-  const change = percentChange(current, previous);
-  if (change === null) return { trend: "flat", tone: "muted", label: "No data for last month yet" };
-  if (Math.abs(change) < 0.5) return { trend: "flat", tone: "muted", label: "About the same as last month" };
-  const trend: StatTrend = change > 0 ? "up" : "down";
-  return {
-    trend,
-    tone: change > 0 ? "success" : "destructive",
-    label: `${change > 0 ? "+" : ""}${change.toFixed(1)}% vs last month`,
-  };
-}
-
-/** Same direction math, but a bigger number (more spending) is the bad outcome. */
-function trendForLowerIsBetter(current: number, previous: number): { trend: StatTrend; tone: StatTone; label: string } {
-  const change = percentChange(current, previous);
-  if (change === null) return { trend: "flat", tone: "muted", label: "No data for last month yet" };
-  if (Math.abs(change) < 0.5) return { trend: "flat", tone: "muted", label: "About the same as last month" };
-  const trend: StatTrend = change > 0 ? "up" : "down";
-  return {
-    trend,
-    tone: change > 0 ? "destructive" : "success",
-    label: `${change > 0 ? "+" : ""}${change.toFixed(1)}% vs last month`,
-  };
-}
 
 export default function Dashboard() {
   const { userId } = useUserInfo();

@@ -1,13 +1,8 @@
 import type { TransactionWithCat } from "../../lib/transactions";
 import type { Budget } from "../../lib/budgets";
-import {
-  monthRange,
-  isIncomeTx,
-  isExpenseTx,
-  isTransactionInRange,
-  sumTransactionAmounts,
-  transactionTime,
-} from "../../lib/financialPeriods";
+import { monthRange, transactionTime } from "../../lib/financialPeriods";
+import { sumIncomeExpense, buildMonthlyBuckets, expenseCategoryTotals } from "../../lib/financialAnalytics";
+export { percentChange } from "../../lib/financialAnalytics";
 import { computeBudgetProgress, type BudgetTone } from "../../lib/budgetMath";
 
 export type CashflowPoint = { month: string; income: number; expenses: number };
@@ -53,9 +48,11 @@ export type DashboardSummary = {
  * no date range, so they cannot truthfully back a "This Month" figure (see
  * docs/AUDIT_REPORT.md P1/P2). `transactions` already holds each user's
  * complete history, so real calendar-month boundaries can be applied here
- * without any backend change. Period-boundary math and budget-progress math
- * live in src/lib/financialPeriods.ts and src/lib/budgetMath.ts, shared
- * with the Budgets page so the two never compute spend differently.
+ * without any backend change. Period-boundary math lives in
+ * src/lib/financialPeriods.ts, multi-month/category math in
+ * src/lib/financialAnalytics.ts, and budget-progress math in
+ * src/lib/budgetMath.ts — all shared with Budgets and Reports so none of
+ * them ever compute a period figure differently.
  */
 export function computeDashboardSummary(
   transactions: TransactionWithCat[],
@@ -70,43 +67,14 @@ export function computeDashboardSummary(
   const currentMonth = monthRange(now.getFullYear(), now.getMonth());
   const prevMonth = monthRange(now.getFullYear(), now.getMonth() - 1);
 
-  const thisMonthTx = transactions.filter((tx) => isTransactionInRange(tx, currentMonth));
-  const prevMonthTx = transactions.filter((tx) => isTransactionInRange(tx, prevMonth));
+  const monthTotals = sumIncomeExpense(transactions, currentMonth);
+  const prevMonthTotals = sumIncomeExpense(transactions, prevMonth);
 
-  const monthIncome = sumTransactionAmounts(thisMonthTx.filter(isIncomeTx));
-  const monthExpenses = sumTransactionAmounts(thisMonthTx.filter(isExpenseTx));
-  const prevIncome = sumTransactionAmounts(prevMonthTx.filter(isIncomeTx));
-  const prevExpenses = sumTransactionAmounts(prevMonthTx.filter(isExpenseTx));
+  const cashflow = buildMonthlyBuckets(transactions, cashflowMonths, now);
 
-  const cashflow: CashflowPoint[] = [];
-  for (let i = cashflowMonths - 1; i >= 0; i -= 1) {
-    const bucket = monthRange(now.getFullYear(), now.getMonth() - i);
-    const bucketTx = transactions.filter((tx) => isTransactionInRange(tx, bucket));
-    cashflow.push({
-      month: bucket.start.toLocaleDateString(undefined, { month: "short" }),
-      income: sumTransactionAmounts(bucketTx.filter(isIncomeTx)),
-      expenses: sumTransactionAmounts(bucketTx.filter(isExpenseTx)),
-    });
-  }
-
-  const expenseByCategory = new Map<number, { label: string; amount: number }>();
-  for (const tx of thisMonthTx.filter(isExpenseTx)) {
-    const id = tx.category_id ?? -1;
-    const label = tx.categories?.name ?? "Uncategorized";
-    const entry = expenseByCategory.get(id);
-    if (entry) entry.amount += Number(tx.amount);
-    else expenseByCategory.set(id, { label, amount: Number(tx.amount) });
-  }
-  const categoryTotal = monthExpenses;
-  const categoryBreakdown: CategorySlice[] = Array.from(expenseByCategory.entries())
-    .map(([id, { label, amount }]) => ({
-      id,
-      label,
-      amount,
-      percent: categoryTotal > 0 ? (amount / categoryTotal) * 100 : 0,
-    }))
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, topCategories);
+  const categoryBreakdown: CategorySlice[] = expenseCategoryTotals(transactions, currentMonth, {
+    topN: topCategories,
+  }).map(({ id, label, amount, percent }) => ({ id, label, amount, percent }));
 
   const recentTransactions = [...transactions]
     .sort((a, b) => transactionTime(b) - transactionTime(a))
@@ -128,18 +96,12 @@ export function computeDashboardSummary(
   });
 
   return {
-    month: { income: monthIncome, expenses: monthExpenses, net: monthIncome - monthExpenses },
-    prevMonth: { income: prevIncome, expenses: prevExpenses },
+    month: monthTotals,
+    prevMonth: { income: prevMonthTotals.income, expenses: prevMonthTotals.expenses },
     cashflow,
     categoryBreakdown,
     recentTransactions,
     budgets: budgetProgress,
     warningsCount: budgetProgress.filter((b) => b.tone !== "success").length,
   };
-}
-
-/** Percent change from `previous` to `current`, or null when `previous` is 0 (no truthful baseline to compare against). */
-export function percentChange(current: number, previous: number): number | null {
-  if (previous <= 0) return null;
-  return ((current - previous) / previous) * 100;
 }
