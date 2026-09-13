@@ -6,6 +6,7 @@ import { PublicHeader } from "./components/auth/PublicHeader";
 import { BrandMark } from "./components/BrandMark";
 import { getCategoryIcon } from "./lib/categoryIcon";
 import { cn } from "./lib/utils";
+import { CONTENT_MAX_WIDTH_CLASS, CONTENT_PADDING_CLASS } from "./components/shell/containerWidth";
 
 // Illustrative example rows for the hero preview card. Both Transactions and
 // Budgets are real, shipped features; this is a mockup of their UI, not a
@@ -51,7 +52,7 @@ const LandingPage = () => {
       <PublicHeader />
 
       <div className="relative">
-        <div className="relative z-10 container mx-auto px-6 pb-16 pt-20 sm:pt-28">
+        <div className={cn("relative z-10 mx-auto pb-16 pt-20 sm:pt-28", CONTENT_MAX_WIDTH_CLASS, CONTENT_PADDING_CLASS)}>
           <div className="mx-auto max-w-3xl text-center">
             <div className="animate-fade-in mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
               <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
@@ -89,7 +90,7 @@ const LandingPage = () => {
           </div>
 
           {/* Illustrative preview of the real Transactions and Budgets UI. */}
-          <div className="animate-fade-in mx-auto mt-16 grid max-w-4xl gap-4 text-left sm:grid-cols-2">
+          <div className="animate-fade-in mx-auto mt-16 grid max-w-6xl gap-4 text-left sm:grid-cols-2">
             <Card className="border-border/50 bg-gradient-card p-6">
               <h3 className="mb-4 font-semibold text-card-foreground">Recent Activity</h3>
               <ul className="space-y-4">
@@ -144,7 +145,7 @@ const LandingPage = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-6 py-20">
+      <div className={cn("mx-auto py-20", CONTENT_MAX_WIDTH_CLASS, CONTENT_PADDING_CLASS)}>
         <div className="mb-16 text-center">
           <h2 className="mb-4 text-3xl font-bold sm:text-4xl">Everything you need to budget well</h2>
           <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
@@ -168,8 +169,8 @@ const LandingPage = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-6 pb-24">
-        <div className="rounded-3xl border border-border/50 bg-gradient-card p-12 text-center">
+      <div className={cn("mx-auto pb-24", CONTENT_MAX_WIDTH_CLASS, CONTENT_PADDING_CLASS)}>
+        <div className="mx-auto max-w-4xl rounded-3xl border border-border/50 bg-gradient-card p-12 text-center">
           <div className="mb-6 flex justify-center">
             <BrandMark size="lg" />
           </div>
@@ -187,7 +188,13 @@ const LandingPage = () => {
       </div>
 
       <footer className="border-t border-border/50 py-8">
-        <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-6 text-sm text-muted-foreground sm:flex-row">
+        <div
+          className={cn(
+            "mx-auto flex flex-col items-center justify-between gap-4 text-sm text-muted-foreground sm:flex-row",
+            CONTENT_MAX_WIDTH_CLASS,
+            CONTENT_PADDING_CLASS
+          )}
+        >
           <div className="flex items-center gap-2 font-semibold text-foreground">
             <BrandMark size="sm" />
             Nexali

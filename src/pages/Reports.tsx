@@ -69,8 +69,8 @@ export default function Reports() {
     <PageContainer>
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground md:text-3xl">Financial Intelligence</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Analyze your income, spending, and cash flow trends.</p>
+          <h1 className="text-2xl font-bold text-foreground md:text-3xl xl:text-[32px] 2xl:text-[34px]">Financial Intelligence</h1>
+          <p className="mt-1 text-sm text-muted-foreground sm:text-base">Analyze your income, spending, and cash flow trends.</p>
         </div>
         <ReportsControls
           period={period}
@@ -83,7 +83,7 @@ export default function Reports() {
         />
       </div>
 
-      <div className="mt-6 md:mt-8">
+      <div className="mt-6 md:mt-8 xl:mt-10">
         {isLoading ? (
           <ReportsSkeleton />
         ) : data.transactionsList.isError ? (

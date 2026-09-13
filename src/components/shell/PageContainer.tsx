@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "../../lib/utils";
+import { CONTENT_MAX_WIDTH_CLASS, CONTENT_PADDING_CLASS } from "./containerWidth";
 
 type PageContainerProps = {
   children: ReactNode;
@@ -21,8 +22,9 @@ export function PageContainer({ children, className, fullWidth = false }: PageCo
   return (
     <div
       className={cn(
-        "mx-auto w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8",
-        !fullWidth && "max-w-[1200px]",
+        "mx-auto w-full py-6 lg:py-8",
+        CONTENT_PADDING_CLASS,
+        !fullWidth && CONTENT_MAX_WIDTH_CLASS,
         className
       )}
     >

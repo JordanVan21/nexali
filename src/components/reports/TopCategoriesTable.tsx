@@ -45,7 +45,7 @@ export function TopCategoriesTable({
   return (
     <div className="nexali-panel overflow-hidden rounded-xl">
       <div className="border-b border-outline-variant p-4 sm:p-6">
-        <h3 className="font-display text-lg font-semibold text-foreground">Top Categories</h3>
+        <h3 className="font-display text-lg font-semibold text-foreground lg:text-xl">Top Categories</h3>
       </div>
 
       <ul className="divide-y divide-outline-variant">

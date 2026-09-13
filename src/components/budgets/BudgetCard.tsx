@@ -52,14 +52,14 @@ export function BudgetCard({
   const Icon = getCategoryIcon(budget.category);
 
   return (
-    <div className="nexali-panel flex flex-col gap-4 rounded-xl p-5 transition-colors hover:border-primary/40">
+    <div className="nexali-panel flex flex-col gap-4 rounded-xl p-5 transition-colors hover:border-primary/40 lg:p-6 xl:p-7">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className={cn("grid h-11 w-11 shrink-0 place-items-center rounded-lg", statusIconTone[budget.status])}>
             <Icon className="h-5 w-5" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <h3 className="truncate font-display text-base font-semibold text-foreground">{budget.category}</h3>
+            <h3 className="truncate font-display text-base font-semibold text-foreground lg:text-lg">{budget.category}</h3>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">

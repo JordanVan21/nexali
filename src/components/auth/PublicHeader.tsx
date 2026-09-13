@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { BrandMark } from "../BrandMark";
+import { CONTENT_MAX_WIDTH_CLASS, CONTENT_PADDING_CLASS } from "../shell/containerWidth";
+import { cn } from "../../lib/utils";
 
 /**
  * Header for public (unauthenticated) pages, currently just the Landing
@@ -16,7 +18,7 @@ export function PublicHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-primary/10 bg-gradient-card/95 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className={cn("mx-auto flex h-16 items-center justify-between", CONTENT_MAX_WIDTH_CLASS, CONTENT_PADDING_CLASS)}>
         <Link
           to="/"
           className="flex items-center gap-2 rounded-lg text-lg font-bold text-foreground transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"

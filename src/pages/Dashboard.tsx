@@ -50,8 +50,8 @@ export default function Dashboard() {
     <PageContainer>
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground md:text-3xl">Command Center</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h1 className="text-2xl font-bold text-foreground md:text-3xl xl:text-[32px] 2xl:text-[34px]">Command Center</h1>
+          <p className="mt-1 text-sm text-muted-foreground sm:text-base">
             {firstName
               ? `Welcome back, ${firstName}. Here's an overview of your recent financial activity.`
               : "An overview of your recent financial activity."}
@@ -63,7 +63,7 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      <div className="mt-6 md:mt-8">
+      <div className="mt-6 md:mt-8 xl:mt-10">
         {dashboard.transactions.isLoading ? (
           <DashboardSkeleton />
         ) : dashboard.transactions.isError ? (

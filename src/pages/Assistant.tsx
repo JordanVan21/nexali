@@ -6,6 +6,8 @@ import { AURA_STARTER_QUESTIONS } from "../components/aura/auraStarterQuestions"
 import { useAuraConversation } from "../features/aura/useAuraConversation";
 import { useProfile } from "../features/profiles/useProfile";
 import { useUserInfo } from "../shared/useUserId";
+import { CONTENT_PADDING_CLASS } from "../components/shell/containerWidth";
+import { cn } from "../lib/utils";
 
 /**
  * Aura's real page shell. The conversation itself is frontend-only for now
@@ -28,13 +30,13 @@ export default function Assistant() {
 
   return (
     <div
-      className="flex min-h-[calc(100dvh-var(--mobile-header-height)-var(--mobile-nav-height)-env(safe-area-inset-bottom))] flex-col md:min-h-[calc(100dvh-var(--desktop-nav-height))]"
+      className="flex min-h-[calc(100dvh-var(--mobile-header-height)-var(--mobile-nav-height)-env(safe-area-inset-bottom))] flex-col md:min-h-[calc(100dvh-var(--desktop-nav-height))] xl:min-h-[calc(100dvh-var(--desktop-nav-height-xl))] 2xl:min-h-[calc(100dvh-var(--desktop-nav-height-2xl))]"
     >
       <h1 className="sr-only">Aura</h1>
 
       <AuraMessageList messages={messages} isLoading={isLoading} error={error} firstName={firstName} />
 
-      <div className="shrink-0 border-t border-outline-variant/40 bg-background px-4 py-4 sm:px-6">
+      <div className={cn("shrink-0 border-t border-outline-variant/40 bg-background py-4", CONTENT_PADDING_CLASS)}>
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
           <SuggestedQuestions questions={AURA_STARTER_QUESTIONS} onSelect={setComposerValue} />
           <AuraComposer value={composerValue} onValueChange={setComposerValue} onSend={handleSend} />

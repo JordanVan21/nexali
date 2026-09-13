@@ -72,8 +72,14 @@
 
     --radius: 0.75rem;
 
-    /* Shell dimensions, shared between the nav components and page container */
+    /* Shell dimensions, shared between the nav components and page container.
+       The desktop nav height grows modestly at xl/2xl (large-desktop scale
+       pass) so it doesn't look undersized once the content column hits its
+       1400px cap and the viewport keeps growing around it; below xl this
+       stays exactly 72px, matching the approved ~1174px reference. */
     --desktop-nav-height: 72px;
+    --desktop-nav-height-xl: 76px;
+    --desktop-nav-height-2xl: 80px;
     --mobile-header-height: 3.5rem;
     --mobile-nav-height: 4rem;
 

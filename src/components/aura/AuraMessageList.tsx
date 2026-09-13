@@ -3,6 +3,8 @@ import { AuraMessage } from "./AuraMessage";
 import { AuraThinking } from "./AuraThinking";
 import { AuraErrorState } from "./AuraErrorState";
 import { AuraEmptyState } from "./AuraEmptyState";
+import { CONTENT_PADDING_CLASS } from "../shell/containerWidth";
+import { cn } from "../../lib/utils";
 import type { AuraMessageData } from "../../features/aura/useAuraConversation";
 
 /**
@@ -30,7 +32,12 @@ export function AuraMessageList({
   }, [messages, isLoading]);
 
   return (
-    <div ref={scrollRef} className="scroll-slim flex-1 overflow-y-auto px-4 py-6 sm:px-6" aria-live="polite" aria-relevant="additions">
+    <div
+      ref={scrollRef}
+      className={cn("scroll-slim flex-1 overflow-y-auto py-6", CONTENT_PADDING_CLASS)}
+      aria-live="polite"
+      aria-relevant="additions"
+    >
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
         {messages.length === 0 && !isLoading && !error && <AuraEmptyState firstName={firstName} />}
 

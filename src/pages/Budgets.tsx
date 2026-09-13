@@ -67,8 +67,8 @@ export default function Budgets() {
     <PageContainer>
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground md:text-3xl">Budget Planner</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Manage your monthly allocations by category.</p>
+          <h1 className="text-2xl font-bold text-foreground md:text-3xl xl:text-[32px] 2xl:text-[34px]">Budget Planner</h1>
+          <p className="mt-1 text-sm text-muted-foreground sm:text-base">Manage your monthly allocations by category.</p>
         </div>
         <Button variant="hero" size="control" className="max-md:w-full" onClick={openAdd}>
           <Plus className="h-4 w-4" aria-hidden="true" />
@@ -80,7 +80,7 @@ export default function Budgets() {
         <BudgetPeriodNav month={month} year={year} onChange={(m, y) => setPeriod({ month: m, year: y })} />
       </div>
 
-      <div className="mt-6 md:mt-8">
+      <div className="mt-6 md:mt-8 xl:mt-10">
         {isLoading ? (
           <BudgetsSkeleton />
         ) : data.budgetsList.isError ? (
@@ -116,7 +116,7 @@ export default function Budgets() {
             <BudgetSummaryBar {...data.summary} />
 
             <section className="space-y-4">
-              <h2 className="font-display text-lg font-semibold text-foreground">Active Budgets</h2>
+              <h2 className="font-display text-lg font-semibold text-foreground lg:text-xl">Active Budgets</h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {data.budgets.map((b) => (
                   <BudgetCard key={b.id} budget={b} onEdit={() => openEdit(b)} onDelete={() => setPendingDelete(b)} />

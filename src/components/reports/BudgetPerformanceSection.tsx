@@ -55,7 +55,7 @@ export function BudgetPerformanceSection({ budgets }: { budgets: BudgetProgressD
   return (
     <div className="nexali-panel rounded-xl p-5 md:p-6">
       <div className="mb-5 flex items-center justify-between gap-3">
-        <h2 className="font-display text-lg font-semibold text-foreground">Budget Performance</h2>
+        <h2 className="font-display text-lg font-semibold text-foreground lg:text-xl">Budget Performance</h2>
         <Link to="/budgets" className="text-sm font-medium text-primary hover:underline">
           Manage Budgets
         </Link>

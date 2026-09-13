@@ -40,15 +40,15 @@ export function SummaryStatCard({
   const resolvedTone = isWarning ? "destructive" : tone;
 
   return (
-    <div className="nexali-panel relative flex min-h-[152px] flex-col justify-between overflow-hidden rounded-xl p-5">
+    <div className="nexali-panel relative flex min-h-[152px] flex-col justify-between overflow-hidden rounded-xl p-5 lg:p-6 xl:p-7">
       <div>
         <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground lg:text-sm">
             {label}
           </span>
           <TrendIcon className={cn("h-4 w-4 shrink-0", toneClass[resolvedTone])} aria-hidden="true" />
         </div>
-        <p className="numeric font-display text-2xl font-bold text-foreground sm:text-[28px]">{value}</p>
+        <p className="numeric font-display text-2xl font-bold text-foreground sm:text-[28px] lg:text-3xl xl:text-[32px]">{value}</p>
       </div>
       <p className={cn("mt-3 text-xs", isWarning ? "text-destructive" : "text-muted-foreground")}>
         {trendLabel}

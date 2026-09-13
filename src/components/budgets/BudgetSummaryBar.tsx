@@ -37,9 +37,9 @@ export function BudgetSummaryBar({ totalBudget, available, efficiency }: Budgets
   return (
     <div className="grid gap-4 md:grid-cols-3">
       {stats.map((s) => (
-        <div key={s.id} className="nexali-panel relative overflow-hidden rounded-xl p-5">
+        <div key={s.id} className="nexali-panel relative overflow-hidden rounded-xl p-5 lg:p-6 xl:p-7">
           <div className="relative z-10 space-y-2">
-            <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground lg:text-sm">
               <s.icon className="h-4 w-4" aria-hidden="true" />
               {s.label}
             </p>
