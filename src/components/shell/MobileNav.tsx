@@ -1,13 +1,10 @@
-import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { MoreHorizontal } from "lucide-react";
-import { mobileBottomNavRoutes, isRouteActive, isSecondaryRouteActive } from "../../lib/routes";
-import { MobileMenu } from "./MobileMenu";
+import { mobileBottomNavRoutes, isRouteActive } from "../../lib/routes";
 import { cn } from "../../lib/utils";
 
 const tabClass = (active: boolean) =>
   cn(
-    "flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg py-1 text-xs font-medium leading-tight transition-colors",
+    "flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg py-1 text-xs font-medium leading-tight transition-colors",
     "max-[340px]:gap-0.5 max-[340px]:text-[10px]",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
     active ? "text-primary" : "text-muted-foreground hover:text-foreground"
@@ -25,40 +22,21 @@ const iconWrapClass = (active: boolean) =>
 
 const tabLabelClass = "w-full text-center leading-tight break-words";
 
-type MoreTabButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { active: boolean };
-
-const MoreTabButton = forwardRef<HTMLButtonElement, MoreTabButtonProps>(function MoreTabButton(
-  { active, ...props },
-  ref
-) {
-  return (
-    <button ref={ref} type="button" aria-label="More" className={tabClass(active)} {...props}>
-      <span className={iconWrapClass(active)}>
-        <MoreHorizontal
-          className={cn("h-5 w-5", active && "text-primary-foreground")}
-          aria-hidden="true"
-          strokeWidth={active ? 2.5 : 2}
-        />
-      </span>
-      <span className={tabLabelClass}>More</span>
-    </button>
-  );
-});
-
 /**
- * Fixed mobile bottom tab bar: Dashboard, Transactions, Budgets, Aura,
- * More. The four routed tabs activate on an exact path match; More
- * activates for every page not on the bar (Reports, Notifications,
- * Profile, Account, Settings) and opens the shared mobile menu.
+ * Fixed mobile bottom tab bar: the same five primary destinations as the
+ * desktop nav's center rail (Dashboard, Transactions, Budgets, Reports,
+ * Aura), in the same order, laid out as a 5-column grid so every
+ * destination keeps an even, predictable width down to 320px. There is no
+ * "More" tab — every other destination (Notifications, Profile, Account,
+ * Settings) lives in the mobile top bar's avatar menu instead.
  */
 export function MobileNav() {
   const location = useLocation();
-  const moreActive = isSecondaryRouteActive(location.pathname);
 
   return (
     <nav
       aria-label="Bottom"
-      className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(var(--mobile-nav-height)+env(safe-area-inset-bottom))] items-stretch gap-1 border-t border-primary/10 bg-gradient-card px-2 pb-[env(safe-area-inset-bottom)] shadow-card backdrop-blur-md max-[340px]:gap-0.5 max-[340px]:px-1 md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 grid h-[calc(var(--mobile-nav-height)+env(safe-area-inset-bottom))] grid-cols-5 items-stretch gap-0.5 border-t border-outline-variant/40 bg-gradient-card px-2 pb-safe shadow-card backdrop-blur-md max-[340px]:gap-0 max-[340px]:px-1 md:hidden"
     >
       {mobileBottomNavRoutes.map((route) => {
         const active = isRouteActive(location.pathname, route.path);
@@ -76,7 +54,6 @@ export function MobileNav() {
           </Link>
         );
       })}
-      <MobileMenu trigger={<MoreTabButton active={moreActive} />} />
     </nav>
   );
 }

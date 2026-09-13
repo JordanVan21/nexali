@@ -1,7 +1,7 @@
 import "./index.css";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import LandingPage from "./LandingPage";
@@ -42,6 +42,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="/budgets" element={<Budgets />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/assistant" element={<Assistant />} />
+            {/* "/aura" is the product-name-matching alias for the Aura
+                assistant; "/assistant" remains the canonical route (see the
+                Part 2 nav report's routing decision) so this stays a plain
+                redirect rather than a route migration. */}
+            <Route path="/aura" element={<Navigate to="/assistant" replace />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/account" element={<Account />} />
             <Route path="/settings" element={<Settings />} />

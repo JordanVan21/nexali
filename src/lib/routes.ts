@@ -14,32 +14,34 @@ import {
 export type NavRoute = {
   /** Visible label used in navigation and as the mobile header page title. */
   label: string;
+  /** Shorter label shown in the desktop nav at tablet (md) width only, where
+   * five full labels plus the logo and right-side controls don't fit
+   * comfortably. Falls back to `label` when unset. */
+  shortLabel?: string;
   path: string;
   icon: LucideIcon;
   /** Shown as a labelled item in the desktop/tablet center navigation. */
   desktopPrimary: boolean;
-  /** Shown as one of the fixed mobile bottom-nav tabs. A subset of desktopPrimary. */
+  /** Shown as one of the fixed mobile bottom-nav tabs. Same five destinations as desktopPrimary. */
   mobileBottomNav: boolean;
-  /** Listed in the mobile hamburger menu. True for every real destination. */
-  mobileMenu: boolean;
 };
 
 export const NAV_ROUTES: NavRoute[] = [
   {
     label: "Dashboard",
+    shortLabel: "Home",
     path: "/dashboard",
     icon: LayoutDashboard,
     desktopPrimary: true,
     mobileBottomNav: true,
-    mobileMenu: true,
   },
   {
     label: "Transactions",
+    shortLabel: "Activity",
     path: "/transactions",
     icon: ArrowLeftRight,
     desktopPrimary: true,
     mobileBottomNav: true,
-    mobileMenu: true,
   },
   {
     label: "Budgets",
@@ -47,23 +49,23 @@ export const NAV_ROUTES: NavRoute[] = [
     icon: PiggyBank,
     desktopPrimary: true,
     mobileBottomNav: true,
-    mobileMenu: true,
   },
   {
     label: "Reports",
     path: "/reports",
     icon: BarChart3,
     desktopPrimary: true,
-    mobileBottomNav: false,
-    mobileMenu: true,
+    mobileBottomNav: true,
   },
   {
+    // Product name is "Aura"; the route itself stays "/assistant" (see the
+    // Part 2 nav report's routing decision) with a "/aura" redirect alias
+    // registered alongside the authenticated routes in main.tsx.
     label: "Aura",
     path: "/assistant",
     icon: Sparkles,
     desktopPrimary: true,
     mobileBottomNav: true,
-    mobileMenu: true,
   },
   {
     label: "Notifications",
@@ -71,7 +73,6 @@ export const NAV_ROUTES: NavRoute[] = [
     icon: Bell,
     desktopPrimary: false,
     mobileBottomNav: false,
-    mobileMenu: true,
   },
   {
     label: "Profile",
@@ -79,7 +80,6 @@ export const NAV_ROUTES: NavRoute[] = [
     icon: User,
     desktopPrimary: false,
     mobileBottomNav: false,
-    mobileMenu: true,
   },
   {
     label: "Account",
@@ -87,7 +87,6 @@ export const NAV_ROUTES: NavRoute[] = [
     icon: ShieldCheck,
     desktopPrimary: false,
     mobileBottomNav: false,
-    mobileMenu: true,
   },
   {
     label: "Settings",
@@ -95,29 +94,14 @@ export const NAV_ROUTES: NavRoute[] = [
     icon: SettingsIcon,
     desktopPrimary: false,
     mobileBottomNav: false,
-    mobileMenu: true,
   },
 ];
 
 export const desktopPrimaryRoutes = NAV_ROUTES.filter((r) => r.desktopPrimary);
 export const mobileBottomNavRoutes = NAV_ROUTES.filter((r) => r.mobileBottomNav);
-export const mobileMenuPrimaryRoutes = desktopPrimaryRoutes;
-export const mobileMenuSecondaryRoutes = NAV_ROUTES.filter(
-  (r) => !r.desktopPrimary && r.mobileMenu
-);
-
-/** Routes that live under the mobile bottom nav's "More" tab. */
-export const secondaryRoutePaths = new Set(
-  NAV_ROUTES.filter((r) => !r.mobileBottomNav).map((r) => r.path)
-);
 
 export function isRouteActive(pathname: string, path: string): boolean {
   return pathname === path;
-}
-
-/** True when the current pathname belongs to one of the "More" (secondary) destinations. */
-export function isSecondaryRouteActive(pathname: string): boolean {
-  return secondaryRoutePaths.has(pathname);
 }
 
 export function findRouteByPath(pathname: string): NavRoute | undefined {

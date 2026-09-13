@@ -34,7 +34,7 @@ export function ProfileMenu() {
           <img
             src={avatarUrl || blankProfile}
             alt=""
-            className="h-9 w-9 rounded-full object-cover ring-2 ring-border"
+            className="h-9 w-9 rounded-full object-cover ring-2 ring-outline-variant"
           />
           <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
         </button>

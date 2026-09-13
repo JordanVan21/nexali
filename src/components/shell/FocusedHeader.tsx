@@ -26,7 +26,7 @@ export function FocusedHeader({ title, dismiss, action, className }: FocusedHead
   return (
     <header
       className={cn(
-        "flex h-14 items-center justify-between gap-2 border-b border-border/20 bg-gradient-card px-3 pt-[env(safe-area-inset-top)]",
+        "flex h-14 items-center justify-between gap-2 border-b border-outline-variant/40 bg-gradient-card px-3 pt-safe",
         className
       )}
     >

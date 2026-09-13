@@ -1,26 +1,34 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { screen, within } from "@testing-library/react";
 import { renderWithProviders } from "../../test/renderWithProviders";
 import { MobileNav } from "./MobileNav";
 
-vi.mock("../../features/user/useSignOut", () => ({
-  useSignOut: () => vi.fn(),
-}));
-
 describe("MobileNav", () => {
-  it("contains exactly Dashboard, Transactions, Budgets, Aura, and More, in that order", () => {
+  it("contains exactly five destinations, in order: Dashboard, Transactions, Budgets, Reports, Aura", () => {
     renderWithProviders(<MobileNav />, { route: "/dashboard" });
 
     const bottomNav = screen.getByRole("navigation", { name: "Bottom" });
-    const items = within(bottomNav)
-      .getAllByRole("link")
-      .concat(within(bottomNav).getAllByRole("button"));
+    const links = within(bottomNav).getAllByRole("link");
 
-    const names = items.map((el) => el.getAttribute("aria-label") ?? el.textContent);
-    expect(names).toEqual(["Dashboard", "Transactions", "Budgets", "Aura", "More"]);
+    expect(links).toHaveLength(5);
+    expect(links.map((el) => el.textContent)).toEqual([
+      "Dashboard",
+      "Transactions",
+      "Budgets",
+      "Reports",
+      "Aura",
+    ]);
   });
 
-  it("marks the current bottom-nav route active", () => {
+  it("does not render a More destination", () => {
+    renderWithProviders(<MobileNav />, { route: "/dashboard" });
+
+    const bottomNav = screen.getByRole("navigation", { name: "Bottom" });
+    expect(within(bottomNav).queryByText(/more/i)).not.toBeInTheDocument();
+    expect(within(bottomNav).queryAllByRole("button")).toHaveLength(0);
+  });
+
+  it("marks the current bottom-nav route active with aria-current", () => {
     renderWithProviders(<MobileNav />, { route: "/transactions" });
 
     const bottomNav = screen.getByRole("navigation", { name: "Bottom" });
@@ -33,26 +41,35 @@ describe("MobileNav", () => {
     );
   });
 
-  it("highlights More, not any tab, when a secondary route (Reports) is active", () => {
+  it("marks Reports active on the reports route now that it is a primary bottom-nav destination", () => {
     renderWithProviders(<MobileNav />, { route: "/reports" });
 
     const bottomNav = screen.getByRole("navigation", { name: "Bottom" });
-    const moreButton = within(bottomNav).getByRole("button", { name: "More" });
-    expect(moreButton.className).toContain("text-primary");
+    expect(within(bottomNav).getByRole("link", { name: "Reports" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    );
+  });
 
-    for (const label of ["Dashboard", "Transactions", "Budgets", "Aura"]) {
+  it("marks Aura active on its route", () => {
+    renderWithProviders(<MobileNav />, { route: "/assistant" });
+
+    const bottomNav = screen.getByRole("navigation", { name: "Bottom" });
+    expect(within(bottomNav).getByRole("link", { name: "Aura" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    );
+  });
+
+  it("does not falsely mark any primary destination active on a secondary account page", () => {
+    renderWithProviders(<MobileNav />, { route: "/settings" });
+
+    const bottomNav = screen.getByRole("navigation", { name: "Bottom" });
+    for (const label of ["Dashboard", "Transactions", "Budgets", "Reports", "Aura"]) {
       expect(within(bottomNav).getByRole("link", { name: label })).not.toHaveAttribute(
         "aria-current"
       );
     }
-  });
-
-  it("does not highlight More when a bottom-nav route is active", () => {
-    renderWithProviders(<MobileNav />, { route: "/budgets" });
-
-    const bottomNav = screen.getByRole("navigation", { name: "Bottom" });
-    const moreButton = within(bottomNav).getByRole("button", { name: "More" });
-    expect(moreButton.className).not.toContain("text-primary");
   });
 
   it("keeps full, unabbreviated labels and wraps them safely instead of overlapping at narrow widths", () => {
@@ -61,27 +78,23 @@ describe("MobileNav", () => {
     const bottomNav = screen.getByRole("navigation", { name: "Bottom" });
     const transactionsLink = within(bottomNav).getByRole("link", { name: "Transactions" });
 
-    // Label text is never abbreviated or hidden.
+    // Label text is never abbreviated or hidden, even though all five
+    // destinations must fit down to a 320px viewport.
     expect(transactionsLink).toHaveTextContent("Transactions");
 
-    // A narrow-viewport font-size reduction exists so labels have room to fit,
-    // and break-words on the label itself prevents any residual overflow from
-    // spilling into a neighboring tab instead of wrapping within its own box.
+    // A narrow-viewport font-size reduction exists so labels have room to
+    // fit, and break-words on the label itself prevents any residual
+    // overflow from spilling into a neighboring tab instead of wrapping.
     expect(transactionsLink.className).toContain("max-[340px]:text-[10px]");
     const label = within(transactionsLink).getByText("Transactions");
     expect(label.className).toContain("break-words");
     expect(label.className).toContain("text-center");
   });
 
-  it("does not change label sizing classes above the narrow-width cutoff", () => {
+  it("lays out five equal-width columns so all destinations remain visible at any phone width", () => {
     renderWithProviders(<MobileNav />, { route: "/dashboard" });
 
     const bottomNav = screen.getByRole("navigation", { name: "Bottom" });
-    const dashboardLink = within(bottomNav).getByRole("link", { name: "Dashboard" });
-
-    // The base (375px+) text size and spacing are unchanged; only a
-    // max-[340px] variant was added alongside them.
-    expect(dashboardLink.className).toContain("text-xs");
-    expect(dashboardLink.className).toContain("gap-1");
+    expect(bottomNav.className).toContain("grid-cols-5");
   });
 });
