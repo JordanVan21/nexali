@@ -1,355 +1,356 @@
-import blankProfile from "../assets/blank_profile_pic.jpg";
 import { useEffect, useState } from "react";
-import { supabase } from "../supabaseClient.ts";
-import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
-import {
-  useProfile,
-  useUpdateProfile,
-} from "../features/profiles/useProfile.ts";
-import {
-  useUploadAvatar,
-  useDeleteAvatar,
-} from "../features/profiles/useAvatar.ts";
-import { useDeleteUser } from "../features/profiles/useDeleteUser.ts";
-import { useUserInfo } from "../shared/useUserId.ts";
-import { getErrorMessage } from "../lib/utils.ts";
-import { Label } from "../components/ui/label.tsx";
-import { Button } from "../components/ui/button.tsx";
-import { Input } from "../components/ui/input.tsx";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../components/ui/select.tsx";
+import type { ChangeEvent, FormEvent } from "react";
+import { Camera, Shield, Trash2, Upload } from "lucide-react";
+import blankProfile from "../assets/blank_profile_pic.jpg";
+import { PageContainer } from "../components/shell/PageContainer";
+import { Button } from "../components/ui/button";
+import { buttonVariants } from "../components/ui/button-variants";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { StatusBanner } from "../components/states/StatusBanner";
+import { ErrorState } from "../components/states/ErrorState";
+import { Skeleton } from "../components/states/Skeleton";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { useProfile, useUpdateProfile } from "../features/profiles/useProfile";
+import { useUploadAvatar, useDeleteAvatar } from "../features/profiles/useAvatar";
+import { useUser } from "../features/user/userUser";
+import { useUserInfo } from "../shared/useUserId";
+import { getErrorMessage, cn } from "../lib/utils";
 
-const FRIENDLY: Record<string, string> = {
-  "America/Los_Angeles": "Pacific Time",
-  "America/Denver": "Mountain Time",
-  "America/Chicago": "Central Time",
-  "America/New_York": "Eastern Time",
-  "Europe/London": "UK",
-  "Europe/Paris": "Central European",
-  "Asia/Tokyo": "Japan Standard Time",
+type BudgetCycle = "weekly" | "monthly" | "quarterly" | "yearly";
+
+type FormState = {
+  fullName: string;
+  budgetCycle: BudgetCycle;
+  resetDay: number;
 };
 
-function currentUtcOffset(tz: string, date = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: tz,
-    timeZoneName: "longOffset",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).formatToParts(date);
-  const z = parts.find((p) => p.type === "timeZoneName")?.value || "GMT+00:00";
-  return z.replace("GMT", "UTC");
+const FULL_NAME_MAX = 120;
+
+/**
+ * Nexali's current application-wide fixed currency. Not a persisted
+ * `profiles` column -- there is no real per-user currency preference yet, so
+ * this is a static UI label, not a value loaded from the database. Profile
+ * displays it as read-only info; it is not part of the Save payload.
+ */
+const FIXED_CURRENCY_LABEL = "USD ($)";
+
+function ProfileSkeleton() {
+  return (
+    <PageContainer>
+      <div aria-hidden="true">
+        <Skeleton className="h-8 w-40" />
+        <Skeleton className="mt-2 h-4 w-72" />
+        <div className="mx-auto mt-6 max-w-[1200px] space-y-6 md:mt-8 md:space-y-8 xl:mt-10">
+          <div className="flex flex-col items-center gap-4">
+            <Skeleton className="h-28 w-28 rounded-full md:h-32 md:w-32 xl:h-36 xl:w-36" />
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-5 w-32 rounded-full" />
+          </div>
+          <div className="grid gap-4 md:grid-cols-12 md:gap-6 xl:gap-8">
+            <div className="md:col-span-5">
+              <Skeleton className="h-32 w-full rounded-xl" />
+            </div>
+            <div className="md:col-span-7">
+              <Skeleton className="h-40 w-full rounded-xl" />
+            </div>
+            <div className="md:col-span-12">
+              <Skeleton className="h-48 w-full rounded-xl" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <span className="sr-only">Loading profile…</span>
+    </PageContainer>
+  );
 }
 
-function tzLabel(tz: string) {
-  return `${FRIENDLY[tz] ?? tz} (${currentUtcOffset(tz)})`;
-}
-
-function Profile() {
-  const { userId, email: userEmail } = useUserInfo();
-  const navigate = useNavigate();
-  const qc = useQueryClient();
-
-  const { data: profile, isLoading, isError, error } = useProfile(userId);
+/**
+ * Full name is a real `profiles.full_name` column already displayed
+ * everywhere else in the app; this Part connects it to `useUpdateProfile`'s
+ * mutation for the first time so it can genuinely be edited (previously the
+ * field rendered but was hard-disabled with no save path at all).
+ */
+export default function Profile() {
+  const { userId, email } = useUserInfo();
+  const { data: profile, isLoading, isError, error, refetch } = useProfile(userId);
+  const { data: authUser } = useUser();
   const updateProfile = useUpdateProfile(userId);
   const uploadAvatarMut = useUploadAvatar(userId);
   const deleteAvatarMut = useDeleteAvatar(userId);
-  const deleteUserMut = useDeleteUser();
 
-  const [currency, setCurrency] = useState("USD");
-  const [numberFormat, setNumberFormat] = useState("1,234.56");
-
-  type BudgetCycle = "weekly" | "monthly" | "quarterly" | "yearly";
-  const [budgetCycle, setBudgetCycle] = useState<BudgetCycle>(
-    (profile?.budget_reset_cycle as BudgetCycle) ?? "monthly"
-  );
-
-  const [resetDay, setResetDay] = useState<number>(1);
-  const [timezone, setTimezone] = useState<string>(
-    profile?.timezone ?? "America/Los_Angeles"
-  );
-  const [avatarBuster, setAvatarBuster] = useState<number>(Date.now());
-
-  const [saveStatus, setSaveStatus] = useState<{
-    type: "success" | "error" | null;
-    message: string;
-  }>({ type: null, message: "" });
-
-  const [hydrated, setHydrated] = useState(false);
+  const [avatarBuster, setAvatarBuster] = useState(() => Date.now());
+  const [form, setForm] = useState<FormState | null>(null);
+  const [saved, setSaved] = useState<FormState | null>(null);
+  const [fullNameError, setFullNameError] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<{ type: "success" | "error" | null; message: string }>({
+    type: null,
+    message: "",
+  });
+  const [confirmRemoveAvatar, setConfirmRemoveAvatar] = useState(false);
 
   useEffect(() => {
-    if (!profile || hydrated) return;
-    setBudgetCycle(
-      (profile.budget_reset_cycle as
-        | "weekly"
-        | "monthly"
-        | "quarterly"
-        | "yearly") ?? "monthly"
-    );
-    setResetDay(profile.reset_day ?? 1);
-    setTimezone(profile.timezone ?? "America/Los_Angeles");
-    setHydrated(true);
-  }, [profile, hydrated]);
+    if (!profile || saved) return;
+    const baseline: FormState = {
+      fullName: profile.full_name ?? "",
+      budgetCycle: (profile.budget_reset_cycle as BudgetCycle) ?? "monthly",
+      resetDay: profile.reset_day ?? 1,
+    };
+    setForm(baseline);
+    setSaved(baseline);
+  }, [profile, saved]);
 
   useEffect(() => {
-    if (uploadAvatarMut.isSuccess || deleteAvatarMut.isSuccess) {
-      setAvatarBuster(Date.now());
-    }
+    if (uploadAvatarMut.isSuccess || deleteAvatarMut.isSuccess) setAvatarBuster(Date.now());
   }, [uploadAvatarMut.isSuccess, deleteAvatarMut.isSuccess]);
 
-  // 5) Derived display fields
-  const fullName = profile?.full_name ?? "";
-  const email = userEmail;
+  if (isLoading) {
+    return <ProfileSkeleton />;
+  }
+
+  if (isError) {
+    return (
+      <PageContainer>
+        <ErrorState
+          title="Couldn't load your profile"
+          message={getErrorMessage(error, "Please check your connection and try again.")}
+          onRetry={() => refetch()}
+        />
+      </PageContainer>
+    );
+  }
+
+  if (!form || !saved) {
+    return <ProfileSkeleton />;
+  }
+
   const rawAvatar = profile?.avatar_url ?? null;
   const avatarUrl = rawAvatar ? `${rawAvatar}?v=${avatarBuster}` : "";
+  const memberSince =
+    authUser?.created_at &&
+    new Date(authUser.created_at).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const isDirty = JSON.stringify(form) !== JSON.stringify(saved);
 
-  // 6) Save handler
-  const handleSave = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
+    if (updateProfile.isPending) return;
+    const trimmedName = form.fullName.trim();
+    if (!trimmedName) {
+      setFullNameError("Full name is required.");
+      return;
+    }
+    if (trimmedName.length > FULL_NAME_MAX) {
+      setFullNameError(`Full name must be ${FULL_NAME_MAX} characters or fewer.`);
+      return;
+    }
+    setFullNameError(null);
+
     updateProfile.mutate(
-      { budget_reset_cycle: budgetCycle, reset_day: resetDay, timezone },
+      {
+        full_name: trimmedName,
+        budget_reset_cycle: form.budgetCycle,
+        reset_day: form.resetDay,
+      },
       {
         onSuccess: () => {
-          setSaveStatus({
-            type: "success",
-            message: "Profile updated successfully!",
-          });
-          // Clear the message after 3 seconds
+          setSaved({ ...form, fullName: trimmedName });
+          setForm({ ...form, fullName: trimmedName });
+          setSaveStatus({ type: "success", message: "Profile updated successfully." });
           setTimeout(() => setSaveStatus({ type: null, message: "" }), 3000);
         },
         onError: (err) => {
-          setSaveStatus({
-            type: "error",
-            message: err.message || "Failed to update profile!",
-          });
-          // Clear the message after 5 seconds for errors
+          setSaveStatus({ type: "error", message: getErrorMessage(err, "Failed to update profile.") });
           setTimeout(() => setSaveStatus({ type: null, message: "" }), 5000);
         },
       }
     );
   };
 
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDiscard = () => {
+    setForm(saved);
+    setFullNameError(null);
+  };
+
+  const handleAvatarUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
     uploadAvatarMut.mutate(file);
   };
 
-  const handleDeleteAvatar = () => {
-    deleteAvatarMut.mutate();
+  const confirmRemove = () => {
+    deleteAvatarMut.mutate(undefined, { onSuccess: () => setConfirmRemoveAvatar(false) });
   };
-
-  const handleDeleteUser = async () => {
-    if (!userId) {
-      return;
-    }
-    const confirmed = confirm("Are you sure you want to delete your account?");
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      await deleteUserMut.mutateAsync();
-      await supabase.auth.signOut();
-      qc.clear();
-      navigate("/");
-    } catch (e) {
-      alert(getErrorMessage(e, "Failed to delete account"));
-    }
-  };
-
-  if (isLoading) {
-    return <div className="p-6 text-base-content">Loading profile…</div>;
-  }
-
-  if (isError) {
-    return (
-      <div className="p-6 text-red-500">
-        {error?.message ?? "Failed to load profile"}
-      </div>
-    );
-  }
-
-  const LIST = [
-    "America/New_York",
-    "America/Chicago",
-    "America/Denver",
-    "America/Los_Angeles",
-    "Europe/London",
-    "Europe/Paris",
-    "Asia/Tokyo",
-  ] as const;
 
   return (
-    <div className="bg-background min-h-screen">
-      <div className="max-w-2xl mx-auto py-8 px-4">
-        <form onSubmit={handleSave} className="space-y-8">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold text-foreground mb-8">PROFILE</h1>
-          </div>
+    <PageContainer>
+      <div>
+        <h1 className="text-2xl font-bold text-foreground md:text-3xl xl:text-[32px] 2xl:text-[34px]">Profile</h1>
+        <p className="mt-1 text-sm text-muted-foreground sm:text-base">Your identity and preferences across Nexali.</p>
+      </div>
 
-          <div className="flex flex-col items-center gap-4">
+      <div className="mx-auto mt-6 max-w-[1200px] md:mt-8 xl:mt-10">
+        {saveStatus.type && (
+          <StatusBanner variant={saveStatus.type} className="mb-6">
+            {saveStatus.message}
+          </StatusBanner>
+        )}
+
+        <form onSubmit={handleSubmit} noValidate className="space-y-6 md:space-y-8">
+          <div className="flex flex-col items-center gap-4 pb-4 text-center md:gap-5 md:pb-6">
             <div className="relative">
-              <div className="w-36 h-36 rounded-full overflow-hidden border-4 border-border">
-                <img
-                  src={avatarUrl || blankProfile}
-                  alt="Profile"
-                  className="w-full h-full object-cover"
-                />
+              <div className="h-28 w-28 overflow-hidden rounded-full border-2 border-primary/60 ring-2 ring-border/40 md:h-32 md:w-32 xl:h-36 xl:w-36">
+                <img src={avatarUrl || blankProfile} alt="" className="h-full w-full object-cover" />
               </div>
-            </div>
-
-            <div className="flex flex-col items-center gap-2">
-              {!!profile?.avatar_url && (
-                <span
-                  onClick={handleDeleteAvatar}
-                  className="text-sm text-red-400 hover:text-red-500 hover:underline cursor-pointer mt-1"
-                >
-                  {deleteAvatarMut.isPending ? "Deleting…" : "Delete image"}
-                </span>
-              )}
-
-              <label className="cursor-pointer text-sm text-white px-4 py-2 bg-gray-700 rounded hover:bg-gray-600">
-                {uploadAvatarMut.isPending ? "Uploading…" : "Upload Image"}
+              <label
+                aria-label="Change profile photo"
+                className="absolute -bottom-1 -right-1 grid h-9 w-9 cursor-pointer place-items-center rounded-full bg-primary text-primary-foreground shadow-md transition-transform hover:scale-105 active:scale-95 md:h-10 md:w-10 xl:h-11 xl:w-11"
+              >
+                <Camera className="h-4 w-4 xl:h-5 xl:w-5" aria-hidden="true" />
                 <input
                   type="file"
                   accept="image/*"
+                  className="sr-only"
                   onChange={handleAvatarUpload}
-                  className="hidden"
+                  disabled={uploadAvatarMut.isPending}
                 />
               </label>
             </div>
+            <div>
+              <h2 className="font-display text-2xl font-bold text-foreground xl:text-[28px]">
+                {form.fullName || email || "Your Profile"}
+              </h2>
+              {memberSince && (
+                <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-border bg-accent/20 px-3 py-1 text-xs text-muted-foreground md:px-4 md:py-1.5 md:text-sm">
+                  <Shield className="h-3.5 w-3.5 text-primary md:h-4 md:w-4" aria-hidden="true" />
+                  Member since {memberSince}
+                </div>
+              )}
+            </div>
+            {uploadAvatarMut.isPending && <p className="text-xs text-muted-foreground md:text-sm">Uploading photo…</p>}
+            {uploadAvatarMut.isError && (
+              <p role="alert" className="text-xs text-destructive md:text-sm">
+                {getErrorMessage(uploadAvatarMut.error, "Failed to upload photo.")}
+              </p>
+            )}
           </div>
 
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-foreground border-b border-border pb-2">
-                Personal Information
-              </h2>
-
-              <div className="grid gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName" className="text-foreground">
-                    Full Name
-                  </Label>
-                  <Input
-                    id="fullname"
-                    type="text"
-                    value={fullName}
-                    disabled
-                    className="bg-muted"
+          <div className="grid gap-4 md:grid-cols-12 md:gap-6 xl:gap-8">
+            <section className="md:col-span-5">
+              <h2 className="mb-3 font-display text-lg font-semibold text-foreground xl:mb-4 xl:text-xl">Avatar</h2>
+              <div className="nexali-panel space-y-4 rounded-xl p-5 md:p-6 xl:p-7">
+                <p className="text-sm text-muted-foreground md:text-base">A square image works best.</p>
+                <label
+                  className={cn(buttonVariants({ variant: "hero", size: "control" }), "w-full cursor-pointer")}
+                >
+                  <Upload className="h-4 w-4" aria-hidden="true" />
+                  {uploadAvatarMut.isPending ? "Uploading…" : "Upload new photo"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={handleAvatarUpload}
+                    disabled={uploadAvatarMut.isPending}
                   />
-                </div>
+                </label>
+                {rawAvatar && (
+                  <Button
+                    type="button"
+                    variant="surface"
+                    size="control"
+                    className="w-full"
+                    onClick={() => setConfirmRemoveAvatar(true)}
+                    disabled={deleteAvatarMut.isPending}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    Remove current
+                  </Button>
+                )}
+              </div>
+            </section>
 
+            <section className="md:col-span-7">
+              <h2 className="mb-3 font-display text-lg font-semibold text-foreground xl:mb-4 xl:text-xl">
+                Personal identity
+              </h2>
+              <div className="nexali-panel space-y-5 rounded-xl p-5 md:p-6 xl:p-7">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-foreground">
-                    Email Address
+                  <Label htmlFor="profile-name" className="md:text-[15px]">
+                    Full name
                   </Label>
                   <Input
-                    id="email"
+                    id="profile-name"
+                    value={form.fullName}
+                    maxLength={FULL_NAME_MAX}
+                    onChange={(e) => {
+                      setForm({ ...form, fullName: e.target.value });
+                      setFullNameError(null);
+                    }}
+                    aria-invalid={fullNameError ? true : undefined}
+                    aria-describedby={fullNameError ? "profile-name-error" : undefined}
+                    className="h-11 text-base md:text-base xl:h-12"
+                  />
+                  {fullNameError && (
+                    <p id="profile-name-error" className="text-sm text-destructive">
+                      {fullNameError}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile-email" className="md:text-[15px]">
+                    Email address
+                  </Label>
+                  <Input
+                    id="profile-email"
                     type="email"
-                    value={email}
+                    value={email ?? ""}
+                    readOnly
                     disabled
-                    className="bg-muted"
+                    className="h-11 cursor-not-allowed bg-muted text-base md:text-base xl:h-12"
                   />
+                  <p className="text-sm italic text-muted-foreground">Contact support to change your sign-in email.</p>
                 </div>
               </div>
-            </div>
+            </section>
 
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-foreground border-b border-border pb-2">
-                Regional Preferences
-              </h2>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="currency" className="text-foreground">
-                    Currency
-                  </Label>
-                  <Select value={currency} onValueChange={setCurrency} disabled>
-                    <SelectTrigger className="bg-muted">
-                      <SelectValue placeholder="Select currency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="USD">USD - US Dollar</SelectItem>
-                      <SelectItem value="EUR">EUR - Euro</SelectItem>
-                      <SelectItem value="GBP">GBP - British Pound</SelectItem>
-                      <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
-                      <SelectItem value="AUD">
-                        AUD - Australian Dollar
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+            <section className="md:col-span-12">
+              <h2 className="mb-3 font-display text-lg font-semibold text-foreground xl:mb-4 xl:text-xl">Preferences</h2>
+              <p className="-mt-2 mb-3 text-sm text-muted-foreground xl:-mt-3">Defaults used across Nexali.</p>
+              <div className="nexali-panel divide-y divide-border rounded-xl p-5 md:p-6 xl:p-7">
+                <div className="grid grid-cols-1 gap-2 py-4 first:pt-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6 xl:py-5">
+                  <div>
+                    <span className="block text-sm font-medium text-foreground md:text-[15px]">Preferred currency</span>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
+                      Used throughout budgets, transactions and reports.
+                    </p>
+                  </div>
+                  <span className="numeric text-sm text-foreground md:text-base">{FIXED_CURRENCY_LABEL}</span>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="numberFormat" className="text-foreground">
-                    Number Format
-                  </Label>
+                <div className="grid grid-cols-1 gap-2 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6 xl:py-5">
+                  <div>
+                    <span className="block text-sm font-medium text-foreground md:text-[15px]">Timezone</span>
+                    <p className="mt-0.5 text-sm text-muted-foreground">Used when grouping activity by date.</p>
+                  </div>
+                  <span className="text-sm text-foreground md:text-base">
+                    {profile?.timezone ?? "Not set"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6 xl:py-5">
+                  <div>
+                    <Label htmlFor="profile-budget-cycle" className="md:text-[15px]">
+                      Budget reset cycle
+                    </Label>
+                    <p className="mt-0.5 text-sm text-muted-foreground">How often your budgets reset.</p>
+                  </div>
                   <Select
-                    value={numberFormat}
-                    onValueChange={setNumberFormat}
-                    disabled
+                    value={form.budgetCycle}
+                    onValueChange={(v) => setForm({ ...form, budgetCycle: v as BudgetCycle })}
                   >
-                    <SelectTrigger className="bg-muted">
-                      <SelectValue placeholder="Select number format" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1,234.56">1,234.56 (US)</SelectItem>
-                      <SelectItem value="1.234,56">1.234,56 (EU)</SelectItem>
-                      <SelectItem value="1 234,56">1 234,56 (FR)</SelectItem>
-                      <SelectItem value="1'234.56">1'234.56 (CH)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="timezone" className="text-foreground">
-                    Timezone
-                  </Label>
-                  <Select value={timezone} onValueChange={setTimezone}>
-                    <SelectTrigger className="bg-muted">
-                      <SelectValue placeholder="Select timezone" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LIST.map((tz) => (
-                        <SelectItem key={tz} value={tz}>
-                          {tzLabel(tz)}
-                        </SelectItem>
-                      ))}
-                      {timezone && !(LIST as readonly string[]).includes(timezone) && (
-                        <SelectItem value={timezone}>
-                          {tzLabel(timezone)}
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-foreground border-b border-border pb-2">
-                Budget Settings
-              </h2>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="budgetCycle" className="text-foreground">
-                    {" "}
-                    Budget Reset Cycle
-                  </Label>
-                  <Select
-                    value={budgetCycle}
-                    onValueChange={(v) => setBudgetCycle(v as BudgetCycle)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select cycle" />
+                    <SelectTrigger id="profile-budget-cycle" className="h-11 text-base sm:w-64 md:text-base xl:h-12 xl:w-72">
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="weekly">Weekly</SelectItem>
@@ -360,61 +361,49 @@ function Profile() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="resetDay" className="text-foreground">
-                    Reset Day
-                  </Label>
+                <div className="grid grid-cols-1 gap-2 py-4 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6 xl:py-5">
+                  <div>
+                    <Label htmlFor="profile-reset-day" className="md:text-[15px]">
+                      Reset day
+                    </Label>
+                    <p className="mt-0.5 text-sm text-muted-foreground">Day of month your budgets reset (1-31).</p>
+                  </div>
                   <Input
-                    id="resetDay"
+                    id="profile-reset-day"
                     type="number"
-                    value={resetDay}
-                    onChange={(e) => setResetDay(Number(e.target.value))}
                     min={1}
                     max={31}
-                    placeholder="Day of month (1-31)"
+                    value={form.resetDay}
+                    onChange={(e) => setForm({ ...form, resetDay: Number(e.target.value) })}
+                    className="h-11 text-base sm:w-28 md:text-base xl:h-12"
                   />
                 </div>
               </div>
-            </div>
+            </section>
           </div>
 
-          <div className="flex flex-col items-center gap-4 pt-6">
-            <Button
-              type="submit"
-              className="w-full max-w-xs"
-              size="lg"
-              disabled={updateProfile.isPending}
-            >
-              {updateProfile.isPending ? "Saving…" : "Save Changes"}
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="ghost" onClick={handleDiscard} disabled={!isDirty || updateProfile.isPending}>
+              Discard changes
             </Button>
-
-            {/* Toast notification */}
-            {saveStatus.type && (
-              <div
-                className={`
-                  px-4 py-2 rounded-md text-sm font-medium transition-all duration-300
-                  ${
-                    saveStatus.type === "success"
-                      ? "bg-green-100 text-green-800 border border-green-200"
-                      : "bg-red-100 text-red-800 border border-red-200"
-                  }
-                `}
-              >
-                {saveStatus.message}
-              </div>
-            )}
-
-            <span
-              className="text-lg text-red-400 hover:text-red-500 hover:underline cursor-pointer mt-1 flex justify-center pb-5"
-              onClick={handleDeleteUser}
-            >
-              {deleteUserMut.isPending ? "Deleting account…" : "Delete User"}
-            </span>
+            <Button type="submit" variant="hero" size="control" disabled={!isDirty || updateProfile.isPending}>
+              {updateProfile.isPending ? "Saving…" : "Save changes"}
+            </Button>
           </div>
         </form>
       </div>
-    </div>
+
+      <ConfirmDialog
+        open={confirmRemoveAvatar}
+        onOpenChange={setConfirmRemoveAvatar}
+        title="Remove profile photo?"
+        description="Your profile photo will be removed. You can upload a new one anytime."
+        confirmLabel="Remove"
+        pendingLabel="Removing…"
+        onConfirm={confirmRemove}
+        isPending={deleteAvatarMut.isPending}
+        errorMessage={deleteAvatarMut.isError ? getErrorMessage(deleteAvatarMut.error, "Failed to remove photo.") : null}
+      />
+    </PageContainer>
   );
 }
-
-export default Profile;

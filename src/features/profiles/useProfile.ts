@@ -12,10 +12,16 @@ export function useProfile(userId?: string) {
     })
 }
 
+export type UpdateProfileVars = {
+    full_name: string;
+    budget_reset_cycle: string;
+    reset_day: number;
+};
+
 export function useUpdateProfile(userId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: async (vars: {budget_reset_cycle: string, reset_day: number, timezone: string}) => {
+        mutationFn: async (vars: UpdateProfileVars) => {
             const { error } = await supabase
                   .from("profiles")
                   .update(vars)
