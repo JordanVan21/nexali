@@ -96,8 +96,8 @@ const MonthIncomeExpenseWidget = ({
                       key={i}
                       fill={
                         i === 0
-                          ? "hsl(var(--destructive))"
-                          : "hsl(var(--primary))"
+                          ? "oklch(var(--destructive))"
+                          : "oklch(var(--primary))"
                       }
                     />
                   ))}

@@ -15,51 +15,58 @@ module.exports = {
 		},
 		extend: {
 			colors: {
-				border: 'hsl(var(--border))',
-				input: 'hsl(var(--input))',
-				ring: 'hsl(var(--ring))',
-				background: 'hsl(var(--background))',
-				foreground: 'hsl(var(--foreground))',
+				border: 'oklch(var(--border))',
+				input: 'oklch(var(--input))',
+				ring: 'oklch(var(--ring))',
+				background: 'oklch(var(--background))',
+				foreground: 'oklch(var(--foreground))',
 				primary: {
-					DEFAULT: 'hsl(var(--primary))',
-					foreground: 'hsl(var(--primary-foreground))',
-					glow: 'hsl(var(--primary-glow))',
-					hover: 'hsl(var(--primary-hover))',
-					muted: 'hsl(var(--primary-muted))',
-					border: 'hsl(var(--primary-border))',
-					ring: 'hsl(var(--primary-ring))'
+					DEFAULT: 'oklch(var(--primary))',
+					foreground: 'oklch(var(--primary-foreground))',
+					glow: 'oklch(var(--primary-glow))'
 				},
 				secondary: {
-					DEFAULT: 'hsl(var(--secondary))',
-					foreground: 'hsl(var(--secondary-foreground))'
+					DEFAULT: 'oklch(var(--secondary))',
+					foreground: 'oklch(var(--secondary-foreground))'
 				},
 				destructive: {
-					DEFAULT: 'hsl(var(--destructive))',
-					foreground: 'hsl(var(--destructive-foreground))'
+					DEFAULT: 'oklch(var(--destructive))',
+					foreground: 'oklch(var(--destructive-foreground))'
 				},
 				success: {
-					DEFAULT: 'hsl(var(--success))',
-					foreground: 'hsl(var(--success-foreground))'
+					DEFAULT: 'oklch(var(--success))',
+					foreground: 'oklch(var(--success-foreground))'
 				},
 				warning: {
-					DEFAULT: 'hsl(var(--warning))',
-					foreground: 'hsl(var(--warning-foreground))'
+					DEFAULT: 'oklch(var(--warning))',
+					foreground: 'oklch(var(--warning-foreground))'
 				},
 				muted: {
-					DEFAULT: 'hsl(var(--muted))',
-					foreground: 'hsl(var(--muted-foreground))'
+					DEFAULT: 'oklch(var(--muted))',
+					foreground: 'oklch(var(--muted-foreground))'
 				},
 				accent: {
-					DEFAULT: 'hsl(var(--accent))',
-					foreground: 'hsl(var(--accent-foreground))'
+					DEFAULT: 'oklch(var(--accent))',
+					foreground: 'oklch(var(--accent-foreground))'
 				},
 				popover: {
-					DEFAULT: 'hsl(var(--popover))',
-					foreground: 'hsl(var(--popover-foreground))'
+					DEFAULT: 'oklch(var(--popover))',
+					foreground: 'oklch(var(--popover-foreground))'
 				},
 				card: {
-					DEFAULT: 'hsl(var(--card))',
-					foreground: 'hsl(var(--card-foreground))'
+					DEFAULT: 'oklch(var(--card))',
+					foreground: 'oklch(var(--card-foreground))'
+				},
+				surface: {
+					lowest: 'oklch(var(--surface-lowest))',
+					low: 'oklch(var(--surface-low))',
+					DEFAULT: 'oklch(var(--surface))',
+					high: 'oklch(var(--surface-high))',
+					highest: 'oklch(var(--surface-highest))'
+				},
+				outline: {
+					DEFAULT: 'oklch(var(--outline))',
+					variant: 'oklch(var(--outline-variant))'
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
@@ -72,15 +79,21 @@ module.exports = {
 					ring: 'hsl(var(--sidebar-ring))'
 				}
 			},
+			fontFamily: {
+				sans: 'var(--font-sans)',
+				display: 'var(--font-display)',
+				mono: 'var(--font-mono)'
+			},
 			backgroundImage: {
 				'gradient-primary': 'var(--gradient-primary)',
-				'gradient-secondary': 'var(--gradient-secondary)',
 				'gradient-hero': 'var(--gradient-hero)',
 				'gradient-card': 'var(--gradient-card)'
 			},
 			boxShadow: {
 				'glow': 'var(--shadow-glow)',
-				'card': 'var(--shadow-card)'
+				'card': 'var(--shadow-card)',
+				'elevated': 'var(--shadow-elevated)',
+				'primary-glow': 'var(--shadow-primary-glow)'
 			},
 			transitionTimingFunction: {
 				'smooth': 'var(--transition-smooth)',
@@ -89,7 +102,9 @@ module.exports = {
 			borderRadius: {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
-				sm: 'calc(var(--radius) - 4px)'
+				sm: 'calc(var(--radius) - 4px)',
+				xl: 'calc(var(--radius) + 4px)',
+				'2xl': 'calc(var(--radius) + 8px)'
 			},
 			keyframes: {
 				'accordion-down': {

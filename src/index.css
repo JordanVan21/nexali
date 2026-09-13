@@ -4,68 +4,102 @@
 
 @layer base {
   :root {
-    --background: 240 15% 7%;
-    --foreground: 0 0% 98%;
+    /*
+     * Color values below are the real tokens from the approved Lovable
+     * design reference (lovable_design/src/styles.css), translated from
+     * Tailwind 4's oklch(...) function values into Nexali's existing
+     * "bare component" CSS-variable convention (an oklch equivalent of the
+     * old `H S% L%` HSL triples), consumed via oklch(var(--x)) in
+     * tailwind.config.js. Never hardcode colors in components — use these
+     * tokens or the Tailwind utilities they back.
+     */
+    --background: 0.1864 0.0088 264.34;
+    --foreground: 0.9145 0.0081 286.24;
 
-    --card: 240 12% 12%;
-    --card-foreground: 0 0% 95%;
+    --card: 0.2091 0.0104 268.19;
+    --card-foreground: var(--foreground);
 
-    --popover: 240 12% 12%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 0.2091 0.0104 268.19;
+    --popover-foreground: var(--foreground);
 
-    /* Nexali brand primary: periwinkle blue (~#ADC6FF), a light/bright
-       accent, so its foreground stays dark for contrast (see AA note
-       below) rather than the light text used on darker accent colors. */
-    --primary: 222 100% 84%;
-    --primary-foreground: 224 71% 8%;
-    --primary-glow: 222 100% 91%;
-    --primary-hover: 222 85% 76%;
-    --primary-muted: 222 35% 22%;
-    --primary-border: 222 70% 58%;
-    --primary-ring: 222 90% 72%;
+    /* Nexali brand primary: periwinkle blue, a light/bright accent, so its
+       foreground stays dark for contrast (WCAG AA) rather than the light
+       text used on darker accent colors. */
+    --primary: 0.8281 0.0851 266.17;
+    --primary-foreground: 0.2144 0.115 257.73;
+    /* Lighter tint of primary, used only for the gradient-primary stop. */
+    --primary-glow: 0.91 0.045 266.17;
 
-    /* Secondary: a muted cool-gray accent, deliberately distinct from
-       primary blue so the two don't compete for attention now that blue
-       is the brand color rather than a secondary accent. */
-    --secondary: 222 18% 30%;
-    --secondary-foreground: 0 0% 95%;
+    /* Secondary: same neutral surface as the surface-high tonal step,
+       deliberately not a second blue so it doesn't compete with primary. */
+    --secondary: 0.2846 0.0079 264.44;
+    --secondary-foreground: var(--foreground);
 
-    --muted: 240 8% 20%;
-    --muted-foreground: 240 5% 65%;
+    --muted: 0.2431 0.0082 264.41;
+    --muted-foreground: 0.8283 0.0227 274.68;
 
-    --accent: 240 8% 20%;
-    --accent-foreground: 0 0% 95%;
+    --accent: 0.2846 0.0079 264.44;
+    --accent-foreground: var(--foreground);
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
+    /* Material-Design-3-style tonal surface ladder, lowest (recessed) to
+       highest (most raised), for distinguishing root background / base
+       surface / elevated card / high surface / input surface. */
+    --surface-lowest: 0.1634 0.0091 264.28;
+    --surface-low: 0.226 0.0083 264.39;
+    --surface: 0.2431 0.0082 264.41;
+    --surface-high: 0.2846 0.0079 264.44;
+    --surface-highest: 0.3285 0.0076 264.46;
+    --outline: 0.655 0.0227 273.87;
+    --outline-variant: 0.3984 0.0229 268.72;
 
-    --success: 142 71% 45%;
-    --success-foreground: 240 15% 7%;
+    --destructive: 0.8383 0.0891 26.76;
+    --destructive-foreground: 0.2275 0.1336 27.32;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 240 15% 7%;
+    --success: 0.8063 0.1948 149.26;
+    --success-foreground: 0.3011 0.0834 149.76;
 
-    --border: 240 8% 20%;
-    --input: 240 8% 20%;
-    --ring: 222 90% 72%;
+    --warning: 0.8342 0.1335 71;
+    --warning-foreground: 0.3142 0.0682 69.76;
 
-    --radius: 1rem;
+    /* Same bare components as --outline-variant; the default (unmodified)
+       border color bakes in a 45% alpha in the `*` reset below to match
+       Lovable's soft-hairline look, while border-border/NN utility classes
+       elsewhere keep working via Tailwind's normal opacity-modifier
+       machinery on this bare value. */
+    --border: 0.3984 0.0229 268.72;
+    --input: 0.3984 0.0229 268.72;
+    --ring: 0.8281 0.0851 266.17;
+
+    --radius: 0.75rem;
 
     /* Shell dimensions, shared between the nav components and page container */
     --desktop-nav-height: 72px;
     --mobile-header-height: 3.5rem;
     --mobile-nav-height: 4rem;
 
+    /* Typography roles. Lovable's real reference loads three distinct
+       Google Fonts (Hanken Grotesk for display, Inter for body, JetBrains
+       Mono for tabular numerics); none are loaded here yet (see
+       docs/DESIGN_SYSTEM.md and the Part 1 report's open item on this), so
+       all three roles share the same system-font stack for now. The
+       three-variable split is kept so components can already target the
+       correct *role* and pick up real webfonts later with no call-site
+       changes. */
+    --font-display: ui-sans-serif, system-ui, sans-serif;
+    --font-sans: ui-sans-serif, system-ui, sans-serif;
+    --font-mono: ui-monospace, "SFMono-Regular", monospace;
+
     /* Financial app gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
-    --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)), hsl(222 18% 45%));
-    --gradient-hero: linear-gradient(135deg, hsl(240 15% 7%), hsl(240 12% 12%));
-    --gradient-card: linear-gradient(135deg, hsl(var(--card)), hsl(240 10% 15%));
-    
+    --gradient-primary: linear-gradient(135deg, oklch(var(--primary)), oklch(var(--primary-glow)));
+    --gradient-hero: linear-gradient(135deg, oklch(var(--background)), oklch(var(--card)));
+    --gradient-card: linear-gradient(135deg, oklch(var(--card)), oklch(var(--surface-high)));
+
     /* Shadows */
-    --shadow-glow: 0 0 40px hsl(var(--primary) / 0.3);
-    --shadow-card: 0 20px 40px -12px hsl(240 15% 7% / 0.4);
-    
+    --shadow-glow: 0 0 40px oklch(var(--primary) / 0.3);
+    --shadow-card: 0 20px 40px -12px oklch(var(--background) / 0.4);
+    --shadow-elevated: 0 18px 40px -24px oklch(0 0 0 / 0.9);
+    --shadow-primary-glow: 0 10px 30px -12px color-mix(in oklab, oklch(var(--primary)) 35%, transparent);
+
     /* Animations */
     --transition-smooth: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -101,9 +135,28 @@
     display: flex;
     align-items: center;
   }
-  
+
+  /* Default hairline: bakes in the same 45% alpha Lovable's reference uses
+     for its default border color. Utilities like border-border/20 still
+     apply their own opacity on top of the bare --border value via
+     Tailwind's normal opacity-modifier machinery, unaffected by this. */
   * {
-    @apply border-border;
+    border-color: oklch(var(--border) / 45%);
+  }
+
+  :focus-visible {
+    outline: 2px solid oklch(var(--primary));
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, oklch(var(--primary)) 30%, transparent);
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
   }
 
   /* Guarantees the dark Nexali background fills at least the full viewport
@@ -120,6 +173,8 @@
     @apply bg-background text-foreground;
     min-height: 100vh;
     min-height: 100dvh;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
   }
 
   #root {
@@ -127,6 +182,39 @@
     min-height: 100dvh;
   }
 
+}
+
+@layer utilities {
+  /* Glass panel used across Nexali surfaces */
+  .nexali-panel {
+    background: color-mix(in oklab, oklch(var(--card)) 80%, transparent);
+    border: 1px solid oklch(var(--border) / 45%);
+    backdrop-filter: blur(12px);
+  }
+
+  .numeric {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .scroll-slim::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scroll-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scroll-slim::-webkit-scrollbar-thumb {
+    background: oklch(var(--outline-variant));
+    border-radius: 10px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

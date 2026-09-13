@@ -41,7 +41,7 @@ function BudgetCard({ budget, onEdit, onDelete }: BudgetCardProps) {
       return "hsl(0 80% 60%)";
     }
   }
-  const COLORS = [getColor(pct), "hsl(var(--muted))"];
+  const COLORS = [getColor(pct), "oklch(var(--muted))"];
 
   if (!categories || !userId) return null;
 
@@ -73,12 +73,12 @@ function BudgetCard({ budget, onEdit, onDelete }: BudgetCardProps) {
                   ? [`${value.toFixed(1)}% used`, ""]
                   : [`${value.toFixed(1)}% left`, ""]
               }
-              contentStyle={{ 
+              contentStyle={{
                 fontSize: "0.875rem",
-                // backgroundColor: "hsl(var(--popover))",
-                border: "1px solid hsl(var(--border))",
+                // backgroundColor: "oklch(var(--popover))",
+                border: "1px solid oklch(var(--border) / 45%)",
                 borderRadius: "8px",
-                color: "hsl(var(--popover-foreground))"
+                color: "oklch(var(--popover-foreground))"
               }}
             />
           </PieChart>

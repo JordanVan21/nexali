@@ -8,6 +8,8 @@ This is a *v0 draft*. Section 13 lists every value that should be confirmed (or 
 
 **Revision (visual audit pass, post-Phase 3):** the color-priority decision in §2.1 below is reversed. Earlier drafts of this document made green the primary interface color; that is no longer correct. **Nexali's primary interface color is a periwinkle blue (~`#ADC6FF`)**, matching the approved Stitch/reference direction and `docs/design-reference/shared/design-tokens.md`'s original `primary` value. Green is reserved for semantic meaning only (income, success, positive movement) and must not be used for generic primary actions, navigation-active states, or brand emphasis. See §2.1 for the full token set.
 
+**Revision (Lovable visual-foundation integration, Part 1):** `lovable_design/` — an exported Lovable frontend prototype — is now the approved visual reference for shared tokens, hierarchy, spacing, surfaces, and shared UI primitives (not for its app architecture: Nexali keeps React Router, Vite, Tailwind 3, and its own Supabase/TanStack Query stack; Lovable's TanStack Start/Router, Bun, and Tailwind 4 build tooling were not adopted). Its real `src/styles.css` defines every color as an `oklch(L C H)` value rather than Nexali's previous HSL triples; §2.1's token table and `src/index.css` now store the bare `L C H` components of those real values (consumed as `oklch(var(--x))`, mirroring the old `hsl(var(--x))` pattern) instead of approximated HSL numbers. This pass also adopted: Lovable's Material-Design-3-style surface ladder (`--surface-lowest` → `--surface-highest`, plus `--outline`/`--outline-variant`, see §6), its five-tier radius scale on a `0.75rem` base (see §5), its `--shadow-elevated` and real `color-mix()`-based `--shadow-primary-glow` formula, and its global `:focus-visible` outline + `::selection` rules. Green/red/amber remain semantic-only, unchanged by this pass. The app is still dark-only — no light palette was introduced.
+
 ---
 
 ## Brand
@@ -47,34 +49,32 @@ What it fixes: five different border-radius values in use with no rule for which
 
 ### 2.1 Semantic token table
 
-All colors are defined as HSL triples in CSS custom properties (as today) and mapped into Tailwind's `theme.extend.colors` (as today) — this is a continuation of the existing pattern, not a new one.
+All colors are the real values from `lovable_design/src/styles.css` (the approved visual reference), stored as bare `oklch` components in CSS custom properties (`src/index.css`) and mapped into Tailwind's `theme.extend.colors` via `oklch(var(--x))` — replacing the previous HSL-triple/`hsl(var(--x))` pattern. `--card-foreground`, `--popover-foreground`, `--secondary-foreground`, and `--accent-foreground` all alias directly to `--foreground` (`var(--foreground)`), matching Lovable's own simplification instead of carrying separate near-duplicate values.
 
-| Token | Current value (dark) | Role | Change from today |
+| Token | Current value (dark, oklch L C H) | Role | Change from today |
 |---|---|---|---|
-| `--background` | `240 15% 7%` | App background | Keep |
-| `--foreground` | `0 0% 98%` | Primary text | Keep |
-| `--card` | `240 12% 12%` | Card surface | Keep |
-| `--card-foreground` | `0 0% 95%` | Text on cards | Keep |
-| `--popover` / `--popover-foreground` | `240 12% 12%` / `0 0% 95%` | Dropdowns, popovers | Keep |
-| `--primary` | `222 100% 84%` (periwinkle blue, ~`#ADC6FF`) | Primary actions, active nav, links, focus accents, selected states | **Brand color.** Was green through Phase 3; reversed in the visual audit pass — see the revision note above |
-| `--primary-foreground` | `224 71% 8%` | Text on primary | Dark, not white — `--primary` is a light/bright surface, so its foreground must stay dark for contrast (WCAG AA) |
-| `--primary-glow` | `222 100% 91%` | Gradient highlight (`bg-gradient-primary`) | Lighter tint of primary |
-| `--primary-hover` | `222 85% 76%` | Hover state for solid primary buttons | New |
-| `--primary-muted` | `222 35% 22%` | Solid muted-primary surface (e.g. a selected badge background where opacity blending isn't suitable) | New |
-| `--primary-border` | `222 70% 58%` | Stronger primary border (e.g. a focused/active input border) | New |
-| `--primary-ring` | `222 90% 72%` | Focus ring source value | New — `--ring` now points at this |
-| `--secondary` | `222 18% 30%` (muted cool gray) | Secondary/tertiary actions, less-prominent accents | Deliberately **not** a second blue — with blue now the brand primary, secondary is a desaturated neutral so the two don't compete for attention |
-| `--secondary-foreground` | `0 0% 95%` | Text on secondary | Light, since secondary is a darker muted surface |
-| `--muted` / `--muted-foreground` | `240 8% 20%` / `240 5% 65%` | De-emphasized surfaces/text | Keep |
-| `--accent` / `--accent-foreground` | `240 8% 20%` / `0 0% 95%` | Hover/selected surfaces | Keep |
-| `--destructive` / `--destructive-foreground` | `0 84% 60%` / `0 0% 98%` | Errors, delete, expenses, over-budget | Keep |
-| `--success` | `142 71% 45%` (green) | Positive confirmation, income, under-budget | Implemented. **Semantic only** — never used for generic primary actions or brand emphasis, even though green was the old primary color |
-| `--warning` | `38 92% 50%` (amber) | Approaching budget limit (75–95%) | Implemented |
-| `--border` / `--input` | `240 8% 20%` | Borders, input borders | Keep |
-| `--ring` | `222 90% 72%` (= `--primary-ring`) | Focus ring | Follows primary now, was green |
-| `--radius` | `1rem` | Base radius (see §5) | Keep as the *large* tier |
+| `--background` | `0.1864 0.0088 264.34` | App background | Real Lovable value (was an approximated HSL triple) |
+| `--foreground` | `0.9145 0.0081 286.24` | Primary text | Real Lovable value |
+| `--card` / `--popover` | `0.2091 0.0104 268.19` | Card surface, dropdowns/popovers | Real Lovable value |
+| `--card-foreground` / `--popover-foreground` / `--secondary-foreground` / `--accent-foreground` | `var(--foreground)` | Text on those surfaces | Simplified to alias `--foreground` directly, per Lovable's `@theme inline` block |
+| `--primary` | `0.8281 0.0851 266.17` (periwinkle blue, ~`#ADC6FF`) | Primary actions, active nav, links, focus accents, selected states | **Brand color**, real Lovable value |
+| `--primary-foreground` | `0.2144 0.115 257.73` | Text on primary | Dark, not white — `--primary` is a light/bright surface, so its foreground must stay dark for contrast (WCAG AA) |
+| `--primary-glow` | `0.91 0.045 266.17` | Gradient highlight (`bg-gradient-primary`) only | Lighter tint of primary; Lovable itself has no equivalent token (it has no gradients) — kept only because `bg-gradient-primary` still has call sites |
+| `--secondary` / `--accent` | `0.2846 0.0079 264.44` | Secondary/tertiary actions, hover/selected surfaces | Same real value as `--surface-high` — deliberately a neutral, not a second blue |
+| `--muted` | `0.2431 0.0082 264.41` | De-emphasized surfaces | Same real value as `--surface` |
+| `--muted-foreground` | `0.8283 0.0227 274.68` | De-emphasized text | Real Lovable value |
+| `--surface-lowest` → `--surface-highest` | `0.1634`/`0.226`/`0.2431`/`0.2846`/`0.3285` (all `0.008–0.009 264.3–264.5`) | Tonal elevation ladder — root background, base surface, elevated card, high surface, input/control surface | New — see §6 |
+| `--outline` / `--outline-variant` | `0.655 0.0227 273.87` / `0.3984 0.0229 268.72` | Stronger/softer structural borders (e.g. the `surface` button variant) | New |
+| `--destructive` / `--destructive-foreground` | `0.8383 0.0891 26.76` / `0.2275 0.1336 27.32` | Errors, delete, expenses, over-budget | Real Lovable value |
+| `--success` / `--success-foreground` | `0.8063 0.1948 149.26` / `0.3011 0.0834 149.76` (green) | Positive confirmation, income, under-budget | **Semantic only** — never used for generic primary actions or brand emphasis |
+| `--warning` / `--warning-foreground` | `0.8342 0.1335 71` / `0.3142 0.0682 69.76` (amber) | Approaching budget limit (75–95%) | Real Lovable value |
+| `--border` / `--input` | `0.3984 0.0229 268.72` (same as `--outline-variant`) | Borders, input borders | Bare value, unchanged by opacity-modifier classes (`border-border/20` etc.); the default unmodified `*` border reset bakes in Lovable's 45% alpha directly (see §6) |
+| `--ring` | `0.8281 0.0851 266.17` (= `--primary`) | Focus ring | Unchanged role |
+| `--radius` | `0.75rem` | Base radius (see §5) | Was `1rem` — now matches Lovable's real base, used as the *large* tier |
 
-**Primary and secondary roles: blue is primary, green is reserved for semantic success/income/positive meaning only.** This reverses an earlier decision in this document that made green primary. It now matches the Stitch-generated `docs/design-reference/shared/design-tokens.md`'s original `primary: '#adc6ff'` assignment, which this document previously overrode; that override no longer applies. This document remains the color-priority source of truth per `docs/design-reference/README.md`'s Visual Source of Truth section — the README has been updated to match.
+**Primary and secondary roles: blue is primary, green is reserved for semantic success/income/positive meaning only.** Unchanged by this pass. This document remains the color-priority source of truth per `docs/design-reference/README.md`'s Visual Source of Truth section.
+
+**Dropped as unused:** `--primary-hover` (buttons now use the opacity modifier `hover:bg-primary/90`, matching Lovable's real Button exactly), `--primary-muted`, `--primary-border`, `--primary-ring` (had no call sites — `--ring` already carried the same value directly), and `--gradient-secondary` (had no call sites).
 
 ### 2.2 What's explicitly removed
 
@@ -142,30 +142,37 @@ This isn't a new scale — it's Tailwind's existing default spacing scale (`4 = 
 
 ## 5. Radius
 
-**Rule: three tiers, chosen by element role, not by eye.**
+**Rule: five tiers derived from one base, chosen by element role, not by eye.** Matches Lovable's real scale exactly: base `--radius: 0.75rem`, with `sm`/`md`/`xl`/`2xl` derived via `calc()` (`sm` = base −4px, `md` = base −2px, `lg` = base, `xl` = base +4px, `2xl` = base +8px).
 
 | Tier | Value | Token | Usage |
 |---|---|---|---|
-| Small | `0.5rem` (`rounded-md`) | `--radius` − 4px (existing calc) | Buttons, inputs, badges, small chips |
-| Medium | `0.75rem` (`rounded-lg`) | `--radius` − 2px (existing calc) | Compact cards, dropdown/popover panels, table containers |
-| Large | `1rem` (`rounded-xl`) | `--radius` (existing base) | Primary content cards (BudgetCard, dashboard widgets, modals) |
+| Small | `0.625rem` (`rounded-sm`) | `--radius` − 4px | Small chips, tight controls |
+| Medium | `0.6875rem` (`rounded-md`) | `--radius` − 2px | Buttons, inputs, badges |
+| Large | `0.75rem` (`rounded-lg`) | `--radius` (base) | Compact cards, dropdown/popover panels, table containers |
+| Extra-large | `0.8125rem` (`rounded-xl`) | `--radius` + 4px | Primary content cards (`ui/card.tsx`, dialogs) |
+| 2xl | `0.9375rem` (`rounded-2xl`) | `--radius` + 8px | Reserved for a single hero surface, not used broadly |
 | Full | `rounded-full` | — | Avatars, pills/badges, circular icon buttons |
 
-`rounded-2xl` (used once, on the Dashboard income/expense widget) and `rounded-x1` (a typo for `rounded-xl`, in `Card.tsx`) are both retired — every card becomes `rounded-xl` (Large tier) for visual consistency across the app.
+Base radius moved from `1rem` to `0.75rem` (Lovable's real value) — every element built on the scale (buttons, inputs, cards, dialogs, badges via their own fixed `rounded-md`) picks this up automatically through the token, with no per-component edits needed.
 
 ---
 
 ## 6. Elevation & Surfaces
 
+**Surface ladder (new, real Lovable tokens):** `--surface-lowest` → `--surface-low` → `--surface` → `--surface-high` → `--surface-highest`, plus `--outline` / `--outline-variant` for structural borders. This is a Material-Design-3-style tonal system layered on top of the base semantic tokens (`--card`, `--popover`, etc.), available as Tailwind utilities (`bg-surface-lowest`, `bg-surface-high`, `border-outline-variant`, ...) so a page can distinguish root background, base surface, elevated card, high surface, and input/control surface without hand-picking opacity values. Not yet applied to any page body in this pass — establishing the tokens is Part 1's scope; using them page-by-page is later work.
+
 | Token | Current value | Usage |
 |---|---|---|
-| `shadow-card` | `0 20px 40px -12px hsl(240 15% 7% / 0.4)` | Default resting elevation for cards |
-| `shadow-glow` | `0 0 40px hsl(var(--primary) / 0.3)` | Reserved for surfaces not yet visually corrected (Budgets); no longer applied to primary buttons or nav |
-| `bg-gradient-card` | `linear-gradient(135deg, hsl(var(--card)), hsl(240 10% 15%))` | Default card surface — keep as the app's signature texture |
-| `bg-gradient-hero` | `linear-gradient(135deg, hsl(240 15% 7%), hsl(240 12% 12%))` | Full-page backgrounds (auth pages, landing) |
-| Border | `border border-border/20` (cards), `border border-border/10` (dividers) | Keep — subtle hairline, not a heavy outline |
+| `shadow-card` | `0 20px 40px -12px oklch(var(--background) / 0.4)` | Default resting elevation for cards |
+| `shadow-glow` | `0 0 40px oklch(var(--primary) / 0.3)` | Reserved for surfaces not yet visually corrected (Budgets); no longer applied to primary buttons or nav |
+| `shadow-elevated` | `0 18px 40px -24px oklch(0 0 0 / 0.9)` | New — Lovable's real elevated-surface shadow, not yet applied anywhere |
+| `shadow-primary-glow` | `0 10px 30px -12px color-mix(in oklab, oklch(var(--primary)) 35%, transparent)` | Real Lovable formula, now used by `Button variant="hero"` (previously an invented approximation) |
+| `bg-gradient-card` | `linear-gradient(135deg, oklch(var(--card)), oklch(var(--surface-high)))` | Default card surface — keep as the app's signature texture |
+| `bg-gradient-hero` | `linear-gradient(135deg, oklch(var(--background)), oklch(var(--card)))` | Full-page backgrounds (auth pages, landing) |
+| `nexali-panel` (utility) | `background: color-mix(in oklab, oklch(var(--card)) 80%, transparent); border: 1px solid oklch(var(--border) / 45%); backdrop-filter: blur(12px);` | New — Lovable's glass-panel treatment, translated to a Tailwind 3 `@layer utilities` class; not yet applied anywhere |
+| Border | `border border-border/20` (cards), `border border-border/10` (dividers); default unmodified border color now bakes in Lovable's 45% alpha | Keep — subtle hairline, not a heavy outline |
 
-**Revised rule (visual audit pass):** primary call-to-action buttons (`variant="hero"`) are now a **flat** solid-`--primary` surface with a `--primary-hover` hover state, not a gradient-plus-glow-plus-scale treatment — the approved reference shows a plain light-blue button, and stacking glow/gradient/scale on top of an already-bright brand color read as excessive rather than as emphasis. `shadow-glow` is kept as a utility (still used by Budgets, not corrected this pass) but is no longer the pattern for a "this is important" primary action; the flat primary fill already carries that weight since it's the brightest surface on the page.
+**Revised rule (visual audit pass):** primary call-to-action buttons (`variant="hero"`) are a **flat** solid-`--primary` surface with an opacity-based `hover:bg-primary/90` state (matching Lovable's real Button exactly) plus the real `shadow-primary-glow`, not a gradient-plus-scale treatment invented from a screenshot. `shadow-glow` is kept as a utility (still used by Budgets, not corrected this pass).
 
 ---
 
@@ -190,7 +197,7 @@ One `Card` primitive (`ui/card.tsx`, currently unused shadcn scaffolding — see
 
 ## 8. Buttons
 
-The existing `Button` primitive (`ui/button.tsx`) and its variant set (`default`, `destructive`, `outline`, `secondary`, `ghost`, `link`, `hero`, `glow`) are **preserved as-is** — this is good, centralized, accessible (Radix `Slot`-based) work already in the codebase and should be the foundation, not replaced.
+The existing `Button` primitive (`ui/button.tsx`) is **preserved as-is architecturally** (Radix `Slot`-based, `class-variance-authority`) — this is good, centralized, accessible work already in the codebase and remains the foundation. Its variant set was extended, not replaced, with two real Lovable variants: `brand` (kept under the existing `hero` name so call sites didn't need touching — flat primary fill, `font-semibold`, the real `shadow-primary-glow`, `active:scale-[0.98]`) and `surface` (a new variant: bordered `surface-lowest` background, `outline-variant` border, hover lifts to `surface-high` and picks up a primary border — for lower-emphasis actions needing more weight than `ghost`/`outline`). Two sizes were added: `control` (`h-11 rounded-lg`, a taller touch-friendly control size) and `icon-lg` (`h-11 w-11 rounded-lg`). All previously-existing variant/size names (`default`, `destructive`, `outline`, `secondary`, `ghost`, `link`, `glow`, `sm`, `lg`, `icon`) keep their call sites working unchanged. Focus styling moved from a per-component `ring-2` + `ring-offset-2` to a subtler `ring-1` (matching Lovable's real Button), relying on the new app-wide `:focus-visible` outline (§18) as the primary strong indicator instead of stacking two focus treatments.
 
 **Additions/clarifications:**
 - **Icon-only buttons must always carry `aria-label`.** Today several (`Menu` trigger, pagination chevrons, `X` filter-remove) rely on the icon alone. This is a component-contract rule, not a new variant.
