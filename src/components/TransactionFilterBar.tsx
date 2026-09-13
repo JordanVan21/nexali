@@ -3,8 +3,10 @@ import { useUserInfo } from "../shared/useUserId";
 import { Button } from "./ui/button";
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -116,7 +118,7 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
     <>
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button variant="surface" size="sm" className="gap-2">
             <CalendarIcon className="h-4 w-4" aria-hidden="true" />
             <span>
               {dateRange.from
@@ -175,7 +177,7 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button variant="surface" size="sm" className="gap-2">
             <Filter className="h-4 w-4" aria-hidden="true" />
             <span>Category</span>
             {(filters.categoryNames?.length ?? 0) > 0 && (
@@ -201,7 +203,7 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button variant="surface" size="sm" className="gap-2">
             <DollarSign className="h-4 w-4" aria-hidden="true" />
             <span>Type</span>
             {(filters.types?.length ?? 0) > 0 && (
@@ -249,7 +251,7 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
 
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button variant="surface" size="sm" className="gap-2">
             <DollarSign className="h-4 w-4" aria-hidden="true" />
             <span>Amount</span>
             {(filters.minAmount !== undefined || filters.maxAmount !== undefined) && (
@@ -298,7 +300,7 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button variant="surface" size="sm" className="gap-2">
             <SortAsc className="h-4 w-4" aria-hidden="true" />
             <span>Sort</span>
           </Button>
@@ -327,13 +329,13 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
   );
 
   return (
-    <div className="space-y-3 rounded-xl border border-border/20 bg-gradient-card p-4 shadow-card sm:p-5">
-      {/* One integrated toolbar row on tablet/desktop: search grows, filters
-          and Reset sit inline to its right, matching the approved reference
-          ([ Search.......... ][Category][Type][Date][Reset]). Mobile keeps
-          search on its own row above the filter sheet trigger. */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-center">
-        <div className="relative w-full md:max-w-sm md:flex-1">
+    <div className="nexali-panel space-y-4 rounded-xl p-4 sm:p-5 lg:p-6">
+      {/* Row 1, every breakpoint: Search is the primary, full-width control
+          in its own row, matching the Lovable reference. Mobile pairs it
+          with the Filters sheet trigger; tablet/desktop get their own
+          second row of filter chips below. */}
+      <div className="flex items-center gap-2">
+        <div className="relative min-w-0 flex-1">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden="true"
@@ -347,45 +349,57 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
             placeholder="Search by merchant or note…"
             value={searchInput}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="pl-10"
+            className="h-11 pl-10"
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Desktop/tablet: filters inline. Hidden below md via CSS, not a JS isMobile check. */}
-          <div className="hidden flex-wrap items-center gap-2 md:flex">{renderFilters()}</div>
-
-          {/* Mobile: secondary filters collapse into a sheet. */}
-          <div className="md:hidden">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-                  Filters
-                  {activeFilters && (
-                    <Badge variant="secondary" className="ml-1 h-5 w-5 rounded-full p-0 text-xs">
-                      •
-                    </Badge>
-                  )}
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
-                <SheetHeader>
-                  <SheetTitle>Filter Transactions</SheetTitle>
-                  <SheetDescription>Narrow down your transaction list.</SheetDescription>
-                </SheetHeader>
-                <div className="mt-6 flex flex-col items-start gap-3">{renderFilters()}</div>
-              </SheetContent>
-            </Sheet>
-          </div>
-
-          {activeFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-2 text-primary hover:text-primary">
-              <X className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Reset Filters</span>
-            </Button>
-          )}
+        {/* Mobile: secondary filters collapse into a sheet, triggered next to Search. */}
+        <div className="shrink-0 md:hidden">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="surface" size="sm" className="h-11 gap-2">
+                <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+                Filters
+                {activeFilters && (
+                  <Badge variant="secondary" className="ml-1 h-5 w-5 rounded-full p-0 text-xs">
+                    •
+                  </Badge>
+                )}
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Filter Transactions</SheetTitle>
+                <SheetDescription>Narrow down your transaction list.</SheetDescription>
+              </SheetHeader>
+              <div className="mt-6 flex flex-col items-start gap-3">{renderFilters()}</div>
+              <SheetFooter className="mt-6 flex-row gap-2">
+                {activeFilters && (
+                  <Button type="button" variant="surface" size="control" className="flex-1" onClick={clearFilters}>
+                    Reset Filters
+                  </Button>
+                )}
+                <SheetClose asChild>
+                  <Button type="button" variant="hero" size="control" className="flex-1">
+                    Show results
+                  </Button>
+                </SheetClose>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
         </div>
+      </div>
+
+      {/* Row 2, tablet/desktop only: real filter controls + Reset. Hidden
+          below md via CSS, not a JS isMobile check. */}
+      <div className="hidden flex-wrap items-center gap-2 md:flex">
+        {renderFilters()}
+        {activeFilters && (
+          <Button variant="link" size="sm" onClick={clearFilters} className="gap-2 px-2 text-primary">
+            <X className="h-4 w-4" aria-hidden="true" />
+            Reset Filters
+          </Button>
+        )}
       </div>
 
       {activeFilters && (

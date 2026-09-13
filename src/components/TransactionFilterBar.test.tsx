@@ -49,6 +49,14 @@ describe("TransactionFilterBar", () => {
     expect(screen.queryByRole("button", { name: /reset filters/i })).not.toBeInTheDocument();
   });
 
+  it("renders Search as its own prominent control and never an unsupported Method filter", () => {
+    renderWithProviders(<TransactionFilterBar filters={BASE_FILTERS} onFiltersChange={vi.fn()} />);
+
+    expect(screen.getByRole("searchbox")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^method$/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/debit|credit|automatic/i)).not.toBeInTheDocument();
+  });
+
   it("shows Reset Filters when a filter is active and clears all filters on click", async () => {
     const onFiltersChange = vi.fn();
     const user = userEvent.setup();

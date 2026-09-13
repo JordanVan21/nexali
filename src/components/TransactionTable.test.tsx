@@ -125,7 +125,8 @@ describe("TransactionTable", () => {
     );
 
     const table = within(screen.getByRole("table"));
-    await user.click(table.getByRole("button", { name: /edit transaction/i }));
+    await user.click(table.getByRole("button", { name: /actions for whole foods market/i }));
+    await user.click(await screen.findByText("Edit"));
 
     expect(onEditTransaction).toHaveBeenCalledWith(tx);
   });
@@ -137,7 +138,8 @@ describe("TransactionTable", () => {
     renderTable();
 
     const table = within(screen.getByRole("table"));
-    await user.click(table.getByRole("button", { name: /delete transaction/i }));
+    await user.click(table.getByRole("button", { name: /actions for whole foods market/i }));
+    await user.click(await screen.findByText("Delete"));
 
     expect(await screen.findByText(/delete transaction\?/i)).toBeInTheDocument();
     expect(deleteMutate).not.toHaveBeenCalled();
@@ -153,7 +155,8 @@ describe("TransactionTable", () => {
     renderTable();
 
     const table = within(screen.getByRole("table"));
-    await user.click(table.getByRole("button", { name: /delete transaction/i }));
+    await user.click(table.getByRole("button", { name: /actions for whole foods market/i }));
+    await user.click(await screen.findByText("Delete"));
     await user.click(await screen.findByRole("button", { name: /cancel/i }));
 
     expect(deleteMutate).not.toHaveBeenCalled();

@@ -1,5 +1,6 @@
-import { Edit, Trash2, TrendingDown, TrendingUp } from "lucide-react";
+import { Edit, MoreHorizontal, Trash2, TrendingDown, TrendingUp } from "lucide-react";
 import { Button } from "./ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdownMenu";
 import { formatCurrency } from "../lib/format";
 import { getCategoryIcon } from "../lib/categoryIcon";
 import { cn } from "../lib/utils";
@@ -13,9 +14,9 @@ type MobileTransactionCardProps = {
 
 /**
  * Deliberate mobile transaction presentation (not the desktop table
- * squeezed into a narrow viewport). Category, date, and note stay
- * compact; Edit/Delete are always-visible touch targets, not
- * hover/expand-revealed.
+ * squeezed into a narrow viewport), matching the Lovable reference's
+ * TransactionCard: icon tile + merchant/date/type, amount, and a single
+ * Actions menu rather than separate always-visible Edit/Delete buttons.
  */
 export function MobileTransactionCard({ tx, onEdit, onDelete }: MobileTransactionCardProps) {
   const isIncome = tx.categories?.type === "income";
@@ -23,64 +24,77 @@ export function MobileTransactionCard({ tx, onEdit, onDelete }: MobileTransactio
   const date = tx.created_at ? new Date(tx.created_at).toLocaleDateString() : "";
   const amountLabel = `${isIncome ? "+" : "-"}${formatCurrency(Math.abs(tx.amount))}`;
   const MerchantIcon = getCategoryIcon(categoryName);
+  const toneText = isIncome ? "text-success" : "text-primary";
+  const toneBg = isIncome ? "bg-success/10" : "bg-primary/10";
+  const toneBadge = isIncome
+    ? "border-success/25 bg-success/10 text-success"
+    : "border-primary/25 bg-primary/10 text-primary";
+  const label = tx.merchant || categoryName;
 
   return (
-    <li className="rounded-xl border border-border/20 bg-gradient-card p-4 shadow-card">
-      <div className="flex items-start gap-3">
+    <li className="nexali-panel rounded-xl p-3">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
         <span
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/40 text-foreground/80"
+          className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", toneBg, toneText)}
           aria-hidden="true"
         >
-          <MerchantIcon className="h-4 w-4" />
+          <MerchantIcon className="h-[18px] w-[18px]" />
         </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-medium text-foreground">{tx.merchant || categoryName}</p>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-            {categoryName} · {date}
+        <div className="min-w-0">
+          <p className="truncate text-[15px] font-semibold text-foreground">{label}</p>
+          <p className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="numeric">{date}</span>
+            <span aria-hidden="true">·</span>
+            <span className="inline-flex items-center gap-1 truncate">
+              {isIncome ? (
+                <TrendingUp className="h-3 w-3 text-success" aria-hidden="true" />
+              ) : (
+                <TrendingDown className="h-3 w-3 text-destructive" aria-hidden="true" />
+              )}
+              {isIncome ? "Income" : "Expense"}
+            </span>
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-1 text-right">
-          {isIncome ? (
-            <TrendingUp className="h-4 w-4 text-success" aria-hidden="true" />
-          ) : (
-            <TrendingDown className="h-4 w-4 text-destructive" aria-hidden="true" />
-          )}
+        <div className="flex shrink-0 items-center gap-1">
           <span
-            className={cn(
-              "font-semibold [font-variant-numeric:tabular-nums]",
-              isIncome ? "text-success" : "text-destructive"
-            )}
+            className={cn("numeric text-right text-sm font-semibold", isIncome ? "text-success" : "text-destructive")}
           >
             {amountLabel}
           </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-9 w-8"
+                aria-label={`Actions for ${label}`}
+              >
+                <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={() => onEdit(tx)}>
+                <Edit className="mr-2 h-4 w-4" aria-hidden="true" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDelete(tx)} className="text-destructive focus:text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
-      {tx.note && (
-        <p className="mt-2 line-clamp-2 rounded-md bg-accent/20 p-2 text-sm text-muted-foreground">
-          {tx.note}
-        </p>
-      )}
-
-      <div className="mt-3 flex justify-end gap-2 border-t border-border/20 pt-3">
-        <Button
-          size="icon"
-          variant="outline"
-          aria-label={`Edit transaction: ${tx.merchant || categoryName}, ${amountLabel}`}
-          onClick={() => onEdit(tx)}
-        >
-          <Edit className="h-4 w-4" aria-hidden="true" />
-        </Button>
-        <Button
-          size="icon"
-          variant="outline"
-          className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
-          aria-label={`Delete transaction: ${tx.merchant || categoryName}, ${amountLabel}`}
-          onClick={() => onDelete(tx)}
-        >
-          <Trash2 className="h-4 w-4" aria-hidden="true" />
-        </Button>
+      <div className="mt-2 pl-[52px]">
+        <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium", toneBadge)}>
+          {categoryName}
+        </span>
       </div>
+
+      {tx.note && (
+        <p className="mt-2 line-clamp-2 rounded-md bg-accent/20 p-2 pl-3 text-sm text-muted-foreground">{tx.note}</p>
+      )}
     </li>
   );
 }

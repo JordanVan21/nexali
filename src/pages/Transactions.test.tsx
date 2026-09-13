@@ -19,6 +19,8 @@ vi.mock("../components/TransactionTable", () => ({
 
 vi.mock("../features/transactions/useTransactions", () => ({
   useSaveTransaction: () => ({ mutateAsync: vi.fn(), isPending: false, isError: false, error: null }),
+  useTransactionWithFilters: () => ({ data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() }),
+  useTransactions: () => ({ data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() }),
 }));
 
 vi.mock("../features/categories/useCategories", () => ({
@@ -37,6 +39,21 @@ describe("Transactions page", () => {
     expect(screen.getByRole("heading", { name: "Financial Activity" })).toBeInTheDocument();
     expect(screen.getByText("Filter bar")).toBeInTheDocument();
     expect(screen.getByText("Transaction table")).toBeInTheDocument();
+  });
+
+  it("uses a truthful subtitle that never claims connected financial accounts", () => {
+    renderWithProviders(<Transactions />);
+
+    expect(screen.queryByText(/connected accounts/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/review and manage your income, expenses, and recent financial activity/i)
+    ).toBeInTheDocument();
+  });
+
+  it("disables Export when there are no transactions currently shown", () => {
+    renderWithProviders(<Transactions />);
+
+    expect(screen.getByRole("button", { name: /^export$/i })).toBeDisabled();
   });
 
   it("opens the Add Transaction dialog from the page header action", async () => {

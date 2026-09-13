@@ -1,5 +1,17 @@
 import { useState } from "react";
-import { Edit, Trash2, TrendingDown, TrendingUp, Receipt, SearchX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import {
+  Edit,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  Receipt,
+  SearchX,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  MoreHorizontal,
+} from "lucide-react";
 import { useDeleteTransaction, useTransactionWithFilters } from "../features/transactions/useTransactions";
 import { type TransactionWithCat } from "../lib/transactions";
 import { hasActiveFilters, type Filters } from "../features/querykeys";
@@ -15,6 +27,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdownMenu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Skeleton } from "./states/Skeleton";
 import { EmptyState } from "./states/EmptyState";
@@ -43,9 +61,17 @@ function visiblePageNumbers(currentPage: number, totalPages: number): number[] {
 
 function TableSkeleton() {
   return (
-    <div className="space-y-2 p-4 sm:p-6" aria-hidden="true">
+    <div className="divide-y divide-border/20" aria-busy="true" aria-live="polite">
+      <span className="sr-only">Loading transactions…</span>
       {Array.from({ length: 6 }).map((_, i) => (
-        <Skeleton key={i} className="h-14 w-full" />
+        <div key={i} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 md:px-6" aria-hidden="true">
+          <Skeleton className="h-10 w-10 rounded-lg" />
+          <div className="min-w-0 space-y-2">
+            <Skeleton className="h-3.5 w-40" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+          <Skeleton className="h-4 w-20" />
+        </div>
       ))}
     </div>
   );
@@ -145,13 +171,15 @@ export function TransactionTable({
       <div className="hidden md:block">
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="w-28">Date</TableHead>
-              <TableHead className="min-w-[200px]">Merchant</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead className="w-24 text-right">Actions</TableHead>
+            <TableRow className="border-b border-border/40 bg-muted/30 hover:bg-muted/30">
+              <TableHead className="w-28 lg:px-6">Date</TableHead>
+              <TableHead className="min-w-[200px] lg:px-6">Merchant</TableHead>
+              <TableHead className="lg:px-6">Category</TableHead>
+              <TableHead className="lg:px-6">Type</TableHead>
+              <TableHead className="text-right lg:px-6">Amount</TableHead>
+              <TableHead className="w-12 px-2 text-right">
+                <span className="sr-only">Actions</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -160,19 +188,28 @@ export function TransactionTable({
               const categoryName = tx.categories?.name ?? "Uncategorized";
               const amountLabel = `${isIncome ? "+" : "-"}${formatCurrency(Math.abs(tx.amount))}`;
               const MerchantIcon = getCategoryIcon(categoryName);
+              const toneText = isIncome ? "text-success" : "text-primary";
+              const toneBg = isIncome ? "bg-success/10" : "bg-primary/10";
+              const toneBadge = isIncome
+                ? "border-success/25 bg-success/10 text-success"
+                : "border-primary/25 bg-primary/10 text-primary";
 
               return (
-                <TableRow key={tx.id}>
-                  <TableCell className="text-sm text-muted-foreground">
+                <TableRow key={tx.id} className="transition-colors">
+                  <TableCell className="numeric text-sm text-muted-foreground lg:px-6">
                     {tx.created_at ? new Date(tx.created_at).toLocaleDateString() : "—"}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="lg:px-6">
                     <div className="flex items-center gap-3">
                       <span
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/40 text-foreground/80"
+                        className={cn(
+                          "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+                          toneBg,
+                          toneText
+                        )}
                         aria-hidden="true"
                       >
-                        <MerchantIcon className="h-4 w-4" />
+                        <MerchantIcon className="h-[18px] w-[18px]" />
                       </span>
                       <div className="min-w-0">
                         <div className="max-w-[240px] truncate font-medium text-foreground">
@@ -186,12 +223,12 @@ export function TransactionTable({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center rounded-full border border-border/40 bg-accent/20 px-2 py-0.5 text-xs font-medium text-foreground">
+                  <TableCell className="lg:px-6">
+                    <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium", toneBadge)}>
                       {categoryName}
                     </span>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="lg:px-6">
                     <span
                       className={cn(
                         "inline-flex items-center gap-1 text-sm font-medium",
@@ -208,32 +245,37 @@ export function TransactionTable({
                   </TableCell>
                   <TableCell
                     className={cn(
-                      "text-right font-semibold [font-variant-numeric:tabular-nums]",
+                      "numeric text-right font-semibold lg:px-6",
                       isIncome ? "text-success" : "text-destructive"
                     )}
                   >
                     {amountLabel}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label={`Edit transaction: ${tx.merchant || categoryName}, ${amountLabel}`}
-                        onClick={() => onEditTransaction(tx)}
-                      >
-                        <Edit className="h-4 w-4" aria-hidden="true" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                        aria-label={`Delete transaction: ${tx.merchant || categoryName}, ${amountLabel}`}
-                        onClick={() => setPendingDelete(tx)}
-                      >
-                        <Trash2 className="h-4 w-4" aria-hidden="true" />
-                      </Button>
-                    </div>
+                  <TableCell className="px-2 text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={`Actions for ${tx.merchant || categoryName}`}
+                        >
+                          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem onClick={() => onEditTransaction(tx)}>
+                          <Edit className="mr-2 h-4 w-4" aria-hidden="true" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setPendingDelete(tx)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               );
@@ -242,9 +284,12 @@ export function TransactionTable({
         </Table>
       </div>
 
-      {/* Pagination footer: same surface as the table/list above it, per the
-          approved reference (range/count left, pagination right). */}
-      <div className="flex flex-col items-center justify-between gap-3 border-t border-border/20 px-4 py-3 sm:flex-row md:px-6">
+      {/* Pagination footer: attached directly to the table/list above it as
+          one integrated surface (range/count left, pagination right). */}
+      <nav
+        aria-label="Transactions pagination"
+        className="flex flex-col items-center justify-between gap-3 border-t border-border/20 bg-muted/10 px-4 py-3 sm:flex-row md:px-6"
+      >
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
           <span>
             {startIndex + 1}-{Math.min(endIndex, transactions.length)} of {transactions.length}
@@ -316,7 +361,7 @@ export function TransactionTable({
             <ChevronsRight className="h-4 w-4" aria-hidden="true" />
           </Button>
         </div>
-      </div>
+      </nav>
 
       <ConfirmDialog
         open={pendingDelete !== null}
