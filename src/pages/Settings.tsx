@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Palette, SlidersHorizontal } from "lucide-react";
+import { BellRing, Palette, SlidersHorizontal } from "lucide-react";
 import { PageContainer } from "../components/shell/PageContainer";
 import { Button } from "../components/ui/button";
 import { Label } from "../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Switch } from "../components/ui/switch";
 import { StatusBanner } from "../components/states/StatusBanner";
 import { ErrorState } from "../components/states/ErrorState";
 import { Skeleton } from "../components/states/Skeleton";
@@ -49,6 +50,30 @@ const NUMBER_FORMAT_OPTIONS = [
   { value: "space", label: "1 234.56 (Thin space separator)" },
 ];
 
+/** Real Lovable labels/descriptions -- no `notification_preferences` column exists yet, so every row stays disabled/unchecked. */
+const NOTIFICATION_PREFERENCE_ROWS = [
+  {
+    id: "notify-approaching",
+    label: "Budget approaching limit",
+    description: "Get notified when spending nears a category budget.",
+  },
+  {
+    id: "notify-exceeded",
+    label: "Budget exceeded",
+    description: "Get notified when spending passes a budget ceiling.",
+  },
+  {
+    id: "notify-summary",
+    label: "Monthly financial summary",
+    description: "Receive a summary when your monthly period ends.",
+  },
+  {
+    id: "notify-security",
+    label: "Account and security notifications",
+    description: "Important sign-in and security updates.",
+  },
+];
+
 function SettingsSkeleton() {
   return (
     <PageContainer>
@@ -73,9 +98,10 @@ function SettingsSkeleton() {
  * their controls are visually present (matching the real Lovable settings
  * route) but disabled, never claiming to save. Budget reset cycle/day stay
  * on Profile (its existing real editable location) rather than being
- * duplicated here. Notifications and Aura-preference sections are deferred
- * (Part 11 and a later Aura-preferences phase, respectively) rather than
- * faked.
+ * duplicated here. Notification preferences (Part 11) show the real Lovable
+ * rows but stay disabled -- no `notification_preferences` table/column
+ * exists yet. The Aura-preference section is deferred to a later phase
+ * rather than faked.
  */
 export default function Settings() {
   const { userId } = useUserInfo();
@@ -293,6 +319,37 @@ export default function Settings() {
                 </div>
                 <span className="text-sm italic text-muted-foreground">{COMING_SOON_CAPTION}</span>
               </div>
+            </div>
+          </section>
+
+          <section>
+            <div className="mb-3 flex items-center gap-2 xl:mb-4">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                <BellRing className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <h2 className="font-display text-lg font-semibold text-foreground xl:text-xl">Notifications</h2>
+            </div>
+            <p className="-mt-2 mb-3 text-sm text-muted-foreground xl:-mt-3">
+              Choose which finance and budget updates you receive.
+            </p>
+            <div className="nexali-panel divide-y divide-border rounded-xl p-5 md:p-6 xl:p-7">
+              {NOTIFICATION_PREFERENCE_ROWS.map((row) => (
+                <div
+                  key={row.id}
+                  className="grid grid-cols-1 gap-2 py-4 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6"
+                >
+                  <div>
+                    <Label htmlFor={row.id} className="md:text-[15px]">
+                      {row.label}
+                    </Label>
+                    <p className="mt-0.5 text-sm text-muted-foreground">{row.description}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm italic text-muted-foreground">{COMING_SOON_CAPTION}</span>
+                    <Switch id={row.id} checked={false} disabled aria-label={row.label} />
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
 

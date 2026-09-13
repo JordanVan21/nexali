@@ -95,12 +95,12 @@ describe("Settings page", () => {
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();
   });
 
-  it("does not render a Notifications section", () => {
+  it("renders the Notifications section as backend-pending, not as working toggles", () => {
     profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
     renderWithProviders(<Settings />);
 
-    expect(screen.queryByText(/budget approaching limit/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/notify/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/budget approaching limit/i)).toBeInTheDocument();
+    expect(screen.getAllByRole("switch").every((s) => s.hasAttribute("disabled"))).toBe(true);
   });
 
   it("does not render Aura assistant preference toggles", () => {
@@ -214,5 +214,50 @@ describe("Settings page", () => {
 
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/permission denied for table profiles/i));
     expect(screen.getByRole("combobox", { name: /^timezone$/i })).toHaveTextContent(/eastern time/i);
+  });
+
+  it("renders the real Lovable notification-preference rows", () => {
+    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+    renderWithProviders(<Settings />);
+
+    expect(screen.getByText("Budget approaching limit")).toBeInTheDocument();
+    expect(screen.getByText("Budget exceeded")).toBeInTheDocument();
+    expect(screen.getByText("Monthly financial summary")).toBeInTheDocument();
+    expect(screen.getByText("Account and security notifications")).toBeInTheDocument();
+  });
+
+  it("keeps every notification-preference switch disabled and unchecked, not persisted", () => {
+    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+    renderWithProviders(<Settings />);
+
+    const switches = screen.getAllByRole("switch");
+    expect(switches).toHaveLength(4);
+    for (const s of switches) {
+      expect(s).toBeDisabled();
+      expect(s).toHaveAttribute("aria-checked", "false");
+    }
+    expect(screen.getAllByText(/coming soon/i).length).toBeGreaterThanOrEqual(4 + 3);
+  });
+
+  it("does not let notification preferences affect Settings dirty state", () => {
+    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+    renderWithProviders(<Settings />);
+
+    expect(screen.getByRole("button", { name: /save changes/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /discard changes/i })).toBeDisabled();
+  });
+
+  it("keeps the Save payload timezone-only even with notification preferences present on the page", async () => {
+    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+    const user = userEvent.setup();
+    renderWithProviders(<Settings />);
+
+    await user.click(screen.getByRole("combobox", { name: /^timezone$/i }));
+    await user.click(await screen.findByText(/eastern time/i));
+    await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+    expect(updateMutate).toHaveBeenCalledTimes(1);
+    const [payload] = updateMutate.mock.calls[0];
+    expect(Object.keys(payload)).toEqual(["timezone"]);
   });
 });
