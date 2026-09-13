@@ -1,203 +1,185 @@
-import { useState, useEffect, useMemo } from "react";
-import { PieChart, Pie, Cell, Tooltip } from "recharts";
-import { useProfile } from "../features/profiles/useProfile.ts";
-import { useTotals } from "../features/dashboard/useTotals.ts";
-import { useUserInfo } from "../shared/useUserId.ts";
-import { TrendingDown, TrendingUp } from "lucide-react";
-import { Calendar } from "lucide-react";
+import { useState } from "react";
+import { Plus, Receipt } from "lucide-react";
+import { PageContainer } from "../components/shell/PageContainer";
+import { Button } from "../components/ui/button";
+import { EmptyState } from "../components/states/EmptyState";
+import { ErrorState } from "../components/states/ErrorState";
+import { Skeleton } from "../components/states/Skeleton";
+import { TransactionDialog } from "../components/TransactionDialog";
+import { SummaryStatCard, type StatTrend, type StatTone } from "../components/dashboard/SummaryStatCard";
+import { CashflowChartCard } from "../components/dashboard/CashflowChartCard";
+import { SpendingBreakdownCard } from "../components/dashboard/SpendingBreakdownCard";
+import { RecentActivityList } from "../components/dashboard/RecentActivityList";
+import { BudgetSnapshot } from "../components/dashboard/BudgetSnapshot";
+import { AuraEntryCard } from "../components/dashboard/AuraEntryCard";
+import { DashboardSkeleton } from "../components/dashboard/DashboardSkeleton";
+import { useProfile } from "../features/profiles/useProfile";
+import { useDashboardData } from "../features/dashboard/useDashboardData";
+import { percentChange } from "../features/dashboard/dashboardMath";
+import { formatCurrency } from "../lib/format";
+import { useUserInfo } from "../shared/useUserId";
+import type { TransactionWithCat } from "../lib/transactions";
 
-const CURRENCY = new Intl.NumberFormat(undefined, {
-  style: "currency",
-  currency: "USD",
-});
-const MonthNetWidget = ({ netAmount }: { netAmount: number }) => {
-  const isPositive = netAmount >= 0;
+/** Direction + color for a metric where a bigger number is the good outcome (income, net). */
+function trendForHigherIsBetter(current: number, previous: number): { trend: StatTrend; tone: StatTone; label: string } {
+  const change = percentChange(current, previous);
+  if (change === null) return { trend: "flat", tone: "muted", label: "No data for last month yet" };
+  if (Math.abs(change) < 0.5) return { trend: "flat", tone: "muted", label: "About the same as last month" };
+  const trend: StatTrend = change > 0 ? "up" : "down";
+  return {
+    trend,
+    tone: change > 0 ? "success" : "destructive",
+    label: `${change > 0 ? "+" : ""}${change.toFixed(1)}% vs last month`,
+  };
+}
 
-  return (
-    <div className="bg-gradient-card border border-border/20 rounded-xl p-6 shadow-card">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-card-foreground">
-          Month Net
-        </h3>
-        {isPositive ? (
-          <TrendingUp className="h-5 w-5 text-primary" />
-        ) : (
-          <TrendingDown className="h-5 w-5 text-destructive" />
-        )}
-      </div>
-      <div
-        className={`text-3xl font-bold ${
-          isPositive ? "text-primary" : "text-destructive"
-        }`}
-      >
-        {CURRENCY.format(netAmount)}
-      </div>
-      <p className="text-sm text-muted-foreground mt-2">
-        Income - Expenses this month
-      </p>
-    </div>
-  );
-};
-
-const MonthIncomeExpenseWidget = ({
-  income,
-  spent,
-  chartData,
-  isLoading,
-  isError,
-}: {
-  income: number;
-  spent: number;
-  chartData: Array<{ name: string; value: number }>;
-  isLoading: boolean;
-  isError: boolean;
-}) => {
-  return (
-    <div className="bg-gradient-card border border-border/20 shadow-card rounded-2xl w-full max-w-lg p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Calendar className="h-5 w-5 text-primary" />
-            <span className="text-lg font-semibold">This Month</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col gap-6">
-              <div className="flex flex-col gap-2">
-                <span className="text-xl font-semibold text-card-foreground">
-                  Income:
-                </span>
-                <span className="text-lg text-primary">
-                  {isLoading ? "…" : CURRENCY.format(income)}
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <span className="text-xl font-semibold text-card-foreground">
-                  Spent:
-                </span>
-                <span className="text-lg text-destructive">
-                  {isLoading ? "…" : CURRENCY.format(spent)}
-                </span>
-              </div>
-            </div>
-
-            <div className="w-[280px] h-[140px] overflow-hidden flex items-end">
-              <PieChart width={280} height={140}>
-                <Pie
-                  data={chartData}
-                  cx="50%"
-                  cy="100%"
-                  startAngle={180}
-                  endAngle={0}
-                  innerRadius={80}
-                  outerRadius={110}
-                  dataKey="value"
-                >
-                  {chartData.map((_, i) => (
-                    <Cell
-                      key={i}
-                      fill={
-                        i === 0
-                          ? "oklch(var(--destructive))"
-                          : "oklch(var(--primary))"
-                      }
-                    />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(v, name) =>
-                    name === "Spent"
-                      ? [`${Number(v).toFixed(2)}% used`, ""]
-                      : [`${Number(v).toFixed(2)}% left`, ""]
-                  }
-                  contentStyle={{
-                    fontSize: "0.875rem",
-                  }}
-                />
-              </PieChart>
-            </div>
-          </div>
-
-          {isError && (
-            <div className="text-sm text-destructive mt-3">
-              Failed to load totals
-            </div>
-          )}
-      </div>
-  )
-};
+/** Same direction math, but a bigger number (more spending) is the bad outcome. */
+function trendForLowerIsBetter(current: number, previous: number): { trend: StatTrend; tone: StatTone; label: string } {
+  const change = percentChange(current, previous);
+  if (change === null) return { trend: "flat", tone: "muted", label: "No data for last month yet" };
+  if (Math.abs(change) < 0.5) return { trend: "flat", tone: "muted", label: "About the same as last month" };
+  const trend: StatTrend = change > 0 ? "up" : "down";
+  return {
+    trend,
+    tone: change > 0 ? "destructive" : "success",
+    label: `${change > 0 ? "+" : ""}${change.toFixed(1)}% vs last month`,
+  };
+}
 
 export default function Dashboard() {
   const { userId } = useUserInfo();
-  const [typed, setTyped] = useState("");
+  const [dialogTarget, setDialogTarget] = useState<"add" | TransactionWithCat | null>(null);
 
   const profile = useProfile(userId);
-  const totals = useTotals(userId);
+  const dashboard = useDashboardData(userId);
 
-  const fullName = profile.data?.full_name ?? "";
-  const income = totals.data?.income ?? 0;
-  const spent = totals.data?.spent ?? 0;
-
-  useEffect(() => {
-    if (!fullName) {
-      setTyped("");
-      return;
-    }
-    const target = `Welcome ${fullName}`;
-    let i = 0;
-    setTyped("");
-    const id = setInterval(() => {
-      i += 1;
-      setTyped(target.slice(0, i));
-      if (i >= target.length) clearInterval(id);
-    }, 60);
-    return () => clearInterval(id);
-  }, [fullName]);
-
-  const safePct = (num: number, den: number) =>
-    den > 0 ? (num / den) * 100 : 0;
-  const pct = safePct(spent, income);
-  const remainingPct = safePct(Math.max(income - spent, 0), income);
-
-  const chartData = useMemo(
-    () => [
-      { name: "Spent", value: pct },
-      { name: "Remaining", value: remainingPct },
-    ],
-    [pct, remainingPct]
-  );
+  const firstName = profile.data?.full_name?.split(" ")[0];
 
   if (profile.isError) {
     return (
-      <div className="p-6 text-red-500">
-        {profile.error?.message ?? "Failed to load profile"}
-      </div>
+      <PageContainer>
+        <ErrorState
+          title="Couldn't load your profile"
+          message="We couldn't load your account right now. Please try again."
+        />
+      </PageContainer>
     );
   }
 
+  const summary = dashboard.summary;
+  const income = trendForHigherIsBetter(summary?.month.income ?? 0, summary?.prevMonth.income ?? 0);
+  const expenses = trendForLowerIsBetter(summary?.month.expenses ?? 0, summary?.prevMonth.expenses ?? 0);
+  const net = trendForHigherIsBetter(summary?.month.net ?? 0, (summary?.prevMonth.income ?? 0) - (summary?.prevMonth.expenses ?? 0));
+  const warningsCount = summary?.warningsCount ?? 0;
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="relative flex items-center justify-between px-6 lg:px-14 pt-20 pb-16">
-        <div className="flex-1">
-          <div className="text-2xl md:text-4xl lg:text-6xl font-extrabold text-foreground mb-8">
-            {profile.isLoading ? "Welcome..." : typed}
-            {(profile.isLoading || typed.length > 0) && (
-              <span className="animate-pulse">|</span>
-            )}
-          </div>
+    <PageContainer>
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground md:text-3xl">Command Center</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {firstName
+              ? `Welcome back, ${firstName}. Here's an overview of your recent financial activity.`
+              : "An overview of your recent financial activity."}
+          </p>
         </div>
+        <Button variant="hero" size="control" className="max-md:w-full" onClick={() => setDialogTarget("add")}>
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          New Transaction
+        </Button>
       </div>
 
-      <div className="px-6 lg:px-14 pb-20">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <MonthNetWidget netAmount={income - spent} />
-          <MonthIncomeExpenseWidget 
-            income={income}
-            spent={spent}
-            chartData={chartData}
-            isLoading={totals.isLoading}
-            isError={totals.isError}
+      <div className="mt-6 md:mt-8">
+        {dashboard.transactions.isLoading ? (
+          <DashboardSkeleton />
+        ) : dashboard.transactions.isError ? (
+          <ErrorState
+            title="Couldn't load your Dashboard"
+            message="We couldn't load your transactions right now. Please try again."
+            onRetry={dashboard.transactions.refetch}
           />
-        </div>
+        ) : !dashboard.transactions.hasData ? (
+          <EmptyState
+            icon={Receipt}
+            title="No activity yet"
+            description="Add your first transaction to see your income, expenses, and spending trends here."
+            action={
+              <Button variant="hero" onClick={() => setDialogTarget("add")}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Add Transaction
+              </Button>
+            }
+          />
+        ) : (
+          <div className="space-y-6 md:space-y-8">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <SummaryStatCard
+                label="Income (This Month)"
+                value={formatCurrency(summary!.month.income)}
+                trend={income.trend}
+                tone={income.tone}
+                trendLabel={income.label}
+              />
+              <SummaryStatCard
+                label="Expenses (This Month)"
+                value={formatCurrency(summary!.month.expenses)}
+                trend={expenses.trend}
+                tone={expenses.tone}
+                trendLabel={expenses.label}
+              />
+              <SummaryStatCard
+                label="Net Cash Flow (This Month)"
+                value={formatCurrency(summary!.month.net)}
+                trend={net.trend}
+                tone={net.tone}
+                trendLabel={net.label}
+              />
+              <SummaryStatCard
+                label="Budget Warnings"
+                value={String(warningsCount)}
+                trend="flat"
+                isWarning={warningsCount > 0}
+                trendLabel={
+                  warningsCount === 0
+                    ? "All budgets on track"
+                    : `${warningsCount} budget${warningsCount === 1 ? "" : "s"} need attention`
+                }
+              />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <CashflowChartCard data={summary!.cashflow} />
+              <AuraEntryCard />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <SpendingBreakdownCard slices={summary!.categoryBreakdown} />
+              <RecentActivityList items={summary!.recentTransactions} />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {dashboard.budgets.isError ? (
+                <ErrorState
+                  className="md:col-span-3"
+                  title="Couldn't load your budgets"
+                  message="We couldn't load your budget progress right now. Please try again."
+                  onRetry={dashboard.budgets.refetch}
+                />
+              ) : dashboard.budgets.isLoading ? (
+                <Skeleton className="md:col-span-3 h-[220px] rounded-xl" />
+              ) : (
+                <BudgetSnapshot items={summary!.budgets} />
+              )}
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+
+      <TransactionDialog
+        target={dialogTarget}
+        onOpenChange={(open) => !open && setDialogTarget(null)}
+        onSaved={() => {}}
+      />
+    </PageContainer>
   );
 }
