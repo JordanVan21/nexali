@@ -191,7 +191,7 @@ export default function Profile() {
 
   return (
     <PageContainer>
-      <div>
+      <div className="mx-auto max-w-[1200px] text-center">
         <h1 className="font-display text-[28px] font-bold leading-tight tracking-tight text-foreground sm:text-[36px] lg:text-[44px] xl:text-[48px]">Profile</h1>
         <p className="mt-1 text-[15px] text-muted-foreground sm:text-base lg:text-lg xl:text-xl">
           Your identity, contact details, and financial bio for Aura.
