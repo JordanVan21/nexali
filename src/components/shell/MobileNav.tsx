@@ -36,7 +36,7 @@ export function MobileNav() {
   return (
     <nav
       aria-label="Bottom"
-      className="fixed inset-x-0 bottom-0 z-40 grid h-[calc(var(--mobile-nav-height)+env(safe-area-inset-bottom))] grid-cols-5 items-stretch gap-0.5 border-t border-outline-variant/40 bg-gradient-card px-2 pb-safe shadow-card backdrop-blur-md max-[340px]:gap-0 max-[340px]:px-1 md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 grid h-[calc(var(--mobile-nav-height)+env(safe-area-inset-bottom))] grid-cols-5 items-stretch gap-0.5 border-t border-outline-variant/40 bg-card/95 px-2 pb-safe backdrop-blur-md max-[340px]:gap-0 max-[340px]:px-1 md:hidden"
     >
       {mobileBottomNavRoutes.map((route) => {
         const active = isRouteActive(location.pathname, route.path);

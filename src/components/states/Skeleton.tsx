@@ -6,7 +6,7 @@ export function Skeleton({ className, ...props }: HTMLAttributes<HTMLDivElement>
     <div
       role="presentation"
       aria-hidden="true"
-      className={cn("animate-pulse rounded-md bg-muted motion-reduce:animate-none", className)}
+      className={cn("animate-pulse rounded-md bg-primary/10 motion-reduce:animate-none", className)}
       {...props}
     />
   );

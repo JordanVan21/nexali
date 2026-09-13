@@ -2,7 +2,7 @@ import { Edit, MoreHorizontal, Trash2, TrendingDown, TrendingUp } from "lucide-r
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdownMenu";
 import { formatCurrency } from "../lib/format";
-import { getCategoryIcon } from "../lib/categoryIcon";
+import { getCategoryIcon, getCategoryIconClass, getCategoryBadgeClass } from "../lib/categoryIcon";
 import { cn } from "../lib/utils";
 import type { TransactionWithCat } from "../lib/transactions";
 
@@ -24,18 +24,15 @@ export function MobileTransactionCard({ tx, onEdit, onDelete }: MobileTransactio
   const date = tx.created_at ? new Date(tx.created_at).toLocaleDateString() : "";
   const amountLabel = `${isIncome ? "+" : "-"}${formatCurrency(Math.abs(tx.amount))}`;
   const MerchantIcon = getCategoryIcon(categoryName);
-  const toneText = isIncome ? "text-success" : "text-primary";
-  const toneBg = isIncome ? "bg-success/10" : "bg-primary/10";
-  const toneBadge = isIncome
-    ? "border-success/25 bg-success/10 text-success"
-    : "border-primary/25 bg-primary/10 text-primary";
+  const toneText = getCategoryIconClass(categoryName);
+  const toneBadge = getCategoryBadgeClass(categoryName);
   const label = tx.merchant || categoryName;
 
   return (
     <li className="nexali-panel rounded-xl p-3">
       <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
         <span
-          className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", toneBg, toneText)}
+          className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-highest", toneText)}
           aria-hidden="true"
         >
           <MerchantIcon className="h-[18px] w-[18px]" />
@@ -66,7 +63,7 @@ export function MobileTransactionCard({ tx, onEdit, onDelete }: MobileTransactio
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-9 w-8"
+                className="h-10 w-8"
                 aria-label={`Actions for ${label}`}
               >
                 <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
@@ -87,7 +84,7 @@ export function MobileTransactionCard({ tx, onEdit, onDelete }: MobileTransactio
       </div>
 
       <div className="mt-2 pl-[52px]">
-        <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium", toneBadge)}>
+        <span className={cn("inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-medium", toneBadge)}>
           {categoryName}
         </span>
       </div>

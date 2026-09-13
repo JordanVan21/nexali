@@ -107,16 +107,16 @@ export function BudgetFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="gap-0 p-0 sm:max-w-lg sm:rounded-2xl">
         <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>{isEdit ? "Edit Budget" : "Add Budget"}</DialogTitle>
+          <DialogHeader className="border-b border-outline-variant/40 px-5 py-4 text-left">
+            <DialogTitle className="font-display text-xl">{isEdit ? "Edit Budget" : "Add Budget"}</DialogTitle>
             <DialogDescription>
               {isEdit ? "Update this category's monthly limit." : "Set a monthly spending limit for a category."}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 px-5 py-5">
             {catsError && (
               <p className="text-sm text-destructive">{getErrorMessage(catsErrorObj, "Failed to load categories")}</p>
             )}
@@ -146,6 +146,7 @@ export function BudgetFormDialog({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 required
+                className="h-11"
               />
             </div>
 
@@ -153,7 +154,7 @@ export function BudgetFormDialog({
               <div className="grid gap-2">
                 <Label htmlFor="budget-month">Month</Label>
                 <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
-                  <SelectTrigger id="budget-month">
+                  <SelectTrigger id="budget-month" className="h-11">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -175,16 +176,24 @@ export function BudgetFormDialog({
                   value={year}
                   onChange={(e) => setYear(Number(e.target.value))}
                   required
+                  className="h-11"
                 />
               </div>
             </div>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+          <DialogFooter className="gap-2 border-t border-outline-variant/40 px-5 py-4 max-sm:flex-col-reverse">
+            <Button
+              type="button"
+              variant="surface"
+              size="control"
+              className="max-sm:w-full"
+              onClick={() => onOpenChange(false)}
+              disabled={saving}
+            >
               Cancel
             </Button>
-            <Button type="submit" variant="hero" disabled={saving || catsLoading}>
+            <Button type="submit" variant="hero" size="control" className="max-sm:w-full" disabled={saving || catsLoading}>
               {saving ? "Saving…" : isEdit ? "Save Changes" : "Add Budget"}
             </Button>
           </DialogFooter>

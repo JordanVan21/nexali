@@ -17,7 +17,7 @@ import { type TransactionWithCat } from "../lib/transactions";
 import { hasActiveFilters, type Filters } from "../features/querykeys";
 import { useUserInfo } from "../shared/useUserId";
 import { formatCurrency } from "../lib/format";
-import { getCategoryIcon } from "../lib/categoryIcon";
+import { getCategoryIcon, getCategoryIconClass, getCategoryBadgeClass } from "../lib/categoryIcon";
 import { getErrorMessage, cn } from "../lib/utils";
 import { Button } from "./ui/button";
 import {
@@ -188,35 +188,28 @@ export function TransactionTable({
               const categoryName = tx.categories?.name ?? "Uncategorized";
               const amountLabel = `${isIncome ? "+" : "-"}${formatCurrency(Math.abs(tx.amount))}`;
               const MerchantIcon = getCategoryIcon(categoryName);
-              const toneText = isIncome ? "text-success" : "text-primary";
-              const toneBg = isIncome ? "bg-success/10" : "bg-primary/10";
-              const toneBadge = isIncome
-                ? "border-success/25 bg-success/10 text-success"
-                : "border-primary/25 bg-primary/10 text-primary";
+              const toneText = getCategoryIconClass(categoryName);
+              const toneBadge = getCategoryBadgeClass(categoryName);
 
               return (
                 <TableRow key={tx.id} className="transition-colors">
-                  <TableCell className="numeric text-sm text-muted-foreground lg:px-6">
+                  <TableCell className="numeric text-sm text-muted-foreground lg:px-6 xl:text-base">
                     {tx.created_at ? new Date(tx.created_at).toLocaleDateString() : "—"}
                   </TableCell>
                   <TableCell className="lg:px-6">
                     <div className="flex items-center gap-3">
                       <span
-                        className={cn(
-                          "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
-                          toneBg,
-                          toneText
-                        )}
+                        className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-highest xl:h-11 xl:w-11", toneText)}
                         aria-hidden="true"
                       >
-                        <MerchantIcon className="h-[18px] w-[18px]" />
+                        <MerchantIcon className="h-[18px] w-[18px] xl:h-5 xl:w-5" />
                       </span>
                       <div className="min-w-0">
-                        <div className="max-w-[240px] truncate font-medium text-foreground">
+                        <div className="max-w-[240px] truncate text-sm font-medium text-foreground xl:text-base">
                           {tx.merchant || categoryName}
                         </div>
                         {tx.note && (
-                          <div className="max-w-[240px] truncate text-xs text-muted-foreground">
+                          <div className="max-w-[240px] truncate text-xs text-muted-foreground xl:text-sm">
                             {tx.note}
                           </div>
                         )}
@@ -224,14 +217,14 @@ export function TransactionTable({
                     </div>
                   </TableCell>
                   <TableCell className="lg:px-6">
-                    <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium", toneBadge)}>
+                    <span className={cn("inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-medium xl:text-sm", toneBadge)}>
                       {categoryName}
                     </span>
                   </TableCell>
                   <TableCell className="lg:px-6">
                     <span
                       className={cn(
-                        "inline-flex items-center gap-1 text-sm font-medium",
+                        "inline-flex items-center gap-1 text-sm font-medium xl:text-base",
                         isIncome ? "text-success" : "text-destructive"
                       )}
                     >
@@ -245,7 +238,7 @@ export function TransactionTable({
                   </TableCell>
                   <TableCell
                     className={cn(
-                      "numeric text-right font-semibold lg:px-6",
+                      "numeric text-right text-sm lg:px-6 xl:text-base",
                       isIncome ? "text-success" : "text-destructive"
                     )}
                   >
@@ -288,7 +281,7 @@ export function TransactionTable({
           one integrated surface (range/count left, pagination right). */}
       <nav
         aria-label="Transactions pagination"
-        className="flex flex-col items-center justify-between gap-3 border-t border-border/20 bg-muted/10 px-4 py-3 sm:flex-row md:px-6"
+        className="flex flex-col items-center justify-between gap-3 border-t border-border/20 bg-muted/10 px-4 py-3 max-md:mx-4 max-md:mb-4 max-md:nexali-panel max-md:overflow-hidden max-md:rounded-xl max-md:border-t-0 sm:flex-row md:px-6"
       >
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
           <span>
@@ -315,6 +308,7 @@ export function TransactionTable({
           <Button
             variant="ghost"
             size="icon"
+            className="rounded-lg"
             aria-label="First page"
             onClick={() => handlePageChange(1)}
             disabled={currentPage === 1}
@@ -324,6 +318,7 @@ export function TransactionTable({
           <Button
             variant="ghost"
             size="icon"
+            className="rounded-lg"
             aria-label="Previous page"
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
@@ -335,6 +330,7 @@ export function TransactionTable({
               key={pageNum}
               variant={currentPage === pageNum ? "default" : "ghost"}
               size="icon"
+              className="rounded-lg"
               aria-label={`Page ${pageNum}`}
               aria-current={currentPage === pageNum ? "page" : undefined}
               onClick={() => handlePageChange(pageNum)}
@@ -345,6 +341,7 @@ export function TransactionTable({
           <Button
             variant="ghost"
             size="icon"
+            className="rounded-lg"
             aria-label="Next page"
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
@@ -354,6 +351,7 @@ export function TransactionTable({
           <Button
             variant="ghost"
             size="icon"
+            className="rounded-lg"
             aria-label="Last page"
             onClick={() => handlePageChange(totalPages)}
             disabled={currentPage === totalPages}

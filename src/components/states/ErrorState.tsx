@@ -27,15 +27,17 @@ export function ErrorState({
     <div
       role="alert"
       className={cn(
-        "flex flex-col items-center justify-center gap-3 rounded-xl border border-destructive/20 bg-gradient-card px-6 py-16 text-center",
+        "flex flex-col items-center justify-center rounded-xl border border-destructive/20 bg-gradient-card px-6 py-14 text-center",
         className
       )}
     >
-      <AlertTriangle className="h-10 w-10 text-destructive" aria-hidden="true" />
-      <h3 className="text-lg font-semibold text-foreground">{title}</h3>
-      <p className="max-w-md text-sm text-muted-foreground">{message}</p>
+      <span className="grid h-14 w-14 place-items-center rounded-2xl bg-destructive/10 text-destructive">
+        <AlertTriangle className="h-6 w-6" aria-hidden="true" />
+      </span>
+      <h3 className="font-display mt-4 text-lg font-semibold text-foreground">{title}</h3>
+      <p className="mt-1 max-w-sm text-sm text-muted-foreground">{message}</p>
       {onRetry && (
-        <Button variant="outline" size="sm" className="mt-2" onClick={onRetry}>
+        <Button variant="surface" size="control" className="mt-5" onClick={onRetry}>
           {retryLabel}
         </Button>
       )}

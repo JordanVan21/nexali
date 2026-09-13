@@ -20,9 +20,9 @@ export function TransactionDialog({ target, onOpenChange, onSaved }: Transaction
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg sm:rounded-2xl">
         <DialogHeader>
-          <DialogTitle>{existingTx ? "Edit Transaction" : "Add Transaction"}</DialogTitle>
+          <DialogTitle className="font-display text-xl">{existingTx ? "Edit Transaction" : "Add Transaction"}</DialogTitle>
           <DialogDescription>
             {existingTx
               ? "Update the details for this transaction."

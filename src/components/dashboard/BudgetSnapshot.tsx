@@ -30,7 +30,7 @@ export function BudgetSnapshot({ items }: { items: BudgetProgress[] }) {
     <ChartCard
       title="Budget Snapshot"
       description="Progress across this month's budgets"
-      className="md:col-span-3"
+      className="md:col-span-2"
       actions={
         <Link to="/budgets" className="text-sm font-medium text-primary hover:underline">
           Manage Budgets

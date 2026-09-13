@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ReceiptText } from "lucide-react";
+import { BarChart3, PieChart, ReceiptText } from "lucide-react";
 import { PageContainer } from "../components/shell/PageContainer";
 import { EmptyState } from "../components/states/EmptyState";
 import { ErrorState } from "../components/states/ErrorState";
@@ -69,8 +69,8 @@ export default function Reports() {
     <PageContainer>
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground md:text-3xl xl:text-[32px] 2xl:text-[34px]">Financial Intelligence</h1>
-          <p className="mt-1 text-sm text-muted-foreground sm:text-base">Analyze your income, spending, and cash flow trends.</p>
+          <h1 className="font-display text-[28px] font-bold leading-tight tracking-tight text-foreground sm:text-[36px] lg:text-[44px] xl:text-[48px]">Financial Intelligence</h1>
+          <p className="mt-1 text-[15px] text-muted-foreground sm:text-base lg:text-lg xl:text-xl">Analyze your income, spending, and cash flow trends.</p>
         </div>
         <ReportsControls
           period={period}
@@ -83,7 +83,7 @@ export default function Reports() {
         />
       </div>
 
-      <div className="mt-6 md:mt-8 xl:mt-10">
+      <div className="mt-6 md:mt-8">
         {isLoading ? (
           <ReportsSkeleton />
         ) : data.transactionsList.isError ? (
@@ -136,16 +136,22 @@ export default function Reports() {
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-12 md:gap-6">
               <ChartCard
                 title="Income vs. Expenses"
                 description="Real monthly totals for the selected period"
+                icon={<BarChart3 className="h-5 w-5 text-primary" aria-hidden="true" />}
                 className="md:col-span-8"
               >
                 <IncomeExpenseChart data={data.monthlyBuckets} />
               </ChartCard>
 
-              <ChartCard title="Spending" description="By category" className="md:col-span-4">
+              <ChartCard
+                title="Spending"
+                description="By category"
+                icon={<PieChart className="h-5 w-5 text-muted-foreground" aria-hidden="true" />}
+                className="md:col-span-4"
+              >
                 <SpendingByCategoryChart data={data.categoryTotals} />
               </ChartCard>
             </div>

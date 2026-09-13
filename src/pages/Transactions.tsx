@@ -42,12 +42,12 @@ export default function Transactions() {
 
   return (
     <PageContainer>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground md:text-3xl xl:text-[32px] 2xl:text-[34px]">
+          <h1 className="font-display text-[28px] font-bold leading-tight tracking-tight text-foreground sm:text-[36px] lg:text-[44px] xl:text-[48px]">
             Financial Activity
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+          <p className="mt-1 text-[15px] text-muted-foreground sm:text-base lg:text-lg xl:text-xl">
             Review and manage your income, expenses, and recent financial activity.
           </p>
         </div>
@@ -79,7 +79,7 @@ export default function Transactions() {
         <TransactionFilterBar filters={filters} onFiltersChange={setFilters} />
       </div>
 
-      <div className="mt-6 md:mt-8 md:overflow-hidden md:rounded-xl md:border md:border-border/20 md:bg-gradient-card md:shadow-card xl:mt-10">
+      <div className="mt-6 md:mt-8 md:overflow-hidden md:rounded-xl md:nexali-panel">
         <TransactionTable
           filters={filters}
           onAddTransaction={() => setDialogTarget("add")}
@@ -87,7 +87,7 @@ export default function Transactions() {
         />
       </div>
 
-      <div className="mt-6 md:mt-8 xl:mt-10">
+      <div className="mt-6 md:mt-8">
         <TransactionAnalytics filters={filters} />
       </div>
 

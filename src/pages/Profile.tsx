@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
-import { Camera, Shield, Trash2, Upload } from "lucide-react";
-import blankProfile from "../assets/blank_profile_pic.jpg";
+import { Camera, IdCard, Shield, Trash2, Upload } from "lucide-react";
 import { PageContainer } from "../components/shell/PageContainer";
+import { ProfileAvatar } from "../components/ProfileAvatar";
 import { Button } from "../components/ui/button";
 import { buttonVariants } from "../components/ui/button-variants";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Textarea } from "../components/ui/textarea";
 import { StatusBanner } from "../components/states/StatusBanner";
 import { ErrorState } from "../components/states/ErrorState";
 import { Skeleton } from "../components/states/Skeleton";
@@ -36,13 +37,18 @@ const FULL_NAME_MAX = 120;
  */
 const FIXED_CURRENCY_LABEL = "USD ($)";
 
+const BIO_LIMIT = 240;
+
+/** Real, disabled-but-visible caption pattern already used for read-only Email. */
+const COMING_SOON_CAPTION = "Coming soon — not saved yet.";
+
 function ProfileSkeleton() {
   return (
     <PageContainer>
       <div aria-hidden="true">
         <Skeleton className="h-8 w-40" />
         <Skeleton className="mt-2 h-4 w-72" />
-        <div className="mx-auto mt-6 max-w-[1200px] space-y-6 md:mt-8 md:space-y-8 xl:mt-10">
+        <div className="mx-auto mt-6 max-w-[1200px] space-y-6 md:mt-8 md:space-y-8">
           <div className="flex flex-col items-center gap-4">
             <Skeleton className="h-28 w-28 rounded-full md:h-32 md:w-32 xl:h-36 xl:w-36" />
             <Skeleton className="h-6 w-40" />
@@ -186,11 +192,13 @@ export default function Profile() {
   return (
     <PageContainer>
       <div>
-        <h1 className="text-2xl font-bold text-foreground md:text-3xl xl:text-[32px] 2xl:text-[34px]">Profile</h1>
-        <p className="mt-1 text-sm text-muted-foreground sm:text-base">Your identity and preferences across Nexali.</p>
+        <h1 className="font-display text-[28px] font-bold leading-tight tracking-tight text-foreground sm:text-[36px] lg:text-[44px] xl:text-[48px]">Profile</h1>
+        <p className="mt-1 text-[15px] text-muted-foreground sm:text-base lg:text-lg xl:text-xl">
+          Your identity, contact details, and financial bio for Aura.
+        </p>
       </div>
 
-      <div className="mx-auto mt-6 max-w-[1200px] md:mt-8 xl:mt-10">
+      <div className="mx-auto mt-6 max-w-[1200px] md:mt-8">
         {saveStatus.type && (
           <StatusBanner variant={saveStatus.type} className="mb-6">
             {saveStatus.message}
@@ -201,7 +209,13 @@ export default function Profile() {
           <div className="flex flex-col items-center gap-4 pb-4 text-center md:gap-5 md:pb-6">
             <div className="relative">
               <div className="h-28 w-28 overflow-hidden rounded-full border-2 border-primary/60 ring-2 ring-border/40 md:h-32 md:w-32 xl:h-36 xl:w-36">
-                <img src={avatarUrl || blankProfile} alt="" className="h-full w-full object-cover" />
+                <ProfileAvatar
+                  name={form.fullName}
+                  email={email}
+                  imageUrl={avatarUrl}
+                  className="h-full w-full border-0"
+                  fallbackClassName="text-3xl"
+                />
               </div>
               <label
                 aria-label="Change profile photo"
@@ -238,9 +252,14 @@ export default function Profile() {
 
           <div className="grid gap-4 md:grid-cols-12 md:gap-6 xl:gap-8">
             <section className="md:col-span-5">
-              <h2 className="mb-3 font-display text-lg font-semibold text-foreground xl:mb-4 xl:text-xl">Avatar</h2>
+              <div className="mb-3 flex items-center gap-2 xl:mb-4">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <IdCard className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <h2 className="font-display text-lg font-semibold text-foreground xl:text-xl">Avatar</h2>
+              </div>
+              <p className="-mt-2 mb-3 text-sm text-muted-foreground xl:-mt-3">Recommended size is 400×400px.</p>
               <div className="nexali-panel space-y-4 rounded-xl p-5 md:p-6 xl:p-7">
-                <p className="text-sm text-muted-foreground md:text-base">A square image works best.</p>
                 <label
                   className={cn(buttonVariants({ variant: "hero", size: "control" }), "w-full cursor-pointer")}
                 >
@@ -274,6 +293,7 @@ export default function Profile() {
               <h2 className="mb-3 font-display text-lg font-semibold text-foreground xl:mb-4 xl:text-xl">
                 Personal identity
               </h2>
+              <p className="-mt-2 mb-3 text-sm text-muted-foreground xl:-mt-3">Keep your details current.</p>
               <div className="nexali-panel space-y-5 rounded-xl p-5 md:p-6 xl:p-7">
                 <div className="space-y-2">
                   <Label htmlFor="profile-name" className="md:text-[15px]">
@@ -311,6 +331,59 @@ export default function Profile() {
                   />
                   <p className="text-sm italic text-muted-foreground">Contact support to change your sign-in email.</p>
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile-phone" className="md:text-[15px]">
+                    Phone number
+                  </Label>
+                  <Input
+                    id="profile-phone"
+                    type="tel"
+                    value=""
+                    readOnly
+                    disabled
+                    placeholder="Coming soon"
+                    className="h-11 cursor-not-allowed bg-muted text-base md:text-base xl:h-12"
+                  />
+                  <p className="text-sm italic text-muted-foreground">{COMING_SOON_CAPTION}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile-location" className="md:text-[15px]">
+                    Location
+                  </Label>
+                  <Input
+                    id="profile-location"
+                    value=""
+                    readOnly
+                    disabled
+                    placeholder="Coming soon"
+                    className="h-11 cursor-not-allowed bg-muted text-base md:text-base xl:h-12"
+                  />
+                  <p className="text-sm italic text-muted-foreground">{COMING_SOON_CAPTION}</p>
+                </div>
+              </div>
+            </section>
+
+            <section className="md:col-span-12">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3 xl:mb-4">
+                <h2 className="font-display text-lg font-semibold text-foreground xl:text-xl">Financial bio</h2>
+                <span className="numeric text-xs text-muted-foreground">0/{BIO_LIMIT}</span>
+              </div>
+              <p className="-mt-2 mb-3 text-sm text-muted-foreground xl:-mt-3">
+                Briefly describe your financial goals for Aura.
+              </p>
+              <div className="nexali-panel rounded-xl p-5 md:p-6 xl:p-7">
+                <Textarea
+                  id="profile-bio"
+                  rows={4}
+                  maxLength={BIO_LIMIT}
+                  value=""
+                  readOnly
+                  disabled
+                  placeholder="E.g., Focused on long-term wealth building and reducing recurring subscriptions…"
+                  className="cursor-not-allowed resize-none bg-muted text-base md:text-base"
+                  aria-label="Financial bio"
+                />
+                <p className="mt-2 text-sm italic text-muted-foreground">{COMING_SOON_CAPTION}</p>
               </div>
             </section>
 

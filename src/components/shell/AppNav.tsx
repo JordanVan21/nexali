@@ -28,7 +28,7 @@ export function AppNav() {
   return (
     <nav
       aria-label="Primary"
-      className="sticky top-0 z-40 hidden h-[var(--desktop-nav-height)] border-b border-outline-variant/40 bg-gradient-card shadow-card backdrop-blur-md md:block xl:h-[var(--desktop-nav-height-xl)] 2xl:h-[var(--desktop-nav-height-2xl)]"
+      className="sticky top-0 z-40 hidden h-[var(--desktop-nav-height)] border-b border-outline-variant/40 bg-background/95 backdrop-blur-md md:block xl:h-[var(--desktop-nav-height-xl)] 2xl:h-[var(--desktop-nav-height-2xl)]"
     >
       <div
         className={cn(
@@ -39,7 +39,7 @@ export function AppNav() {
       >
         <Link
           to="/dashboard"
-          className="flex shrink-0 items-center gap-2 rounded-lg text-lg font-bold text-foreground transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background xl:text-xl"
+          className="flex shrink-0 items-center gap-2 rounded-lg font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           {/* Box/icon grow modestly at xl/2xl on top of the existing "md"
               size — everything below xl (including the approved ~1174px
@@ -51,7 +51,7 @@ export function AppNav() {
           />
           {/* Hidden through the md (tablet) range so the five center-nav
               labels have room; reappears at lg once there's space again. */}
-          <span className="hidden lg:inline">Nexali</span>
+          <span className="hidden lg:inline lg:text-xl xl:text-2xl 2xl:text-[26px]">Nexali</span>
         </Link>
 
         {/* Text-only, matching navigation/navbar-desktop.png — the approved
@@ -73,7 +73,7 @@ export function AppNav() {
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                   active
                     ? "border-primary text-primary"
-                    : "border-transparent text-foreground/80 hover:text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
                 )}
               >
                 <span className="lg:hidden">{route.shortLabel ?? route.label}</span>

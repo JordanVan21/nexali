@@ -83,17 +83,13 @@
     --mobile-header-height: 3.5rem;
     --mobile-nav-height: 4rem;
 
-    /* Typography roles. Lovable's real reference loads three distinct
-       Google Fonts (Hanken Grotesk for display, Inter for body, JetBrains
-       Mono for tabular numerics); none are loaded here yet (see
-       docs/DESIGN_SYSTEM.md and the Part 1 report's open item on this), so
-       all three roles share the same system-font stack for now. The
-       three-variable split is kept so components can already target the
-       correct *role* and pick up real webfonts later with no call-site
-       changes. */
-    --font-display: ui-sans-serif, system-ui, sans-serif;
-    --font-sans: ui-sans-serif, system-ui, sans-serif;
-    --font-mono: ui-monospace, "SFMono-Regular", monospace;
+    /* Typography roles, loading the same three real Google Fonts as the
+       Lovable reference (linked in index.html): Hanken Grotesk for display,
+       Inter for body, JetBrains Mono for tabular numerics. Each falls back
+       to the system stack if the webfont hasn't loaded yet. */
+    --font-display: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+    --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
 
     /* Financial app gradients */
     --gradient-primary: linear-gradient(135deg, oklch(var(--primary)), oklch(var(--primary-glow)));

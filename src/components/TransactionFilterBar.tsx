@@ -118,7 +118,7 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
     <>
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="surface" size="sm" className="gap-2">
+          <Button variant="surface" size="control" className="gap-2">
             <CalendarIcon className="h-4 w-4" aria-hidden="true" />
             <span>
               {dateRange.from
@@ -177,7 +177,7 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="surface" size="sm" className="gap-2">
+          <Button variant="surface" size="control" className="gap-2">
             <Filter className="h-4 w-4" aria-hidden="true" />
             <span>Category</span>
             {(filters.categoryNames?.length ?? 0) > 0 && (
@@ -203,7 +203,7 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="surface" size="sm" className="gap-2">
+          <Button variant="surface" size="control" className="gap-2">
             <DollarSign className="h-4 w-4" aria-hidden="true" />
             <span>Type</span>
             {(filters.types?.length ?? 0) > 0 && (
@@ -251,7 +251,7 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
 
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="surface" size="sm" className="gap-2">
+          <Button variant="surface" size="control" className="gap-2">
             <DollarSign className="h-4 w-4" aria-hidden="true" />
             <span>Amount</span>
             {(filters.minAmount !== undefined || filters.maxAmount !== undefined) && (
@@ -300,7 +300,7 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="surface" size="sm" className="gap-2">
+          <Button variant="surface" size="control" className="gap-2">
             <SortAsc className="h-4 w-4" aria-hidden="true" />
             <span>Sort</span>
           </Button>
@@ -329,7 +329,7 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
   );
 
   return (
-    <div className="nexali-panel space-y-4 rounded-xl p-4 sm:p-5 lg:p-6">
+    <div className="nexali-panel space-y-4 rounded-xl p-3">
       {/* Row 1, every breakpoint: Search is the primary, full-width control
           in its own row, matching the Lovable reference. Mobile pairs it
           with the Filters sheet trigger; tablet/desktop get their own
@@ -349,7 +349,7 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
             placeholder="Search by merchant or note…"
             value={searchInput}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="h-11 pl-10"
+            className="h-11 pl-9"
           />
         </div>
 
@@ -357,7 +357,7 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
         <div className="shrink-0 md:hidden">
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="surface" size="sm" className="h-11 gap-2">
+              <Button variant="surface" size="control" className="gap-2">
                 <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
                 Filters
                 {activeFilters && (
@@ -395,8 +395,7 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
       <div className="hidden flex-wrap items-center gap-2 md:flex">
         {renderFilters()}
         {activeFilters && (
-          <Button variant="link" size="sm" onClick={clearFilters} className="gap-2 px-2 text-primary">
-            <X className="h-4 w-4" aria-hidden="true" />
+          <Button variant="link" onClick={clearFilters} className="px-2 text-sm">
             Reset Filters
           </Button>
         )}

@@ -25,7 +25,7 @@ const VARIANT_CONFIG: Record<
   },
   info: {
     icon: Info,
-    className: "border-secondary/30 bg-secondary/10 text-secondary",
+    className: "border-primary/30 bg-primary/10 text-primary",
     role: "status",
   },
 };
@@ -49,14 +49,10 @@ export function StatusBanner({ variant, children, className }: StatusBannerProps
     <div
       role={role}
       aria-live={role === "alert" ? "assertive" : "polite"}
-      className={cn(
-        "flex items-start gap-2 rounded-lg border px-3 py-2 text-sm font-medium",
-        variantClassName,
-        className
-      )}
+      className={cn("flex items-start gap-3 rounded-xl border px-4 py-3 text-sm", variantClassName, className)}
     >
       <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-      <span className="text-foreground">{children}</span>
+      <span className="font-medium leading-snug text-foreground">{children}</span>
     </div>
   );
 }

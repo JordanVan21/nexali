@@ -106,7 +106,7 @@ export function CategoryPicker({
         ref={triggerRef}
         type="button"
         variant="outline"
-        className="w-full justify-between text-foreground"
+        className="h-11 w-full justify-between text-foreground"
         disabled={!enabled || busy}
         aria-haspopup="listbox"
         aria-expanded={open}

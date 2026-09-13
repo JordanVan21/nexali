@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Wallet } from "lucide-react";
+import { PlusCircle, Wallet } from "lucide-react";
 import { PageContainer } from "../components/shell/PageContainer";
 import { Button } from "../components/ui/button";
 import { EmptyState } from "../components/states/EmptyState";
@@ -67,11 +67,11 @@ export default function Budgets() {
     <PageContainer>
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground md:text-3xl xl:text-[32px] 2xl:text-[34px]">Budget Planner</h1>
-          <p className="mt-1 text-sm text-muted-foreground sm:text-base">Manage your monthly allocations by category.</p>
+          <h1 className="font-display text-[28px] font-bold leading-tight tracking-tight text-foreground sm:text-[36px] lg:text-[44px] xl:text-[48px]">Budget Planner</h1>
+          <p className="mt-1 text-[15px] text-muted-foreground sm:text-base lg:text-lg xl:text-xl">Manage your monthly allocations by category.</p>
         </div>
         <Button variant="hero" size="control" className="max-md:w-full" onClick={openAdd}>
-          <Plus className="h-4 w-4" aria-hidden="true" />
+          <PlusCircle className="h-4 w-4" aria-hidden="true" />
           Add Budget
         </Button>
       </div>
@@ -80,7 +80,7 @@ export default function Budgets() {
         <BudgetPeriodNav month={month} year={year} onChange={(m, y) => setPeriod({ month: m, year: y })} />
       </div>
 
-      <div className="mt-6 md:mt-8 xl:mt-10">
+      <div className="mt-6 md:mt-8">
         {isLoading ? (
           <BudgetsSkeleton />
         ) : data.budgetsList.isError ? (
@@ -105,8 +105,8 @@ export default function Budgets() {
                 : "Create a budget for this period, or use the arrows above to check another month."
             }
             action={
-              <Button variant="hero" onClick={openAdd}>
-                <Plus className="h-4 w-4" aria-hidden="true" />
+              <Button variant="hero" size="control" onClick={openAdd}>
+                <PlusCircle className="h-4 w-4" aria-hidden="true" />
                 Add Budget
               </Button>
             }
@@ -116,7 +116,7 @@ export default function Budgets() {
             <BudgetSummaryBar {...data.summary} />
 
             <section className="space-y-4">
-              <h2 className="font-display text-lg font-semibold text-foreground lg:text-xl">Active Budgets</h2>
+              <h2 className="font-display text-lg font-semibold text-foreground lg:text-xl xl:text-2xl">Active Budgets</h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {data.budgets.map((b) => (
                   <BudgetCard key={b.id} budget={b} onEdit={() => openEdit(b)} onDelete={() => setPendingDelete(b)} />

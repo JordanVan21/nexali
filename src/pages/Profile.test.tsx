@@ -126,20 +126,30 @@ describe("Profile page", () => {
     expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
   });
 
-  it("shows a real avatar image when avatar_url is set", () => {
+  it("shows a real avatar image when avatar_url is set, taking priority over initials", () => {
     profileState = { data: { ...baseProfile(), avatar_url: "https://example.com/avatar.jpg" }, isLoading: false, isError: false, error: null };
     const { container } = renderWithProviders(<Profile />);
 
     const images = Array.from(container.querySelectorAll("img"));
     expect(images.some((img) => img.src.includes("example.com/avatar.jpg"))).toBe(true);
+    // "Jamie Rivera" -> "JR" should not render as visible fallback text while a real image is shown.
+    expect(screen.queryByText("JR")).not.toBeInTheDocument();
   });
 
-  it("falls back to the neutral placeholder image when there is no real avatar", () => {
+  it("falls back to real initials derived from the full name when there is no real avatar", () => {
     profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
     const { container } = renderWithProviders(<Profile />);
 
-    const images = Array.from(container.querySelectorAll("img"));
-    expect(images.some((img) => img.src.includes("blank_profile_pic"))).toBe(true);
+    expect(container.querySelectorAll("img")).toHaveLength(0);
+    expect(screen.getByText("JR")).toBeInTheDocument();
+  });
+
+  it("falls back to an initial derived from the real email when no full name is set", () => {
+    profileState = { data: { ...baseProfile(), full_name: null }, isLoading: false, isError: false, error: null };
+    renderWithProviders(<Profile />);
+
+    // renderWithProviders' test user has email "test@example.com"
+    expect(screen.getByText("T")).toBeInTheDocument();
   });
 
   it("does not offer Remove current when there is no real avatar", () => {
@@ -279,15 +289,41 @@ describe("Profile page", () => {
     expect(screen.queryByText(/san francisco/i)).not.toBeInTheDocument();
   });
 
-  it("omits unsupported Lovable fields and Account destructive actions", () => {
+  it("does not render Account destructive actions on Profile", () => {
     profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
     renderWithProviders(<Profile />);
 
-    expect(screen.queryByLabelText(/phone number/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/location/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/financial bio/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/delete user/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/delete account/i)).not.toBeInTheDocument();
+  });
+
+  it("shows Phone, Location, and Financial bio as real fields, but disabled until the backend supports them", () => {
+    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+    renderWithProviders(<Profile />);
+
+    const phone = screen.getByLabelText(/phone number/i);
+    const location = screen.getByLabelText(/location/i);
+    const bio = screen.getByLabelText(/financial bio/i);
+
+    expect(phone).toBeDisabled();
+    expect(location).toBeDisabled();
+    expect(bio).toBeDisabled();
+    expect(screen.getAllByText(/coming soon/i).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("does not include Phone, Location, or Financial bio in the Save mutation payload", async () => {
+    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+    const user = userEvent.setup();
+    renderWithProviders(<Profile />);
+
+    await user.type(screen.getByLabelText(/full name/i), " Jr.");
+    await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+    expect(updateMutate).toHaveBeenCalledTimes(1);
+    const [payload] = updateMutate.mock.calls[0];
+    expect(payload).not.toHaveProperty("phone");
+    expect(payload).not.toHaveProperty("location");
+    expect(payload).not.toHaveProperty("bio");
   });
 
   it("still offers the real, working Budget Reset Cycle and Reset Day preferences", () => {

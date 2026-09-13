@@ -76,10 +76,10 @@ export function TransactionAnalytics({ filters }: { filters: Filters }) {
         <section className="nexali-panel group rounded-xl p-5 xl:p-6" aria-labelledby="daily-burn-heading">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <h2 id="daily-burn-heading" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <h2 id="daily-burn-heading" className="text-xs font-medium uppercase tracking-wider text-muted-foreground xl:text-sm">
                 Average Daily Burn
               </h2>
-              <p className="font-display mt-1 flex flex-wrap items-baseline gap-2 text-2xl font-bold leading-tight text-foreground xl:text-[28px]">
+              <p className="font-display mt-1 flex flex-wrap items-baseline gap-2 text-[28px] font-bold leading-tight text-foreground xl:text-[34px]">
                 {formatCurrency(burn.dailyRate)}
                 <span
                   className={cn(
@@ -119,7 +119,7 @@ export function TransactionAnalytics({ filters }: { filters: Filters }) {
 
         <section className="nexali-panel rounded-xl p-5 xl:p-6" aria-labelledby="top-categories-heading">
           <div className="flex items-center justify-between gap-3">
-            <h2 id="top-categories-heading" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <h2 id="top-categories-heading" className="text-xs font-medium uppercase tracking-wider text-muted-foreground xl:text-sm">
               Top Categories
             </h2>
             <Link to="/reports" className="text-sm font-medium text-primary hover:underline">

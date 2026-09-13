@@ -1,7 +1,7 @@
 import { cva } from "class-variance-authority"
 
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -30,11 +30,13 @@ export const buttonVariants = cva(
           "border border-outline-variant bg-surface-lowest text-foreground hover:border-primary/70 hover:bg-surface-high active:scale-[0.98]",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
-        control: "h-11 rounded-lg px-4 lg:h-12 lg:px-5 lg:text-base xl:h-[52px] xl:px-6",
-        icon: "h-10 w-10",
+        default: "h-9 px-4 py-2",
+        sm: "h-8 rounded-md px-3 text-xs",
+        lg: "h-10 rounded-md px-8",
+        // Flat h-11 at every breakpoint, matching the real Lovable "control"
+        // size exactly -- no large-desktop growth.
+        control: "h-11 rounded-lg px-4",
+        icon: "h-9 w-9",
         "icon-lg": "h-11 w-11 rounded-lg",
       },
     },

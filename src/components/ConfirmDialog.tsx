@@ -42,24 +42,25 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(next) => !isPending && onOpenChange(next)}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className="font-display">{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         {errorMessage && <StatusBanner variant="error">{errorMessage}</StatusBanner>}
 
-        <DialogFooter>
+        <DialogFooter className="max-sm:flex-col-reverse">
           <Button
             type="button"
             variant="outline"
+            className="max-sm:w-full"
             onClick={() => onOpenChange(false)}
             disabled={isPending}
           >
             {cancelLabel}
           </Button>
-          <Button type="button" variant="destructive" onClick={onConfirm} disabled={isPending}>
+          <Button type="button" variant="destructive" className="max-sm:w-full" onClick={onConfirm} disabled={isPending}>
             {isPending ? pendingLabel : confirmLabel}
           </Button>
         </DialogFooter>

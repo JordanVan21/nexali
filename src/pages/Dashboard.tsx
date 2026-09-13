@@ -50,8 +50,8 @@ export default function Dashboard() {
     <PageContainer>
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground md:text-3xl xl:text-[32px] 2xl:text-[34px]">Command Center</h1>
-          <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+          <h1 className="font-display text-[28px] font-bold leading-tight tracking-tight text-foreground sm:text-[36px] lg:text-[44px] xl:text-[48px]">Command Center</h1>
+          <p className="mt-1 text-[15px] text-muted-foreground sm:text-base lg:text-lg xl:text-xl">
             {firstName
               ? `Welcome back, ${firstName}. Here's an overview of your recent financial activity.`
               : "An overview of your recent financial activity."}
@@ -63,7 +63,7 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      <div className="mt-6 md:mt-8 xl:mt-10">
+      <div className="mt-6 md:mt-8">
         {dashboard.transactions.isLoading ? (
           <DashboardSkeleton />
         ) : dashboard.transactions.isError ? (
@@ -78,7 +78,7 @@ export default function Dashboard() {
             title="No activity yet"
             description="Add your first transaction to see your income, expenses, and spending trends here."
             action={
-              <Button variant="hero" onClick={() => setDialogTarget("add")}>
+              <Button variant="hero" size="control" onClick={() => setDialogTarget("add")}>
                 <Plus className="h-4 w-4" aria-hidden="true" />
                 Add Transaction
               </Button>
@@ -134,13 +134,13 @@ export default function Dashboard() {
             <div className="grid gap-4 md:grid-cols-3">
               {dashboard.budgets.isError ? (
                 <ErrorState
-                  className="md:col-span-3"
+                  className="md:col-span-2"
                   title="Couldn't load your budgets"
                   message="We couldn't load your budget progress right now. Please try again."
                   onRetry={dashboard.budgets.refetch}
                 />
               ) : dashboard.budgets.isLoading ? (
-                <Skeleton className="md:col-span-3 h-[220px] rounded-xl" />
+                <Skeleton className="md:col-span-2 h-[220px] rounded-xl" />
               ) : (
                 <BudgetSnapshot items={summary!.budgets} />
               )}

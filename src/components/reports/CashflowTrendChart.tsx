@@ -3,6 +3,7 @@ import { Sparkles } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatCurrency } from "../../lib/format";
 import { cn } from "../../lib/utils";
+import { buttonVariants } from "../ui/button-variants";
 import type { MonthlyBucket } from "../../lib/financialAnalytics";
 
 function NetTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
@@ -35,7 +36,7 @@ export function CashflowTrendChart({ data }: { data: MonthlyBucket[] }) {
         </div>
         <Link
           to="/assistant"
-          className="inline-flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2 text-sm font-medium text-primary transition-colors hover:border-primary/40 max-sm:w-full max-sm:justify-center"
+          className={cn(buttonVariants({ variant: "surface", size: "control" }), "max-sm:w-full")}
         >
           <Sparkles className="h-4 w-4" aria-hidden="true" />
           Ask Aura About This Trend

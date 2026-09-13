@@ -173,7 +173,7 @@ export function TransactionForm({ existingTx, onSaved, onCancel }: TransactionFo
           required
           aria-invalid={amountInvalid || undefined}
           aria-describedby={amountInvalid ? "tx-amount-error" : undefined}
-          className="mt-2"
+          className="mt-2 h-11"
         />
         {amountInvalid && (
           <p id="tx-amount-error" className="mt-1.5 text-sm text-destructive">
@@ -192,7 +192,7 @@ export function TransactionForm({ existingTx, onSaved, onCancel }: TransactionFo
           placeholder="Where did you shop?"
           value={merchant}
           onChange={(e) => setMerchant(e.target.value)}
-          className="mt-2"
+          className="mt-2 h-11"
         />
       </div>
 
@@ -206,15 +206,15 @@ export function TransactionForm({ existingTx, onSaved, onCancel }: TransactionFo
           placeholder="Optional description"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="mt-2"
+          className="mt-2 h-11"
         />
       </div>
 
       <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={saveTx.isPending}>
+        <Button type="button" variant="surface" size="control" className="max-sm:w-full" onClick={onCancel} disabled={saveTx.isPending}>
           Cancel
         </Button>
-        <Button type="submit" variant="hero" disabled={saveTx.isPending}>
+        <Button type="submit" variant="hero" size="control" className="max-sm:w-full" disabled={saveTx.isPending}>
           {saveTx.isPending ? "Saving…" : existingTx ? "Save Changes" : "Add Transaction"}
         </Button>
       </div>
