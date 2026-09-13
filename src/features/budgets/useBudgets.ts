@@ -13,7 +13,7 @@ export function useBudgets(userId: string) {
 export function useDeleteBudget(userId: string) {
   const qc = useQueryClient();
   return useMutation<void, Error, BudgetId>({
-    mutationFn: (id) => deleteBudget(id),
+    mutationFn: (id) => deleteBudget(id, userId),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: qk.budgetsRoot(userId) });
     },

@@ -58,8 +58,6 @@ export const qk = {
 
   // Budgets
   budgetsRoot: (userId: string) => ["budgets", userId] as const,
-  budgets: (userId: string, year: number, month: number) =>
-    [...qk.budgetsRoot(userId), year, month] as const,
 
   // Spent totals
   spentRoot: (userId: string) => ["spent", userId] as const,

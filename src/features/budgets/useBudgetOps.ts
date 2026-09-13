@@ -33,11 +33,10 @@ export function useSaveBudget() {
   return useMutation<SaveBudgetResult, Error, SaveBudgetVars>({
     mutationFn: (vars) => upsertBudget(vars),
     onSuccess: async (_res, vars) => {
-      await Promise.all([
-        qc.invalidateQueries({
-        queryKey: qk.budgets(vars.userId, vars.year, vars.month),
-        })
-      ]);
+      // Must invalidate the parent list key (qk.budgetsRoot), not a child
+      // key — useBudgets reads budgetsRoot directly, so invalidating a
+      // more specific child key here would never actually refresh it.
+      await qc.invalidateQueries({ queryKey: qk.budgetsRoot(vars.userId) });
     }
   });
 }

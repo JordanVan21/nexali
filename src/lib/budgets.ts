@@ -15,6 +15,12 @@ export type Budget =
     categories: Pick<CategoryRow, "id" | "name" | "type"> | null;
   };
 
+/**
+ * All-time spend for a category — `sum_category_amount` accepts no date
+ * range (docs/AUDIT_REPORT.md P2). Do not use this for a period-scoped
+ * ("this month") figure; use `computeBudgetSpend`/`computeBudgetProgress`
+ * from `src/lib/budgetMath.ts` against already-loaded transactions instead.
+ */
 export const getSpentAmount = async (userId: string, catId: number) => {
   const { data, error } = await supabase.rpc(
     "sum_category_amount",
@@ -51,13 +57,24 @@ export const getBudgets = async (userId: string): Promise<Budget[]> => {
   }
 };
 
-export const deleteBudget = async(id: BudgetId) => {
+export const deleteBudget = async (id: BudgetId, userId: string) => {
     const { error } = await supabase
         .from("budgets")
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .eq("user_id", userId);
 
     if (error) throw new Error(error.message);
+}
+
+/** The DB-enforced unique constraint on (user_id, category_id, month, year). */
+const DUPLICATE_BUDGET_CONSTRAINT = "budgets_user_id_category_id_month_year_key";
+
+/** True when `error` is the unique-constraint violation for an existing budget in that category/month/year. */
+export function isDuplicateBudgetError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { code?: string; message?: string };
+  return e.code === "23505" || (e.message?.includes(DUPLICATE_BUDGET_CONSTRAINT) ?? false);
 }
 
 export async function upsertBudget(args: {

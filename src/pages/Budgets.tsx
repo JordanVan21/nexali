@@ -1,95 +1,159 @@
-import { BudgetModal } from "../components/Modal.tsx";
-import { BudgetCard } from "../components/Card.tsx";
-import { useEffect, useState } from "react";
-import { useBudgets, useDeleteBudget } from "../features/budgets/useBudgets.ts";
-import { type Budget } from "../lib/budgets.ts";
-import { useUserInfo } from "../shared/useUserId.ts";
+import { useState } from "react";
+import { Plus, Wallet } from "lucide-react";
+import { PageContainer } from "../components/shell/PageContainer";
+import { Button } from "../components/ui/button";
+import { EmptyState } from "../components/states/EmptyState";
+import { ErrorState } from "../components/states/ErrorState";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { BudgetCard } from "../components/budgets/BudgetCard";
+import { BudgetSummaryBar } from "../components/budgets/BudgetSummaryBar";
+import { BudgetFormDialog } from "../components/budgets/BudgetFormDialog";
+import { BudgetPeriodNav } from "../components/budgets/BudgetPeriodNav";
+import { BudgetsSkeleton } from "../components/budgets/BudgetsSkeleton";
+import { useDeleteBudget } from "../features/budgets/useBudgets";
+import { useBudgetsForPeriod } from "../features/budgets/useBudgetsForPeriod";
+import { useUserInfo } from "../shared/useUserId";
+import { getErrorMessage } from "../lib/utils";
+import type { Budget } from "../lib/budgets";
+import type { BudgetProgressDetail } from "../lib/budgetMath";
+
+function now() {
+  const d = new Date();
+  return { month: d.getMonth() + 1, year: d.getFullYear() };
+}
 
 export default function Budgets() {
   const { userId } = useUserInfo();
-  const [editing, setEditing] = useState<Budget | null>(null);
+  const [{ month, year }, setPeriod] = useState(now());
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<BudgetProgressDetail | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const budgets = useBudgets(userId);
-  const delBudget = useDeleteBudget(userId);
+  const data = useBudgetsForPeriod(userId, year, month);
+  const deleteBudget = useDeleteBudget(userId);
 
-  /* -------- edit -------- */
-  const handleEdit = (b: Budget) => setEditing(b);
+  const openAdd = () => {
+    setEditingBudget(null);
+    setFormOpen(true);
+  };
 
-  useEffect(() => {
-    if (editing) {
-      (
-        document.getElementById("edit_budget_modal") as HTMLDialogElement | null
-      )?.showModal();
+  const openEdit = (progress: BudgetProgressDetail) => {
+    setEditingBudget({
+      id: progress.id,
+      amount: progress.amount,
+      month: progress.month,
+      year: progress.year,
+      category_id: progress.categoryId,
+      categories: progress.categoryId != null ? { id: progress.categoryId, name: progress.category, type: "expense" } : null,
+    });
+    setFormOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleteError(null);
+    try {
+      await deleteBudget.mutateAsync(pendingDelete.id);
+      setPendingDelete(null);
+    } catch (err) {
+      setDeleteError(getErrorMessage(err, "Failed to delete budget"));
     }
-  }, [editing]);
-
-  /* -------- delete -------- */
-  const handleDelete = async (id: number) => {
-    if (!confirm("Delete this budget?")) return;
-    delBudget.mutate(id);
   };
 
-  /* -------- refresh -------- */
-  const refetchBudgets = async () => {
-    await budgets.refetch();
-  };
+  const isLoading = data.budgetsList.isLoading || data.spendData.isLoading;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 sm:p-6 lg:p-8 gap-4">
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-          Budgets
-        </h1>
-        <BudgetModal
-          dialogId="add_modal"
-          tx={null}
-          onTxCreated={refetchBudgets}
-        ></BudgetModal>
+    <PageContainer>
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground md:text-3xl">Budget Planner</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Manage your monthly allocations by category.</p>
+        </div>
+        <Button variant="hero" size="control" className="max-md:w-full" onClick={openAdd}>
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Add Budget
+        </Button>
       </div>
 
-      <BudgetModal
-        dialogId="edit_budget_modal"
-        tx={editing}
-        showTrigger={false}
-        onTxCreated={refetchBudgets}
-        onClose={() => setEditing(null)}
-      />
+      <div className="mt-6">
+        <BudgetPeriodNav month={month} year={year} onChange={(m, y) => setPeriod({ month: m, year: y })} />
+      </div>
 
-      <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent mx-4 sm:mx-6 lg:mx-8 mb-8" />
-
-      <div className="px-4 sm:px-6 lg:px-8 pb-8">
-        {budgets.isLoading ? (
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="animate-pulse text-muted-foreground">Loading Budgets...</div>
-          </div>  
-        ) : budgets.isError ? (
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-destructive text-center">
-              {budgets.error?.message ?? "Failed to load budgets"}
-            </div>
-          </div>
-        ) : (budgets.data?.length ?? 0) === 0 ? (
-          <div className="flex flex-col items-center justify-center min-h-[400px] text-center space-y-4">
-            <div className="text-muted-foreground text-lg">
-              No bugets yet
-            </div>
-            <p className="text-muted-foreground/60">
-              Click the "Add Budget" button to create your first budget
-            </p>
-          </div>
+      <div className="mt-6 md:mt-8">
+        {isLoading ? (
+          <BudgetsSkeleton />
+        ) : data.budgetsList.isError ? (
+          <ErrorState
+            title="Couldn't load your budgets"
+            message="We couldn't load your budgets right now. Please try again."
+            onRetry={data.budgetsList.refetch}
+          />
+        ) : data.spendData.isError ? (
+          <ErrorState
+            title="Couldn't load your spending"
+            message="Budget progress depends on your transaction history, which we couldn't load right now. Please try again."
+            onRetry={data.spendData.refetch}
+          />
+        ) : data.budgets.length === 0 ? (
+          <EmptyState
+            icon={Wallet}
+            title={data.budgetsList.hasNeverCreatedAny ? "No budgets yet" : "No budgets for this month"}
+            description={
+              data.budgetsList.hasNeverCreatedAny
+                ? "Create your first budget category to start tracking your monthly spending limits."
+                : "Create a budget for this period, or use the arrows above to check another month."
+            }
+            action={
+              <Button variant="hero" onClick={openAdd}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Add Budget
+              </Button>
+            }
+          />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-7xl mx-auto">
-            {budgets.data!.map((budget) => (
-              <BudgetCard
-                key={budget.id}
-                budget={budget}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
-            ))}
+          <div className="space-y-6 md:space-y-8">
+            <BudgetSummaryBar {...data.summary} />
+
+            <section className="space-y-4">
+              <h2 className="font-display text-lg font-semibold text-foreground">Active Budgets</h2>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {data.budgets.map((b) => (
+                  <BudgetCard key={b.id} budget={b} onEdit={() => openEdit(b)} onDelete={() => setPendingDelete(b)} />
+                ))}
+              </div>
+            </section>
           </div>
         )}
       </div>
-    </div>
+
+      <BudgetFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        userId={userId}
+        editing={editingBudget}
+        defaultMonth={month}
+        defaultYear={year}
+      />
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingDelete(null);
+            setDeleteError(null);
+          }
+        }}
+        title="Delete this budget?"
+        description={
+          pendingDelete
+            ? `The budget for "${pendingDelete.category}" will be permanently removed. This can't be undone.`
+            : "This can't be undone."
+        }
+        onConfirm={confirmDelete}
+        isPending={deleteBudget.isPending}
+        errorMessage={deleteError}
+      />
+    </PageContainer>
   );
 }
