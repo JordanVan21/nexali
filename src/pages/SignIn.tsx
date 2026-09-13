@@ -42,21 +42,23 @@ export default function SignIn() {
 
   return (
     <AuthLayout
-      title="Welcome back"
-      subtitle="Sign in to your Nexali account"
+      title="Nexali"
+      subtitle="Secure sign in to your money command center."
       footer={
         <>
-          Don&apos;t have an account?{" "}
-          <Link to="/signup" className="font-medium text-primary hover:underline">
-            Create one
+          New to Nexali?{" "}
+          <Link to="/signup" className="font-semibold text-primary hover:underline">
+            Create an account
           </Link>
         </>
       }
     >
-      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+      <form onSubmit={handleSubmit} noValidate className="space-y-6">
+        {errorMessage && <StatusBanner variant="error">{errorMessage}</StatusBanner>}
+
         <TextField
           id="email"
-          label="Email"
+          label="Email address"
           icon={Mail}
           type="email"
           autoComplete="email"
@@ -70,7 +72,7 @@ export default function SignIn() {
           id="password"
           label="Password"
           labelExtra={
-            <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+            <Link to="/forgot-password" className="text-[15px] font-medium text-primary hover:underline sm:text-base">
               Forgot password?
             </Link>
           }
@@ -81,9 +83,13 @@ export default function SignIn() {
           required
         />
 
-        {errorMessage && <StatusBanner variant="error">{errorMessage}</StatusBanner>}
-
-        <Button type="submit" variant="hero" size="lg" className="w-full" disabled={signIn.isPending}>
+        <Button
+          type="submit"
+          variant="hero"
+          size="control"
+          className="h-14 w-full text-base font-semibold sm:text-lg"
+          disabled={signIn.isPending}
+        >
           {signIn.isPending ? "Signing in…" : "Sign In"}
         </Button>
       </form>

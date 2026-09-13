@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, KeyRound, Mail } from "lucide-react";
+import { ArrowLeft, Mail, MailCheck } from "lucide-react";
 import { AuthLayout } from "../components/auth/AuthLayout";
 import { TextField } from "../components/auth/TextField";
 import { Button } from "../components/ui/button";
@@ -32,25 +32,35 @@ export default function ForgotPassword() {
   return (
     <AuthLayout
       title="Reset Your Password"
-      subtitle="Enter your email address and we'll send you instructions to reset your password."
-      icon={KeyRound}
+      subtitle="Enter the email address for your account and we'll send you secure password reset instructions."
       footer={
-        <Link to="/signin" className="inline-flex items-center gap-1.5 text-primary hover:underline">
+        <Link
+          to="/signin"
+          className="inline-flex items-center gap-1.5 text-[15px] font-medium text-muted-foreground transition-colors hover:text-foreground sm:text-base"
+        >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Back to sign in
         </Link>
       }
     >
       {status === "sent" ? (
-        <StatusBanner variant="success">
-          If an account exists for that email, we&apos;ve sent password reset instructions. Check
-          your inbox.
-        </StatusBanner>
+        <div className="space-y-6 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-success/20 bg-success/10 text-success">
+            <MailCheck className="h-8 w-8" aria-hidden="true" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="font-display text-xl font-semibold text-foreground">Check your inbox</h2>
+            <StatusBanner variant="success">
+              If an account exists for that email, we&apos;ve sent password reset instructions. Check
+              your inbox.
+            </StatusBanner>
+          </div>
+        </div>
       ) : (
-        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-6">
           <TextField
             id="email"
-            label="Email"
+            label="Email address"
             icon={Mail}
             type="email"
             autoComplete="email"
@@ -64,7 +74,13 @@ export default function ForgotPassword() {
             <StatusBanner variant="error">{errorMessage}</StatusBanner>
           )}
 
-          <Button type="submit" variant="hero" size="lg" className="w-full" disabled={status === "pending"}>
+          <Button
+            type="submit"
+            variant="hero"
+            size="control"
+            className="h-14 w-full text-base font-semibold sm:text-lg"
+            disabled={status === "pending"}
+          >
             {status === "pending" ? "Sending…" : "Send Reset Link"}
           </Button>
         </form>

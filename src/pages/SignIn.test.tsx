@@ -57,7 +57,7 @@ describe("SignIn", () => {
     const user = userEvent.setup();
     renderSignIn();
 
-    await user.type(await screen.findByLabelText(/^email$/i), "jane@example.com");
+    await user.type(await screen.findByLabelText(/^email address$/i), "jane@example.com");
     await user.type(screen.getByLabelText(/^password$/i), "hunter22");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
@@ -79,7 +79,7 @@ describe("SignIn", () => {
     const user = userEvent.setup();
     renderSignIn();
 
-    await user.type(await screen.findByLabelText(/^email$/i), "jane@example.com");
+    await user.type(await screen.findByLabelText(/^email address$/i), "jane@example.com");
     await user.type(screen.getByLabelText(/^password$/i), "hunter22");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
@@ -96,7 +96,7 @@ describe("SignIn", () => {
     const user = userEvent.setup();
     renderSignIn("/signin?redirect=%2Ftransactions");
 
-    await user.type(await screen.findByLabelText(/^email$/i), "jane@example.com");
+    await user.type(await screen.findByLabelText(/^email address$/i), "jane@example.com");
     await user.type(screen.getByLabelText(/^password$/i), "hunter22");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
@@ -113,7 +113,7 @@ describe("SignIn", () => {
     const user = userEvent.setup();
     renderSignIn("/signin?redirect=https%3A%2F%2Fmalicious-site.example");
 
-    await user.type(await screen.findByLabelText(/^email$/i), "jane@example.com");
+    await user.type(await screen.findByLabelText(/^email address$/i), "jane@example.com");
     await user.type(screen.getByLabelText(/^password$/i), "hunter22");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
@@ -130,7 +130,7 @@ describe("SignIn", () => {
     const user = userEvent.setup();
     renderSignIn();
 
-    await user.type(await screen.findByLabelText(/^email$/i), "jane@example.com");
+    await user.type(await screen.findByLabelText(/^email address$/i), "jane@example.com");
     await user.type(screen.getByLabelText(/^password$/i), "wrong-password");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
@@ -150,7 +150,7 @@ describe("SignIn", () => {
     const user = userEvent.setup();
     renderSignIn();
 
-    await user.type(await screen.findByLabelText(/^email$/i), "jane@example.com");
+    await user.type(await screen.findByLabelText(/^email address$/i), "jane@example.com");
     await user.type(screen.getByLabelText(/^password$/i), "hunter22");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
@@ -190,5 +190,15 @@ describe("SignIn", () => {
     renderSignIn();
 
     expect(await screen.findByText("Dashboard page")).toBeInTheDocument();
+  });
+
+  it("shows real Nexali branding and no fake auth capabilities Nexali doesn't support", async () => {
+    mockUnauthenticated();
+    renderSignIn();
+
+    expect(await screen.findByText("Nexali")).toBeInTheDocument();
+    expect(screen.queryByText(/keep me signed in/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.queryByText(/google|apple|github/i)).not.toBeInTheDocument();
   });
 });

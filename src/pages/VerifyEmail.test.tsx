@@ -154,4 +154,17 @@ describe("VerifyEmail", () => {
 
     expect(await screen.findByText(/too many attempts/i)).toBeInTheDocument();
   });
+
+  it("uses the real link-based verification flow, never a fake 6-digit code UI", async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+    } as unknown as GetSessionResult);
+    mockAuthStateChange();
+
+    renderVerifyEmail({ email: "jane@example.com" });
+
+    expect(await screen.findByText(/confirmation link/i)).toBeInTheDocument();
+    expect(screen.queryByText(/6-digit/i)).not.toBeInTheDocument();
+    expect(screen.queryAllByRole("textbox").length).toBeLessThanOrEqual(1);
+  });
 });

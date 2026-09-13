@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Mail, User } from "lucide-react";
+import { Check, Mail, User } from "lucide-react";
 import { useSignUp } from "../features/user/useSignIn";
 import { useRedirectIfAuthenticated } from "../features/user/useRedirectIfAuthenticated";
 import { AuthLayout } from "../components/auth/AuthLayout";
@@ -11,6 +11,7 @@ import { Button } from "../components/ui/button";
 import { StatusBanner } from "../components/states/StatusBanner";
 import { normalizeAuthError } from "../lib/authErrors";
 import { DEFAULT_AUTHENTICATED_ROUTE } from "../lib/routes";
+import { cn } from "../lib/utils";
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -28,13 +29,15 @@ export default function SignUp() {
 
   if (checking || authenticated) return null;
 
+  const passwordLongEnough = password.length >= MIN_PASSWORD_LENGTH;
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (signUp.isPending) return;
 
     setErrorMessage(null);
 
-    if (password.length < MIN_PASSWORD_LENGTH) {
+    if (!passwordLongEnough) {
       setErrorMessage(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
       return;
     }
@@ -58,18 +61,21 @@ export default function SignUp() {
 
   return (
     <AuthLayout
-      title="Create your account"
-      subtitle="Start tracking your finances with Nexali"
+      title="Create Account"
+      subtitle="Join Nexali to manage budgets, transactions, and your Aura assistant."
+      maxWidthClassName="max-w-[580px]"
       footer={
         <>
           Already have an account?{" "}
-          <Link to="/signin" className="font-medium text-primary hover:underline">
+          <Link to="/signin" className="font-semibold text-primary hover:underline">
             Sign in
           </Link>
         </>
       }
     >
-      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+      <form onSubmit={handleSubmit} noValidate className="space-y-6">
+        {errorMessage && <StatusBanner variant="error">{errorMessage}</StatusBanner>}
+
         <TextField
           id="fullName"
           label="Full name"
@@ -84,7 +90,7 @@ export default function SignUp() {
 
         <TextField
           id="email"
-          label="Email"
+          label="Email address"
           icon={Mail}
           type="email"
           autoComplete="email"
@@ -106,7 +112,23 @@ export default function SignUp() {
           placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
           required
           minLength={MIN_PASSWORD_LENGTH}
+          showStrength
         />
+
+        <div className="space-y-2.5 rounded-lg bg-surface p-4">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Password requirements
+          </span>
+          <div
+            className={cn(
+              "flex items-center gap-2 text-sm transition-colors",
+              passwordLongEnough ? "text-success" : "text-muted-foreground"
+            )}
+          >
+            <Check className={cn("h-4 w-4 shrink-0", !passwordLongEnough && "opacity-40")} aria-hidden="true" />
+            At least {MIN_PASSWORD_LENGTH} characters
+          </div>
+        </div>
 
         <PasswordField
           id="confirmPassword"
@@ -123,9 +145,13 @@ export default function SignUp() {
           errorMessage="Passwords do not match."
         />
 
-        {errorMessage && <StatusBanner variant="error">{errorMessage}</StatusBanner>}
-
-        <Button type="submit" variant="hero" size="lg" className="w-full" disabled={signUp.isPending}>
+        <Button
+          type="submit"
+          variant="hero"
+          size="control"
+          className="h-14 w-full text-base font-semibold sm:text-lg"
+          disabled={signUp.isPending}
+        >
           {signUp.isPending ? "Creating account…" : "Create Account"}
         </Button>
       </form>

@@ -44,7 +44,7 @@ function renderSignUp() {
 
 async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
   await user.type(await screen.findByLabelText(/full name/i), "Jane Doe");
-  await user.type(screen.getByLabelText(/^email$/i), "jane@example.com");
+  await user.type(screen.getByLabelText(/^email address$/i), "jane@example.com");
   await user.type(screen.getByLabelText(/^password$/i), "hunter22");
   await user.type(screen.getByLabelText(/confirm password/i), "hunter22");
 }
@@ -60,12 +60,12 @@ describe("SignUp", () => {
     renderSignUp();
 
     await user.type(await screen.findByLabelText(/full name/i), "Jane Doe");
-    await user.type(screen.getByLabelText(/^email$/i), "jane@example.com");
+    await user.type(screen.getByLabelText(/^email address$/i), "jane@example.com");
     await user.type(screen.getByLabelText(/^password$/i), "abc");
     await user.type(screen.getByLabelText(/confirm password/i), "abc");
     await user.click(screen.getByRole("button", { name: /create account/i }));
 
-    expect(await screen.findByText(/at least 6 characters/i)).toBeInTheDocument();
+    expect(await screen.findByText(/password must be at least 6 characters/i)).toBeInTheDocument();
     expect(supabase.auth.signUp).not.toHaveBeenCalled();
   });
 
@@ -75,7 +75,7 @@ describe("SignUp", () => {
     renderSignUp();
 
     await user.type(await screen.findByLabelText(/full name/i), "Jane Doe");
-    await user.type(screen.getByLabelText(/^email$/i), "jane@example.com");
+    await user.type(screen.getByLabelText(/^email address$/i), "jane@example.com");
     await user.type(screen.getByLabelText(/^password$/i), "hunter22");
     await user.type(screen.getByLabelText(/confirm password/i), "different1");
     await user.click(screen.getByRole("button", { name: /create account/i }));
@@ -165,5 +165,46 @@ describe("SignUp", () => {
     renderSignUp();
 
     expect(await screen.findByText("Dashboard page")).toBeInTheDocument();
+  });
+
+  it("shows only the real password requirement, no fake Terms/Privacy checkbox or unsupported auth options", async () => {
+    mockUnauthenticated();
+    renderSignUp();
+
+    expect(await screen.findByText("At least 6 characters")).toBeInTheDocument();
+    expect(screen.queryByText(/at least 8 characters/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/terms of service/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.queryByText(/google|apple|github/i)).not.toBeInTheDocument();
+  });
+
+  it("shows an advisory password-strength meter driven by the real entered password, without blocking a 6-character password", async () => {
+    mockUnauthenticated();
+    vi.mocked(supabase.auth.signUp).mockResolvedValue({
+      data: { user: { id: "u1" }, session: null },
+      error: null,
+    } as unknown as SignUpResult);
+
+    const user = userEvent.setup();
+    renderSignUp();
+
+    expect(await screen.findByText(/strength: empty/i)).toBeInTheDocument();
+
+    const passwordField = screen.getByLabelText(/^password$/i);
+    await user.type(passwordField, "weak");
+    expect(await screen.findByText(/strength: weak/i)).toBeInTheDocument();
+
+    await user.clear(passwordField);
+    await user.type(passwordField, "Str0ng!Pass");
+    expect(await screen.findByText(/strength: strong/i)).toBeInTheDocument();
+
+    // A real 6-character password must still be accepted -- the strength
+    // meter is advisory only and never raises the real minimum.
+    await user.clear(passwordField);
+    await user.type(passwordField, "hunter22");
+    await user.type(screen.getByLabelText(/confirm password/i), "hunter22");
+    await user.click(screen.getByRole("button", { name: /create account/i }));
+
+    await waitFor(() => expect(supabase.auth.signUp).toHaveBeenCalledTimes(1));
   });
 });

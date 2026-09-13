@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, ShieldCheck } from "lucide-react";
 import { AuthLayout } from "../components/auth/AuthLayout";
 import { PasswordField } from "../components/auth/PasswordField";
 import { Button } from "../components/ui/button";
@@ -11,6 +11,7 @@ import { supabase } from "../supabaseClient";
 import { updatePassword } from "../lib/auth";
 import { normalizeAuthError, getAuthHashError, isExpiredAuthHashError } from "../lib/authErrors";
 import { DEFAULT_AUTHENTICATED_ROUTE } from "../lib/routes";
+import { cn } from "../lib/utils";
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -81,13 +82,15 @@ export default function ResetPassword() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const passwordLongEnough = password.length >= MIN_PASSWORD_LENGTH;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (submitting) return;
 
     setErrorMessage(null);
 
-    if (password.length < MIN_PASSWORD_LENGTH) {
+    if (!passwordLongEnough) {
       setErrorMessage(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
       return;
     }
@@ -110,7 +113,7 @@ export default function ResetPassword() {
 
   if (view === "checking") {
     return (
-      <AuthLayout title="Reset your password">
+      <AuthLayout title="Checking your reset link">
         <PageLoading label="Checking your reset link" />
       </AuthLayout>
     );
@@ -121,15 +124,24 @@ export default function ResetPassword() {
       <AuthLayout
         title="Reset link no longer valid"
         footer={
-          <Link to="/signin" className="inline-flex items-center gap-1.5 text-primary hover:underline">
+          <Link
+            to="/signin"
+            className="inline-flex items-center gap-1.5 text-[15px] font-medium text-muted-foreground transition-colors hover:text-foreground sm:text-base"
+          >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Back to sign in
           </Link>
         }
       >
-        <StatusBanner variant="error">{invalidMessage}</StatusBanner>
-        <div className="mt-4 text-center">
-          <Link to="/forgot-password" className="text-sm font-medium text-primary hover:underline">
+        <div className="space-y-6 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-destructive/20 bg-destructive/10 text-destructive">
+            <AlertTriangle className="h-8 w-8" aria-hidden="true" />
+          </div>
+          <StatusBanner variant="error">{invalidMessage}</StatusBanner>
+          <Link
+            to="/forgot-password"
+            className="inline-block text-[15px] font-semibold text-primary hover:underline sm:text-base"
+          >
             Request a new reset link
           </Link>
         </div>
@@ -139,23 +151,29 @@ export default function ResetPassword() {
 
   if (view === "success") {
     return (
-      <AuthLayout title="Password updated">
-        <StatusBanner variant="success">Your password has been updated.</StatusBanner>
-        <Button
-          variant="hero"
-          size="lg"
-          className="mt-6 w-full"
-          onClick={() => navigate(DEFAULT_AUTHENTICATED_ROUTE, { replace: true })}
-        >
-          Continue to Dashboard
-        </Button>
+      <AuthLayout title="Password Updated" subtitle="Your password has been updated.">
+        <div className="space-y-6 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-success/20 bg-success/10 text-success">
+            <ShieldCheck className="h-8 w-8" aria-hidden="true" />
+          </div>
+          <Button
+            variant="hero"
+            size="control"
+            className="h-14 w-full text-base font-semibold sm:text-lg"
+            onClick={() => navigate(DEFAULT_AUTHENTICATED_ROUTE, { replace: true })}
+          >
+            Continue to Dashboard
+          </Button>
+        </div>
       </AuthLayout>
     );
   }
 
   return (
     <AuthLayout title="Create New Password" subtitle="Choose a strong password to secure your Nexali account.">
-      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+      <form onSubmit={handleSubmit} noValidate className="space-y-6">
+        {errorMessage && <StatusBanner variant="error">{errorMessage}</StatusBanner>}
+
         <PasswordField
           id="password"
           label="New password"
@@ -165,10 +183,26 @@ export default function ResetPassword() {
             setMismatch(false);
           }}
           autoComplete="new-password"
-          placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
+          placeholder="Enter new password"
           required
           minLength={MIN_PASSWORD_LENGTH}
+          showStrength
         />
+
+        <div className="space-y-2.5 rounded-lg bg-surface p-4">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Password requirements
+          </span>
+          <div
+            className={cn(
+              "flex items-center gap-2 text-sm transition-colors",
+              passwordLongEnough ? "text-success" : "text-muted-foreground"
+            )}
+          >
+            <Check className={cn("h-4 w-4 shrink-0", !passwordLongEnough && "opacity-40")} aria-hidden="true" />
+            At least {MIN_PASSWORD_LENGTH} characters
+          </div>
+        </div>
 
         <PasswordField
           id="confirmPassword"
@@ -185,9 +219,13 @@ export default function ResetPassword() {
           errorMessage="Passwords do not match."
         />
 
-        {errorMessage && <StatusBanner variant="error">{errorMessage}</StatusBanner>}
-
-        <Button type="submit" variant="hero" size="lg" className="w-full" disabled={submitting}>
+        <Button
+          type="submit"
+          variant="hero"
+          size="control"
+          className="h-14 w-full text-base font-semibold sm:text-lg"
+          disabled={submitting}
+        >
           {submitting ? "Updating…" : "Reset Password"}
         </Button>
       </form>

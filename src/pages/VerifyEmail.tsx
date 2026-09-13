@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Mail, MailCheck } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Mail, ShieldCheck } from "lucide-react";
 import { AuthLayout } from "../components/auth/AuthLayout";
 import { TextField } from "../components/auth/TextField";
 import { Button } from "../components/ui/button";
@@ -84,17 +84,22 @@ export default function VerifyEmail() {
   if (view === "success") {
     return (
       <AuthLayout title="Email verified">
-        <StatusBanner variant="success">
-          Your email address has been verified and you&apos;re signed in.
-        </StatusBanner>
-        <Button
-          variant="hero"
-          size="lg"
-          className="mt-6 w-full"
-          onClick={() => navigate(DEFAULT_AUTHENTICATED_ROUTE, { replace: true })}
-        >
-          Continue to Dashboard
-        </Button>
+        <div className="space-y-6 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-success/20 bg-success/10 text-success">
+            <ShieldCheck className="h-8 w-8" aria-hidden="true" />
+          </div>
+          <StatusBanner variant="success">
+            Your email address has been verified and you&apos;re signed in.
+          </StatusBanner>
+          <Button
+            variant="hero"
+            size="control"
+            className="h-14 w-full text-base font-semibold sm:text-lg"
+            onClick={() => navigate(DEFAULT_AUTHENTICATED_ROUTE, { replace: true })}
+          >
+            Continue to Dashboard
+          </Button>
+        </div>
       </AuthLayout>
     );
   }
@@ -104,13 +109,21 @@ export default function VerifyEmail() {
       <AuthLayout
         title="Verification link no longer valid"
         footer={
-          <Link to="/signin" className="inline-flex items-center gap-1.5 text-primary hover:underline">
+          <Link
+            to="/signin"
+            className="inline-flex items-center gap-1.5 text-[15px] font-medium text-muted-foreground transition-colors hover:text-foreground sm:text-base"
+          >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Back to sign in
           </Link>
         }
       >
-        <StatusBanner variant="error">{invalidMessage}</StatusBanner>
+        <div className="mb-7 space-y-4 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-destructive/20 bg-destructive/10 text-destructive">
+            <AlertTriangle className="h-8 w-8" aria-hidden="true" />
+          </div>
+          <StatusBanner variant="error">{invalidMessage}</StatusBanner>
+        </div>
         <ResendForm
           email={email}
           setEmail={setEmail}
@@ -131,15 +144,23 @@ export default function VerifyEmail() {
           ? `We've sent a confirmation link to ${stateEmail}. Click it to activate your account.`
           : "We've sent a confirmation link to your email. Click it to activate your account."
       }
-      icon={MailCheck}
       footer={
-        <Link to="/signin" className="inline-flex items-center gap-1.5 text-primary hover:underline">
+        <Link
+          to="/signin"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Back to sign in
         </Link>
       }
     >
-      <p className="mb-6 text-center text-sm text-muted-foreground">
+      <div className="mb-7 flex justify-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
+          <Mail className="h-8 w-8" aria-hidden="true" />
+        </div>
+      </div>
+
+      <p className="mb-7 text-center text-[15px] text-muted-foreground sm:text-base">
         Didn&apos;t get the email? Check your spam folder, or request a new one below.
       </p>
 
@@ -169,7 +190,7 @@ function ResendForm({ email, setEmail, resendStatus, resendError, cooldown, onRe
     <div className="space-y-3">
       <TextField
         id="resendEmail"
-        label="Email"
+        label="Email address"
         icon={Mail}
         type="email"
         autoComplete="email"
@@ -187,8 +208,9 @@ function ResendForm({ email, setEmail, resendStatus, resendError, cooldown, onRe
 
       <Button
         type="button"
-        variant="outline"
-        className="w-full"
+        variant="surface"
+        size="control"
+        className="h-14 w-full text-base font-semibold sm:text-lg"
         onClick={onResend}
         disabled={resendStatus === "sending" || cooldown > 0 || !email}
       >

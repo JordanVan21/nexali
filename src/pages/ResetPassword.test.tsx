@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { render, screen, act, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import ResetPassword from "./ResetPassword";
@@ -134,5 +134,31 @@ describe("ResetPassword", () => {
 
     await user.click(screen.getByRole("button", { name: /continue to dashboard/i }));
     expect(await screen.findByText("Dashboard page")).toBeInTheDocument();
+  });
+
+  it("shows an advisory password-strength meter without raising the real 6-character minimum", async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+    } as unknown as GetSessionResult);
+    vi.mocked(supabase.auth.updateUser).mockResolvedValue({
+      data: { user: { id: "u1" } },
+      error: null,
+    } as unknown as UpdateUserResult);
+    const { fire } = mockAuthStateChange();
+
+    const user = userEvent.setup();
+    renderResetPassword();
+    fire("PASSWORD_RECOVERY");
+
+    const passwordField = await screen.findByLabelText(/^new password$/i);
+    expect(screen.getByText(/strength: empty/i)).toBeInTheDocument();
+
+    await user.type(passwordField, "hunter22");
+    expect(await screen.findByText(/strength: fair/i)).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/confirm new password/i), "hunter22");
+    await user.click(screen.getByRole("button", { name: /reset password/i }));
+
+    await waitFor(() => expect(supabase.auth.updateUser).toHaveBeenCalledWith({ password: "hunter22" }));
   });
 });
