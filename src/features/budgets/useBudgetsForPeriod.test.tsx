@@ -3,14 +3,15 @@ import { renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useBudgetsForPeriod } from "./useBudgetsForPeriod";
-import type { TransactionWithCat } from "../../lib/transactions";
 import type { Budget } from "../../lib/budgets";
+import type { BudgetsProgressRow } from "../../lib/financialAggregates";
 
-let txState: { data?: TransactionWithCat[]; isLoading: boolean; isError: boolean };
+let progressState: { data?: BudgetsProgressRow[]; isLoading: boolean; isError: boolean };
 let budgetsState: { data?: Budget[]; isLoading: boolean; isError: boolean };
+const progressRefetch = vi.fn();
 
-vi.mock("../transactions/useTransactions", () => ({
-  useTransactions: () => ({ ...txState, refetch: vi.fn() }),
+vi.mock("./useBudgetsProgress", () => ({
+  useBudgetsProgress: () => ({ ...progressState, refetch: progressRefetch }),
 }));
 
 vi.mock("./useBudgets", () => ({
@@ -20,19 +21,6 @@ vi.mock("./useBudgets", () => ({
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-}
-
-function tx(overrides: Partial<TransactionWithCat> & { occurred_at: string }): TransactionWithCat {
-  return {
-    id: overrides.id ?? 1,
-    amount: 0,
-    merchant: null,
-    note: null,
-    category_id: 1,
-    created_at: "2099-01-01T00:00:00Z",
-    categories: { id: 1, name: "Groceries", type: "expense" },
-    ...overrides,
-  };
 }
 
 function budget(overrides: Partial<Budget> = {}): Budget {
@@ -58,7 +46,7 @@ describe("useBudgetsForPeriod", () => {
       isLoading: false,
       isError: false,
     };
-    txState = { data: [], isLoading: false, isError: false };
+    progressState = { data: [], isLoading: false, isError: false };
 
     const { result } = renderHook(() => useBudgetsForPeriod("u1", 2025, 6), { wrapper });
 
@@ -67,8 +55,8 @@ describe("useBudgetsForPeriod", () => {
   });
 
   it("aggregates real per-budget spend into the period summary", () => {
-    budgetsState = { data: [budget({ amount: 200 })], isLoading: false, isError: false };
-    txState = { data: [tx({ amount: 150, occurred_at: "2025-06-05T12:00:00Z" })], isLoading: false, isError: false };
+    budgetsState = { data: [budget({ amount: 200, category_id: 1 })], isLoading: false, isError: false };
+    progressState = { data: [{ categoryId: 1, spent: 150 }], isLoading: false, isError: false };
 
     const { result } = renderHook(() => useBudgetsForPeriod("u1", 2025, 6), { wrapper });
 
@@ -79,8 +67,8 @@ describe("useBudgetsForPeriod", () => {
   });
 
   it("does not clamp efficiency at 100 when the period is over budget overall", () => {
-    budgetsState = { data: [budget({ amount: 100 })], isLoading: false, isError: false };
-    txState = { data: [tx({ amount: 150, occurred_at: "2025-06-05T12:00:00Z" })], isLoading: false, isError: false };
+    budgetsState = { data: [budget({ amount: 100, category_id: 1 })], isLoading: false, isError: false };
+    progressState = { data: [{ categoryId: 1, spent: 150 }], isLoading: false, isError: false };
 
     const { result } = renderHook(() => useBudgetsForPeriod("u1", 2025, 6), { wrapper });
 
@@ -94,10 +82,10 @@ describe("useBudgetsForPeriod", () => {
       isLoading: false,
       isError: false,
     };
-    txState = {
+    progressState = {
       data: [
-        tx({ amount: 10, occurred_at: "2025-06-01T12:00:00Z", category_id: 1 }), // normal
-        tx({ amount: 90, occurred_at: "2025-06-01T12:00:00Z", category_id: 2 }), // warning
+        { categoryId: 1, spent: 10 }, // normal
+        { categoryId: 2, spent: 90 }, // warning
       ],
       isLoading: false,
       isError: false,
@@ -107,9 +95,17 @@ describe("useBudgetsForPeriod", () => {
     expect(result.current.warningsCount).toBe(1);
   });
 
+  it("defaults a category's spend to 0 when the server returns no row for it", () => {
+    budgetsState = { data: [budget({ amount: 200, category_id: 1 })], isLoading: false, isError: false };
+    progressState = { data: [], isLoading: false, isError: false };
+
+    const { result } = renderHook(() => useBudgetsForPeriod("u1", 2025, 6), { wrapper });
+    expect(result.current.budgets[0].spent).toBe(0);
+  });
+
   it("flags hasNeverCreatedAny only when the user has zero budgets in any period", () => {
     budgetsState = { data: [], isLoading: false, isError: false };
-    txState = { data: [], isLoading: false, isError: false };
+    progressState = { data: [], isLoading: false, isError: false };
     const { result: none } = renderHook(() => useBudgetsForPeriod("u1", 2025, 6), { wrapper });
     expect(none.current.budgetsList.hasNeverCreatedAny).toBe(true);
 
@@ -120,23 +116,23 @@ describe("useBudgetsForPeriod", () => {
     expect(other.current.budgets).toHaveLength(0);
   });
 
-  it("reports the budgets query and the transactions query as independent error states", () => {
+  it("reports the budgets query and the spend query as independent error states", () => {
     budgetsState = { data: undefined, isLoading: false, isError: true };
-    txState = { data: [], isLoading: false, isError: false };
+    progressState = { data: [], isLoading: false, isError: false };
     const { result } = renderHook(() => useBudgetsForPeriod("u1", 2025, 6), { wrapper });
 
     expect(result.current.budgetsList.isError).toBe(true);
     expect(result.current.spendData.isError).toBe(false);
   });
 
-  it("does not report a fake zero spend when the transaction query fails", () => {
+  it("does not report a fake zero spend when the spend query fails", () => {
     budgetsState = { data: [budget()], isLoading: false, isError: false };
-    txState = { data: undefined, isLoading: false, isError: true };
+    progressState = { data: undefined, isLoading: false, isError: true };
 
     const { result } = renderHook(() => useBudgetsForPeriod("u1", 2025, 6), { wrapper });
 
     expect(result.current.spendData.isError).toBe(true);
-    // No progress rows are synthesized from missing transaction data.
+    // No progress rows are synthesized from missing spend data.
     expect(result.current.budgets).toHaveLength(0);
   });
 });

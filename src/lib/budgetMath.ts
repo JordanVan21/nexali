@@ -1,6 +1,4 @@
-import type { TransactionWithCat } from "./transactions";
 import type { Budget, BudgetId } from "./budgets";
-import { monthRange, isExpenseTx, isTransactionInRange, sumTransactionAmounts } from "./financialPeriods";
 
 /**
  * Shared budget-progress math, used by both the Dashboard's budget
@@ -8,6 +6,15 @@ import { monthRange, isExpenseTx, isTransactionInRange, sumTransactionAmounts } 
  * slightly-different spend/threshold logic. Thresholds match the
  * convention already established by the pre-redesign BudgetCard's
  * `getColor()` (75% / 95%) and carried into Part 3's dashboardMath.ts.
+ *
+ * As of Backend Part 4, the real per-category `spent` figure is computed
+ * server-side (supabase/migrations/20260915000000_financial_aggregate_functions.sql's
+ * budgets_progress()), timezone-aware and without depending on an
+ * unbounded client-side transaction fetch -- see deriveBudgetProgress
+ * below. This module keeps ownership of the tone/status/percent
+ * interpretation logic (a pure function of already-known numbers), so
+ * those thresholds live in exactly one place regardless of where the
+ * underlying `spent` figure came from.
  */
 export const BUDGET_WARNING_THRESHOLD = 0.75;
 export const BUDGET_CRITICAL_THRESHOLD = 0.95;
@@ -35,26 +42,6 @@ export function budgetStatusFor(spent: number, limit: number): BudgetStatus {
   return "normal";
 }
 
-/**
- * Real spend for one budget: expense transactions in that budget's own
- * category, falling inside that budget's own month/year — never the
- * all-time `sum_category_amount` RPC (see docs/AUDIT_REPORT.md P2).
- */
-export function computeBudgetSpend(
-  transactions: TransactionWithCat[],
-  budget: Pick<Budget, "category_id" | "month" | "year">
-): number {
-  const range = monthRange(budget.year, budget.month - 1);
-  return sumTransactionAmounts(
-    transactions.filter(
-      (tx) =>
-        isExpenseTx(tx) &&
-        (tx.category_id ?? null) === budget.category_id &&
-        isTransactionInRange(tx, range)
-    )
-  );
-}
-
 export type BudgetProgressDetail = {
   id: BudgetId;
   category: string;
@@ -77,9 +64,16 @@ export type BudgetProgressDetail = {
   status: BudgetStatus;
 };
 
-/** Full real progress detail for one budget, derived from already-loaded transactions. */
-export function computeBudgetProgress(transactions: TransactionWithCat[], budget: Budget): BudgetProgressDetail {
-  const spent = computeBudgetSpend(transactions, budget);
+/**
+ * Full real progress detail for one budget, from a `spent` figure already
+ * computed server-side (budgets_progress()) for that budget's own
+ * category/month/year -- see src/features/budgets/useBudgetsForPeriod.ts
+ * and src/features/dashboard/useDashboardData.ts for how `spent` is looked
+ * up from the grouped per-category RPC result. Defaults to 0 when the RPC
+ * returned no row for this category (no expense spend in the period at
+ * all), matching SQL's own `COALESCE(SUM(...), 0)` semantics.
+ */
+export function deriveBudgetProgress(budget: Budget, spent: number): BudgetProgressDetail {
   const amount = Number(budget.amount);
   const actualPercent = amount > 0 ? (spent / amount) * 100 : 0;
 

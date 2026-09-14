@@ -9,6 +9,10 @@ vi.mock("../features/transactions/useTransactions", () => ({
   useTransactions: () => ({ data: [] }),
 }));
 
+vi.mock("../features/profiles/useProfile", () => ({
+  useProfile: () => ({ data: { timezone: "America/Los_Angeles" }, isLoading: false, isError: false }),
+}));
+
 vi.mock("../features/categories/useCategories", () => ({
   useListCategories: () => ({
     data: [

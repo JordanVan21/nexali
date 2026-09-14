@@ -3,17 +3,12 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../test/renderWithProviders";
 import Budgets from "./Budgets";
-import type { TransactionWithCat } from "../lib/transactions";
 import type { Budget } from "../lib/budgets";
+import type { BudgetsProgressRow } from "../lib/financialAggregates";
 
 function currentPeriod(): { month: number; year: number } {
   const d = new Date();
   return { month: d.getMonth() + 1, year: d.getFullYear() };
-}
-
-function isoThisMonth(day: number): string {
-  const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), day, 12, 0, 0).toISOString();
 }
 
 const GROCERIES_BUDGET: Budget = {
@@ -24,21 +19,10 @@ const GROCERIES_BUDGET: Budget = {
   categories: { id: 1, name: "Groceries", type: "expense" },
 };
 
-const GROCERIES_TX: TransactionWithCat = {
-  id: 1,
-  amount: 150,
-  merchant: "Whole Foods",
-  note: null,
-  category_id: 1,
-  created_at: isoThisMonth(5),
-  occurred_at: isoThisMonth(5),
-  categories: { id: 1, name: "Groceries", type: "expense" },
-};
-
 let budgetsState: { data?: Budget[]; isLoading: boolean; isError: boolean };
-let txState: { data?: TransactionWithCat[]; isLoading: boolean; isError: boolean };
+let progressState: { data?: BudgetsProgressRow[]; isLoading: boolean; isError: boolean };
 const budgetsRefetch = vi.fn();
-const txRefetch = vi.fn();
+const progressRefetch = vi.fn();
 const deleteMutate = vi.fn().mockResolvedValue(undefined);
 const saveMutate = vi.fn().mockResolvedValue({ id: 1 });
 
@@ -47,8 +31,8 @@ vi.mock("../features/budgets/useBudgets", () => ({
   useDeleteBudget: () => ({ mutateAsync: deleteMutate, isPending: false }),
 }));
 
-vi.mock("../features/transactions/useTransactions", () => ({
-  useTransactions: () => ({ ...txState, refetch: txRefetch }),
+vi.mock("../features/budgets/useBudgetsProgress", () => ({
+  useBudgetsProgress: () => ({ ...progressState, refetch: progressRefetch }),
 }));
 
 vi.mock("../features/budgets/useBudgetOps", () => ({
@@ -69,7 +53,7 @@ vi.mock("../features/categories/useCategories", () => ({
 
 function resetToDefaults() {
   budgetsState = { data: [GROCERIES_BUDGET], isLoading: false, isError: false };
-  txState = { data: [GROCERIES_TX], isLoading: false, isError: false };
+  progressState = { data: [{ categoryId: 1, spent: 150 }], isLoading: false, isError: false };
 }
 
 describe("Budgets page", () => {
@@ -142,9 +126,9 @@ describe("Budgets page", () => {
     expect(screen.getByRole("heading", { name: /couldn't load your budgets/i })).toBeInTheDocument();
   });
 
-  it("shows a distinct error state — not a fake $0 spent — when the transaction data needed for spend fails", () => {
+  it("shows a distinct error state — not a fake $0 spent — when the server spend data fails", () => {
     resetToDefaults();
-    txState = { data: undefined, isLoading: false, isError: true };
+    progressState = { data: undefined, isLoading: false, isError: true };
     renderWithProviders(<Budgets />);
 
     expect(screen.getByText(/couldn't load your spending/i)).toBeInTheDocument();

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useSaveTransaction } from "../features/transactions/useTransactions";
+import { useProfile } from "../features/profiles/useProfile";
 import { useUserInfo } from "../shared/useUserId";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
@@ -8,7 +9,7 @@ import { Button } from "./ui/button";
 import { CategoryPicker } from "./CategoryPicker";
 import { StatusBanner } from "./states/StatusBanner";
 import { getErrorMessage } from "../lib/utils";
-import { toLocalDateInputValue, occurredAtFromLocalDateInput } from "../lib/transactionDate";
+import { toZonedDateInputValue, occurredAtFromZonedDateInput, fallbackTimeZone } from "../lib/transactionDate";
 import type { TransactionWithCat } from "../lib/transactions";
 
 type CatItem = { id: number | string; name: string };
@@ -34,6 +35,16 @@ const toTxType = (t: unknown): "income" | "expense" =>
  * the rest of the form.
  */
 export function TransactionForm({ existingTx, onSaved, onCancel }: TransactionFormProps) {
+  const { userId } = useUserInfo();
+  const profile = useProfile(userId);
+  // The real financial timezone (profiles.timezone) is what the Date field
+  // must be interpreted in -- see src/lib/transactionDate.ts. Falls back to
+  // the browser's own timezone only for the brief window before the
+  // profile query resolves; occurredAtInput is re-synced once it does (see
+  // the effect below), so this fallback can never end up silently baked
+  // into a saved transaction.
+  const timeZone = profile.data?.timezone ?? fallbackTimeZone();
+
   const [category, setCategory] = useState<CatItem | null>(
     existingTx?.categories
       ? { id: existingTx.categories.id, name: existingTx.categories.name }
@@ -44,12 +55,11 @@ export function TransactionForm({ existingTx, onSaved, onCancel }: TransactionFo
   const [merchant, setMerchant] = useState(existingTx?.merchant ?? "");
   const [note, setNote] = useState(existingTx?.note ?? "");
   const [occurredAtInput, setOccurredAtInput] = useState(
-    existingTx?.occurred_at ? toLocalDateInputValue(new Date(existingTx.occurred_at)) : toLocalDateInputValue(new Date())
+    existingTx?.occurred_at ? toZonedDateInputValue(new Date(existingTx.occurred_at), timeZone) : toZonedDateInputValue(new Date(), timeZone)
   );
   const [amountInvalid, setAmountInvalid] = useState(false);
   const [categoryTouched, setCategoryTouched] = useState(false);
 
-  const { userId } = useUserInfo();
   const saveTx = useSaveTransaction(userId);
 
   useEffect(() => {
@@ -64,7 +74,7 @@ export function TransactionForm({ existingTx, onSaved, onCancel }: TransactionFo
       setNote(existingTx.note ?? "");
       setMerchant(existingTx.merchant ?? "");
       setOccurredAtInput(
-        existingTx.occurred_at ? toLocalDateInputValue(new Date(existingTx.occurred_at)) : toLocalDateInputValue(new Date())
+        existingTx.occurred_at ? toZonedDateInputValue(new Date(existingTx.occurred_at), timeZone) : toZonedDateInputValue(new Date(), timeZone)
       );
     } else {
       setCategory(null);
@@ -72,9 +82,27 @@ export function TransactionForm({ existingTx, onSaved, onCancel }: TransactionFo
       setAmount("");
       setNote("");
       setMerchant("");
-      setOccurredAtInput(toLocalDateInputValue(new Date()));
+      setOccurredAtInput(toZonedDateInputValue(new Date(), timeZone));
     }
+    // Intentionally keyed on existingTx only, not timeZone -- see the
+    // effect below for why the Date field alone still needs to react once
+    // the real profile.timezone arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingTx]);
+
+  useEffect(() => {
+    // Re-derives just the Date field's value once the real profile.timezone
+    // arrives (timeZone flips from the browser fallback to the configured
+    // value), so a form opened before that request resolves still ends up
+    // showing/saving the real configured-timezone date. Scoped to only this
+    // one field -- unlike the effect above -- so it can never wipe out
+    // amount/merchant/note/category the user has already started entering
+    // during that brief window.
+    setOccurredAtInput(
+      existingTx?.occurred_at ? toZonedDateInputValue(new Date(existingTx.occurred_at), timeZone) : toZonedDateInputValue(new Date(), timeZone)
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeZone]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -100,7 +128,7 @@ export function TransactionForm({ existingTx, onSaved, onCancel }: TransactionFo
         amount: amt,
         merchant: merchant.trim() || null,
         note: note.trim() || null,
-        occurredAt: occurredAtFromLocalDateInput(occurredAtInput),
+        occurredAt: occurredAtFromZonedDateInput(occurredAtInput, timeZone),
       });
       await onSaved();
     } catch {

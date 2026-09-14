@@ -1,22 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { budgetToneFor, budgetStatusFor, computeBudgetSpend, computeBudgetProgress } from "./budgetMath";
-import type { TransactionWithCat } from "./transactions";
+import { budgetToneFor, budgetStatusFor, deriveBudgetProgress } from "./budgetMath";
 import type { Budget } from "./budgets";
-
-function tx(overrides: Partial<TransactionWithCat> & { occurred_at: string }): TransactionWithCat {
-  return {
-    id: overrides.id ?? 1,
-    amount: 0,
-    merchant: null,
-    note: null,
-    category_id: 1,
-    // Deliberately far from any occurred_at used below, so a test that
-    // accidentally read created_at instead would fail loudly.
-    created_at: "2099-01-01T00:00:00Z",
-    categories: { id: 1, name: "Groceries", type: "expense" },
-    ...overrides,
-  };
-}
 
 function budget(overrides: Partial<Budget> = {}): Budget {
   return {
@@ -64,56 +48,9 @@ describe("budgetStatusFor", () => {
   });
 });
 
-describe("computeBudgetSpend", () => {
-  it("sums only expense transactions in the budget's own category and month/year", () => {
-    const transactions: TransactionWithCat[] = [
-      tx({ id: 1, amount: 50, occurred_at: "2025-06-05T12:00:00Z", category_id: 1 }),
-      tx({ id: 2, amount: 25, occurred_at: "2025-06-10T12:00:00Z", category_id: 1 }),
-      // Different category — must not count.
-      tx({ id: 3, amount: 999, occurred_at: "2025-06-05T12:00:00Z", category_id: 2, categories: { id: 2, name: "Other", type: "expense" } }),
-      // Right category, wrong month — must not count.
-      tx({ id: 4, amount: 999, occurred_at: "2025-07-05T12:00:00Z", category_id: 1 }),
-      // Right category and month, but income — must not count as spending.
-      tx({ id: 5, amount: 999, occurred_at: "2025-06-05T12:00:00Z", category_id: 1, categories: { id: 1, name: "Groceries", type: "income" } }),
-    ];
-
-    expect(computeBudgetSpend(transactions, budget())).toBe(75);
-  });
-
-  it("uses the budget's own month/year, not the current date", () => {
-    const transactions: TransactionWithCat[] = [
-      tx({ id: 1, amount: 40, occurred_at: "2024-01-15T12:00:00Z", category_id: 1 }),
-    ];
-    expect(computeBudgetSpend(transactions, budget({ month: 1, year: 2024 }))).toBe(40);
-    expect(computeBudgetSpend(transactions, budget({ month: 6, year: 2025 }))).toBe(0);
-  });
-
-  it("returns 0 when there are no matching transactions", () => {
-    expect(computeBudgetSpend([], budget())).toBe(0);
-  });
-
-  it("counts spend by when the transaction OCCURRED, not when it was entered (created_at)", () => {
-    const septemberBudget = budget({ month: 9, year: 2025, amount: 500 });
-    const transactions: TransactionWithCat[] = [
-      // Entered October 2, but really happened September 29 -- must count
-      // toward the September budget.
-      { ...tx({ id: 1, amount: 60, occurred_at: "2025-09-29T12:00:00Z", category_id: 1 }), created_at: "2025-10-02T09:00:00Z" },
-      // Entered September 15, but really happened August 31 -- must NOT
-      // count toward the September budget even though it was entered
-      // during September.
-      { ...tx({ id: 2, amount: 999, occurred_at: "2025-08-31T12:00:00Z", category_id: 1 }), created_at: "2025-09-15T09:00:00Z" },
-    ];
-
-    expect(computeBudgetSpend(transactions, septemberBudget)).toBe(60);
-  });
-});
-
-describe("computeBudgetProgress", () => {
+describe("deriveBudgetProgress", () => {
   it("computes remaining as amount - spent, unclamped and negative when over budget", () => {
-    const transactions: TransactionWithCat[] = [
-      tx({ id: 1, amount: 550, occurred_at: "2025-06-05T12:00:00Z", category_id: 1 }),
-    ];
-    const progress = computeBudgetProgress(transactions, budget({ amount: 500 }));
+    const progress = deriveBudgetProgress(budget({ amount: 500 }), 550);
 
     expect(progress.spent).toBe(550);
     expect(progress.remaining).toBe(-50);
@@ -125,10 +62,7 @@ describe("computeBudgetProgress", () => {
   });
 
   it("does not clamp the underlying financial numbers just because the bar clamps at 100%", () => {
-    const transactions: TransactionWithCat[] = [
-      tx({ id: 1, amount: 1000, occurred_at: "2025-06-05T12:00:00Z", category_id: 1 }),
-    ];
-    const progress = computeBudgetProgress(transactions, budget({ amount: 100 }));
+    const progress = deriveBudgetProgress(budget({ amount: 100 }), 1000);
 
     expect(progress.actualPercent).toBe(1000);
     expect(progress.displayPercent).toBe(100);
@@ -136,20 +70,26 @@ describe("computeBudgetProgress", () => {
   });
 
   it("carries the real category id through for editing, not just the display name", () => {
-    const progress = computeBudgetProgress([], budget({ category_id: 42, categories: { id: 42, name: "Dining", type: "expense" } }));
+    const progress = deriveBudgetProgress(budget({ category_id: 42, categories: { id: 42, name: "Dining", type: "expense" } }), 0);
     expect(progress.categoryId).toBe(42);
     expect(progress.category).toBe("Dining");
   });
 
   it("labels an uncategorized budget rather than showing a blank category", () => {
-    const progress = computeBudgetProgress([], budget({ categories: null }));
+    const progress = deriveBudgetProgress(budget({ categories: null }), 0);
     expect(progress.category).toBe("Uncategorized");
   });
 
   it("does not divide by zero when the budget amount is 0", () => {
-    const progress = computeBudgetProgress([], budget({ amount: 0 }));
+    const progress = deriveBudgetProgress(budget({ amount: 0 }), 0);
     expect(progress.displayPercent).toBe(0);
     expect(progress.actualPercent).toBe(0);
     expect(progress.status).toBe("normal");
+  });
+
+  it("defaults spend to 0 when there is no matching spend row, rather than throwing", () => {
+    const progress = deriveBudgetProgress(budget({ amount: 200 }), 0);
+    expect(progress.spent).toBe(0);
+    expect(progress.remaining).toBe(200);
   });
 });

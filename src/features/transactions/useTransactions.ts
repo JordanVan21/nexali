@@ -45,12 +45,19 @@ const validateAmount = (amount: number): void => {
   }
 };
 
-// Helper used multiple times for query invalidation
+// Helper used multiple times for query invalidation. Every server-side
+// financial aggregate (Backend Part 4) is derived from transaction data, so
+// a transaction add/edit/delete must invalidate all of them -- not just the
+// raw transaction list -- or the Dashboard/Reports/Budgets summaries would
+// silently go stale after every mutation. The *Root keys intentionally
+// invalidate every cached variant (every reports period/category, every
+// budgets year/month) via TanStack Query's prefix matching.
 const invalidateRelatedQueries = async (qc: ReturnType<typeof useQueryClient>, userId: string) => {
   await Promise.all([
     qc.invalidateQueries({ queryKey: qk.txRoot(userId) }),
-    qc.invalidateQueries({ queryKey: qk.totals(userId) }),
-    qc.invalidateQueries({ queryKey: qk.spentRoot(userId) }),
+    qc.invalidateQueries({ queryKey: qk.dashboardSummary(userId) }),
+    qc.invalidateQueries({ queryKey: qk.reportsSummaryRoot(userId) }),
+    qc.invalidateQueries({ queryKey: qk.budgetsProgressRoot(userId) }),
   ]);
 };
 

@@ -37,6 +37,10 @@ vi.mock("../features/categories/useCategories", () => ({
   useCreateCategory: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
+vi.mock("../features/profiles/useProfile", () => ({
+  useProfile: () => ({ data: { timezone: "America/Los_Angeles" }, isLoading: false, isError: false }),
+}));
+
 describe("Transactions page", () => {
   afterEach(() => {
     vi.clearAllMocks();

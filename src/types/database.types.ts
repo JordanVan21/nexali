@@ -183,17 +183,17 @@ export type Database = {
         Args: { tz: string }
         Returns: boolean
       }
-      sum_category_amount: {
-        Args: { cat_id: number; uid: string }
-        Returns: number
+      dashboard_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
-      sum_expense_amount: {
-        Args: { uid: string }
-        Returns: number
+      reports_summary: {
+        Args: { p_months_count: number; p_category_name?: string | null }
+        Returns: Json
       }
-      sum_income_amount: {
-        Args: { uid: string }
-        Returns: number
+      budgets_progress: {
+        Args: { p_year: number; p_month: number }
+        Returns: { category_id: number | null; spent: number }[]
       }
     }
     Enums: {

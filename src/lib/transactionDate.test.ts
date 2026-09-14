@@ -1,40 +1,54 @@
 import { describe, it, expect } from "vitest";
-import { toLocalDateInputValue, occurredAtFromLocalDateInput } from "./transactionDate";
+import { toZonedDateInputValue, occurredAtFromZonedDateInput } from "./transactionDate";
 
-describe("toLocalDateInputValue", () => {
-  it("formats as YYYY-MM-DD using the date's local calendar fields, not UTC", () => {
-    // Deliberately a date/time that would show a different calendar day if
-    // read via toISOString() (UTC) than via local getters, on most real
-    // timezones -- this pins the function to local-calendar behavior.
-    const date = new Date(2025, 0, 5, 23, 30); // Jan 5, 2025, 11:30pm local
-    expect(toLocalDateInputValue(date)).toBe("2025-01-05");
+const LA = "America/Los_Angeles";
+const HCM = "Asia/Ho_Chi_Minh";
+
+describe("toZonedDateInputValue", () => {
+  it("formats as YYYY-MM-DD using the given timezone's calendar, not the host's", () => {
+    // 2025-01-06T02:30:00Z is Jan 5, 11:30pm in Los Angeles (UTC-8 in
+    // January) but Jan 6, 9:30am in Ho Chi Minh City (UTC+7) -- the same
+    // instant must format to a different calendar date per zone.
+    const instant = new Date("2025-01-06T02:30:00Z");
+    expect(toZonedDateInputValue(instant, LA)).toBe("2025-01-05");
+    expect(toZonedDateInputValue(instant, HCM)).toBe("2025-01-06");
   });
 
   it("zero-pads single-digit months and days", () => {
-    const date = new Date(2025, 2, 4); // March 4, 2025 (month=2 is March, 0-based)
-    expect(toLocalDateInputValue(date)).toBe("2025-03-04");
+    const instant = new Date("2025-03-04T12:00:00Z");
+    expect(toZonedDateInputValue(instant, "UTC")).toBe("2025-03-04");
   });
 });
 
-describe("occurredAtFromLocalDateInput", () => {
-  it("produces a real, parseable ISO timestamp for the given local calendar date", () => {
-    const iso = occurredAtFromLocalDateInput("2025-06-15");
-    const parsed = new Date(iso);
-    expect(parsed.getFullYear()).toBe(2025);
-    expect(parsed.getMonth()).toBe(5); // June, 0-based
-    expect(parsed.getDate()).toBe(15);
+describe("occurredAtFromZonedDateInput", () => {
+  it("produces a real, parseable ISO timestamp that reads back as the given calendar date in the same zone", () => {
+    const iso = occurredAtFromZonedDateInput("2025-06-15", LA);
+    expect(toZonedDateInputValue(new Date(iso), LA)).toBe("2025-06-15");
   });
 
-  it("stores local noon, not local midnight, so the calendar date can't shift under any real-world timezone offset", () => {
-    const iso = occurredAtFromLocalDateInput("2025-06-15");
-    const parsed = new Date(iso);
-    expect(parsed.getHours()).toBe(12);
-    expect(parsed.getMinutes()).toBe(0);
-  });
-
-  it("round-trips through toLocalDateInputValue back to the same calendar date", () => {
+  it("round-trips through toZonedDateInputValue back to the same calendar date", () => {
     const original = "2025-12-31";
-    const iso = occurredAtFromLocalDateInput(original);
-    expect(toLocalDateInputValue(new Date(iso))).toBe(original);
+    const iso = occurredAtFromZonedDateInput(original, LA);
+    expect(toZonedDateInputValue(new Date(iso), LA)).toBe(original);
+  });
+
+  it("the configured timezone determines the stored calendar date, independent of any other zone", () => {
+    // The core Part 4 scenario: profiles.timezone = America/Los_Angeles,
+    // but the value picked while physically in (or with a machine clock
+    // set to) Asia/Ho_Chi_Minh must still represent Sept 1 in the
+    // CONFIGURED (Los Angeles) timezone, since that's the canonical
+    // financial timezone -- not wherever the browser happens to be.
+    const iso = occurredAtFromZonedDateInput("2026-09-01", LA);
+    expect(toZonedDateInputValue(new Date(iso), LA)).toBe("2026-09-01");
+    // And it must NOT necessarily read as Sept 1 in a different zone --
+    // this stored instant genuinely represents "Sept 1, noon, Los Angeles
+    // time" and nothing else.
+    expect(new Date(iso).toISOString()).toBe("2026-09-01T19:00:00.000Z");
+  });
+
+  it("two different configured timezones produce two different real instants for the same picked date", () => {
+    const laIso = occurredAtFromZonedDateInput("2026-09-01", LA);
+    const hcmIso = occurredAtFromZonedDateInput("2026-09-01", HCM);
+    expect(laIso).not.toBe(hcmIso);
   });
 });

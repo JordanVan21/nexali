@@ -8,31 +8,10 @@ export type BudgetId = BudgetRow["id"];
 type BudgetInsert = Database["public"]["Tables"]["budgets"]["Insert"]
 type BudgetUpdate = Database["public"]["Tables"]["budgets"]["Update"]
 
-type SumArgs = Database["public"]["Functions"]["sum_category_amount"]["Args"];
-
 export type Budget =
   Pick<BudgetRow, "id" | "amount" | "month" | "year" | "category_id"> & {
     categories: Pick<CategoryRow, "id" | "name" | "type"> | null;
   };
-
-/**
- * All-time spend for a category — `sum_category_amount` accepts no date
- * range (docs/AUDIT_REPORT.md P2). Do not use this for a period-scoped
- * ("this month") figure; use `computeBudgetSpend`/`computeBudgetProgress`
- * from `src/lib/budgetMath.ts` against already-loaded transactions instead.
- */
-export const getSpentAmount = async (userId: string, catId: number) => {
-  const { data, error } = await supabase.rpc(
-    "sum_category_amount",
-    { uid: userId, cat_id: catId } satisfies SumArgs
-  );
-
-  if (error) {
-    console.error("Error fetching spent amount:", error.message);
-    return 0;
-  }
-  return Number(data ?? 0);
-};
 
 export const getBudgets = async (userId: string): Promise<Budget[]> => {
   try {

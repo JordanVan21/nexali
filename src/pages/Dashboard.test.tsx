@@ -3,8 +3,8 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../test/renderWithProviders";
 import Dashboard from "./Dashboard";
-import type { TransactionWithCat } from "../lib/transactions";
 import type { Budget } from "../lib/budgets";
+import type { DashboardSummaryResponse, BudgetsProgressRow } from "../lib/financialAggregates";
 
 function isoThisMonth(day: number): string {
   const d = new Date();
@@ -16,7 +16,7 @@ function currentMonthYear(): { month: number; year: number } {
   return { month: d.getMonth() + 1, year: d.getFullYear() };
 }
 
-const SALARY: TransactionWithCat = {
+const SALARY = {
   id: 1,
   amount: 3000,
   merchant: "Employer Inc",
@@ -24,10 +24,10 @@ const SALARY: TransactionWithCat = {
   category_id: 9,
   created_at: isoThisMonth(1),
   occurred_at: isoThisMonth(1),
-  categories: { id: 9, name: "Salary", type: "income" },
+  categories: { id: 9, name: "Salary", type: "income" as const },
 };
 
-const GROCERIES: TransactionWithCat = {
+const GROCERIES = {
   id: 2,
   amount: 150,
   merchant: "Whole Foods",
@@ -35,26 +35,35 @@ const GROCERIES: TransactionWithCat = {
   category_id: 1,
   created_at: isoThisMonth(5),
   occurred_at: isoThisMonth(5),
-  categories: { id: 1, name: "Groceries", type: "expense" },
+  categories: { id: 1, name: "Groceries", type: "expense" as const },
 };
 
 let profileState: { data?: { full_name: string | null }; isLoading: boolean; isError: boolean; error: Error | null };
-let txState: { data?: TransactionWithCat[]; isLoading: boolean; isError: boolean };
+let summaryState: { data?: DashboardSummaryResponse; isLoading: boolean; isError: boolean };
 let budgetsState: { data?: Budget[]; isLoading: boolean; isError: boolean };
-const txRefetch = vi.fn();
+let progressState: { data?: BudgetsProgressRow[]; isLoading: boolean; isError: boolean };
+const summaryRefetch = vi.fn();
 const budgetsRefetch = vi.fn();
+const progressRefetch = vi.fn();
 
 vi.mock("../features/profiles/useProfile", () => ({
   useProfile: () => profileState,
 }));
 
-vi.mock("../features/transactions/useTransactions", () => ({
-  useTransactions: () => ({ ...txState, refetch: txRefetch }),
-  useSaveTransaction: () => ({ mutateAsync: vi.fn(), isPending: false, isError: false, error: null }),
+vi.mock("../features/dashboard/useDashboardSummary", () => ({
+  useDashboardSummary: () => ({ ...summaryState, refetch: summaryRefetch }),
 }));
 
 vi.mock("../features/budgets/useBudgets", () => ({
   useBudgets: () => ({ ...budgetsState, refetch: budgetsRefetch }),
+}));
+
+vi.mock("../features/budgets/useBudgetsProgress", () => ({
+  useBudgetsProgress: () => ({ ...progressState, refetch: progressRefetch }),
+}));
+
+vi.mock("../features/transactions/useTransactions", () => ({
+  useSaveTransaction: () => ({ mutateAsync: vi.fn(), isPending: false, isError: false, error: null }),
 }));
 
 vi.mock("../features/categories/useCategories", () => ({
@@ -62,10 +71,25 @@ vi.mock("../features/categories/useCategories", () => ({
   useCreateCategory: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
+function defaultSummary(overrides: Partial<DashboardSummaryResponse> = {}): DashboardSummaryResponse {
+  const { year, month } = currentMonthYear();
+  return {
+    month: { income: 3000, expenses: 150, net: 2850 },
+    prevMonth: { income: 0, expenses: 0 },
+    cashflow: [],
+    categoryBreakdown: [{ id: 1, label: "Groceries", amount: 150, percent: 100 }],
+    recentTransactions: [SALARY, GROCERIES],
+    currentYear: year,
+    currentMonth: month,
+    ...overrides,
+  };
+}
+
 function resetToDefaults() {
   profileState = { data: { full_name: "Jamie Rivera" }, isLoading: false, isError: false, error: null };
-  txState = { data: [SALARY, GROCERIES], isLoading: false, isError: false };
+  summaryState = { data: defaultSummary(), isLoading: false, isError: false };
   budgetsState = { data: [], isLoading: false, isError: false };
+  progressState = { data: [], isLoading: false, isError: false };
 }
 
 describe("Dashboard page", () => {
@@ -82,15 +106,15 @@ describe("Dashboard page", () => {
     expect(screen.queryByText(/financial ecosystem is healthy/i)).not.toBeInTheDocument();
   });
 
-  it("shows a loading skeleton while transactions are loading", () => {
+  it("shows a loading skeleton while the dashboard summary is loading", () => {
     resetToDefaults();
-    txState = { data: undefined, isLoading: true, isError: false };
+    summaryState = { data: undefined, isLoading: true, isError: false };
     renderWithProviders(<Dashboard />);
 
     expect(screen.getByLabelText("Loading dashboard")).toBeInTheDocument();
   });
 
-  it("renders real this-month income, expenses, and net from the transaction data, not a fabricated metric", () => {
+  it("renders real this-month income, expenses, and net from the server summary, not a fabricated metric", () => {
     resetToDefaults();
     renderWithProviders(<Dashboard />);
 
@@ -109,7 +133,11 @@ describe("Dashboard page", () => {
 
   it("shows the transaction-empty state with a working Add Transaction action when there is no history", async () => {
     resetToDefaults();
-    txState = { data: [], isLoading: false, isError: false };
+    summaryState = {
+      data: defaultSummary({ month: { income: 0, expenses: 0, net: 0 }, categoryBreakdown: [], recentTransactions: [] }),
+      isLoading: false,
+      isError: false,
+    };
     const user = userEvent.setup();
     renderWithProviders(<Dashboard />);
 
@@ -118,22 +146,22 @@ describe("Dashboard page", () => {
     expect(await screen.findByRole("dialog", { name: /add transaction/i })).toBeInTheDocument();
   });
 
-  it("shows a retryable error state when transactions fail to load, without exposing a raw error", () => {
+  it("shows a retryable error state when the dashboard summary fails to load, without exposing a raw error", () => {
     resetToDefaults();
-    txState = { data: undefined, isLoading: false, isError: true };
+    summaryState = { data: undefined, isLoading: false, isError: true };
     renderWithProviders(<Dashboard />);
 
     expect(screen.getByText(/couldn't load your dashboard/i)).toBeInTheDocument();
   });
 
-  it("retries the transactions query when Retry is activated", async () => {
+  it("retries the summary query when Retry is activated", async () => {
     resetToDefaults();
-    txState = { data: undefined, isLoading: false, isError: true };
+    summaryState = { data: undefined, isLoading: false, isError: true };
     const user = userEvent.setup();
     renderWithProviders(<Dashboard />);
 
     await user.click(screen.getByRole("button", { name: /retry/i }));
-    expect(txRefetch).toHaveBeenCalledTimes(1);
+    expect(summaryRefetch).toHaveBeenCalledTimes(1);
   });
 
   it("shows the budget-empty state with a Create Budget link when there are no budgets this month", () => {
@@ -144,7 +172,7 @@ describe("Dashboard page", () => {
     expect(screen.getByRole("link", { name: "Create Budget" })).toHaveAttribute("href", "/budgets");
   });
 
-  it("shows real budget progress computed from this month's transactions, independent of a budgets-query failure elsewhere", () => {
+  it("shows real budget progress computed from this month's server spend, independent of a budgets-query failure elsewhere", () => {
     resetToDefaults();
     const { month, year } = currentMonthYear();
     budgetsState = {
@@ -152,6 +180,7 @@ describe("Dashboard page", () => {
       isLoading: false,
       isError: false,
     };
+    progressState = { data: [{ categoryId: 1, spent: 150 }], isLoading: false, isError: false };
     renderWithProviders(<Dashboard />);
 
     expect(screen.getByRole("progressbar", { name: /groceries budget usage/i })).toBeInTheDocument();
@@ -204,7 +233,15 @@ describe("Dashboard page", () => {
 
   it("shows a truthful empty state in the spending breakdown when there are no expenses this month", () => {
     resetToDefaults();
-    txState = { data: [SALARY], isLoading: false, isError: false };
+    summaryState = {
+      data: defaultSummary({
+        month: { income: 3000, expenses: 0, net: 3000 },
+        categoryBreakdown: [],
+        recentTransactions: [SALARY],
+      }),
+      isLoading: false,
+      isError: false,
+    };
     renderWithProviders(<Dashboard />);
 
     expect(screen.getByText(/no expenses recorded yet this month/i)).toBeInTheDocument();

@@ -1,16 +1,7 @@
 import { describe, it, expect } from "vitest";
-import {
-  sumIncomeExpense,
-  rangeForLastNMonths,
-  previousEquivalentRange,
-  buildMonthlyBuckets,
-  expenseCategoryTotals,
-  savingsRate,
-} from "./financialAnalytics";
+import { expenseCategoryTotals, savingsRate } from "./financialAnalytics";
 import { monthRange } from "./financialPeriods";
 import type { TransactionWithCat } from "./transactions";
-
-const NOW = new Date(2025, 5, 15); // June 15, 2025
 
 function tx(overrides: Partial<TransactionWithCat> & { occurred_at: string }): TransactionWithCat {
   return {
@@ -24,70 +15,6 @@ function tx(overrides: Partial<TransactionWithCat> & { occurred_at: string }): T
     ...overrides,
   };
 }
-
-describe("sumIncomeExpense", () => {
-  it("sums income and expenses within the range only, excluding income from expenses", () => {
-    const range = monthRange(2025, 5);
-    const transactions: TransactionWithCat[] = [
-      tx({ amount: 3000, occurred_at: "2025-06-01T12:00:00Z", categories: { id: 9, name: "Salary", type: "income" } }),
-      tx({ amount: 200, occurred_at: "2025-06-05T12:00:00Z" }),
-      tx({ amount: 9999, occurred_at: "2025-05-15T12:00:00Z" }), // outside range
-    ];
-
-    const totals = sumIncomeExpense(transactions, range);
-    expect(totals).toEqual({ income: 3000, expenses: 200, net: 2800 });
-  });
-
-  it("returns all zeros for an empty transaction list", () => {
-    expect(sumIncomeExpense([], monthRange(2025, 5))).toEqual({ income: 0, expenses: 0, net: 0 });
-  });
-});
-
-describe("rangeForLastNMonths", () => {
-  it("spans exactly N months ending with the current month", () => {
-    const range = rangeForLastNMonths(3, NOW);
-    expect(range.start).toEqual(new Date(2025, 3, 1)); // April 1
-    expect(range.end).toEqual(new Date(2025, 6, 1)); // July 1 (exclusive)
-  });
-
-  it("spans a single month when N is 1", () => {
-    const range = rangeForLastNMonths(1, NOW);
-    expect(range.start).toEqual(new Date(2025, 5, 1));
-    expect(range.end).toEqual(new Date(2025, 6, 1));
-  });
-});
-
-describe("previousEquivalentRange", () => {
-  it("returns the immediately preceding window of the same length", () => {
-    const current = rangeForLastNMonths(3, NOW); // Apr 1 - Jul 1
-    const previous = previousEquivalentRange(current, 3);
-    expect(previous.start).toEqual(new Date(2025, 0, 1)); // Jan 1
-    expect(previous.end).toEqual(new Date(2025, 3, 1)); // Apr 1 (= current.start)
-  });
-
-  it("rolls over the year boundary correctly", () => {
-    const current = rangeForLastNMonths(1, new Date(2025, 0, 15)); // Jan 2025
-    const previous = previousEquivalentRange(current, 1);
-    expect(previous.start).toEqual(new Date(2024, 11, 1)); // Dec 2024
-    expect(previous.end).toEqual(new Date(2025, 0, 1));
-  });
-});
-
-describe("buildMonthlyBuckets", () => {
-  it("builds the requested number of buckets, oldest to newest, labeled by month", () => {
-    const transactions: TransactionWithCat[] = [
-      tx({ amount: 500, occurred_at: "2025-06-02T12:00:00Z", categories: { id: 9, name: "Salary", type: "income" } }),
-      tx({ amount: 100, occurred_at: "2025-05-02T12:00:00Z" }),
-    ];
-
-    const buckets = buildMonthlyBuckets(transactions, 3, NOW);
-
-    expect(buckets.map((b) => b.month)).toEqual(["Apr", "May", "Jun"]);
-    expect(buckets[0]).toEqual({ month: "Apr", income: 0, expenses: 0 });
-    expect(buckets[1]).toEqual({ month: "May", income: 0, expenses: 100 });
-    expect(buckets[2]).toEqual({ month: "Jun", income: 500, expenses: 0 });
-  });
-});
 
 describe("expenseCategoryTotals", () => {
   const range = monthRange(2025, 5);

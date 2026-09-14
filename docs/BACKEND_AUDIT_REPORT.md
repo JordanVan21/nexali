@@ -628,3 +628,153 @@ select indexname from pg_indexes
 where tablename = 'transactions' and indexname = 'transactions_user_id_occurred_at_idx';
 -- expect: 1 row
 ```
+
+## 36. Backend Part 4 — Timezone Correctness + Server-Side Financial Aggregates + Row-Cap Elimination
+
+**Status at start of this Part:** confirmed via `npx supabase migration list` that both Part 3 migrations (`20260914000000_add_transactions_occurred_at.sql`, `20260914000100_expose_occurred_at_in_v_tx_search.sql`) were deployed (local/remote timestamps matched), clearing this Part to build on `transactions.occurred_at` and `v_tx_search` as live schema. **Status at end of this Part: implemented in the repository, NOT yet applied to the live database** (no migration was pushed; see §36.12).
+
+### 36.1 Canonical financial timezone policy
+
+**Policy:** every financial period boundary -- Dashboard's "this month", Reports' N-month windows, a Budget's own month/year, and the Transactions page's date-range filter -- is defined in the user's **configured** `profiles.timezone`, never the browser/machine timezone the client happens to be running in.
+
+**Before this Part:** `profiles.timezone` was persisted (Settings can read/write it) and fetched by `getProfile`/`useProfile`, but was not read by a single date/period calculation anywhere in the app (P2-2, confirmed again at the start of this Part by re-inspecting `financialPeriods.ts`, `financialAnalytics.ts`, `dashboardMath.ts`, `useReportsData.ts`, `useBudgetsForPeriod.ts`, and `transactionDate.ts`). Every "this month"/"today" boundary used the browser's local `Date` arithmetic instead.
+
+**After this Part:**
+- Server-side: `dashboard_summary()`, `reports_summary()`, and `budgets_progress()` (§36.4) each look up the caller's own `profiles.timezone` via `auth.uid()` and use it for every period-boundary computation, via Postgres's `timestamptz AT TIME ZONE tz` double-conversion (correct across DST, arbitrary IANA zones, and both positive/negative UTC offsets -- no hardcoded offsets anywhere). A profile row missing a timezone (should not happen given the `NOT NULL DEFAULT` constraint) falls back to `'UTC'` rather than erroring.
+- Client-side transaction-date entry: `src/lib/transactionDate.ts` was rewritten (see §36.2) to anchor a picked calendar date in the CONFIGURED timezone rather than the browser's.
+- Client-side date-range filtering (Transactions page): `TransactionFilterBar.tsx` was rewritten (see §36.7) to construct `fromISO`/`toISO` using the same configured-timezone conversion.
+- CSV export Date columns (both Reports and Transactions pages) now format `occurred_at` in the configured timezone (see §36.7/§36.9), not `.toISOString()`'s UTC calendar date.
+- `financialPeriods.ts`'s `monthRange`/browser-`Date`-based helpers remain as-is and are still used by the Transactions-page burn-rate analytics (`transactionsAnalytics.ts`) and its filter-bar category counts, which remain on browser-local period math -- see §36.13 for why these two were deliberately left out of this Part's scope, and the residual gap that leaves.
+
+### 36.2 Transaction-date-input timezone compatibility (resolved before building aggregates, per instruction)
+
+**The concrete failure mode this fixes:** with the Part 3 implementation (`occurredAtFromLocalDateInput`), a user with `profiles.timezone = America/Los_Angeles` who happens to be traveling (or has their OS clock set to) `Asia/Ho_Chi_Minh` and picks "2026-09-01" in the Date field would have that date anchored to **browser-local** noon: Sept 1, 12:00 in Ho Chi Minh City (UTC+7) = Sept 1, 05:00 UTC = Aug 31, 21:00/22:00 in Los Angeles (UTC-7/-8). Once `occurred_at` is later interpreted in the user's CONFIGURED timezone (as every period boundary now is), that transaction would silently land in **August**, not September -- the exact bug the task's example describes.
+
+**Fix:** `src/lib/transactionDate.ts` was rewritten on top of a new `src/lib/timezone.ts` module (`zonedTimeToUtc`/`formatInTimeZone`, built on the platform `Intl` API only -- no new dependency, per instruction). `occurredAtFromZonedDateInput(value, timeZone)` now takes the picked YYYY-MM-DD **and the caller's real configured timezone**, and resolves it to the UTC instant of **noon in that timezone** (still noon, not midnight, for the same DST-transition-avoidance reason as Part 3 -- but now noon in the CONFIGURED zone, not the browser's). `toZonedDateInputValue(date, timeZone)` is the inverse, used to pre-fill the Date field when editing an existing transaction. `TransactionForm.tsx` now calls `useProfile(userId)` itself and passes `profile.data?.timezone` through (falling back to the browser's own timezone only for the brief window before that query resolves, with a dedicated effect that re-derives the Date field -- and only the Date field, never amount/merchant/note/category -- once the real timezone arrives, so an in-progress edit in that window is never silently discarded).
+
+**Verified in `src/lib/timezone.test.ts`:** the exact scenario above (`zonedTimeToUtc({year:2026,month:9,day:1}, "America/Los_Angeles")` vs. the same call with `"Asia/Ho_Chi_Minh"`) now produces two genuinely different real instants, each of which reads back as "2026-09-01" **in its own zone** -- and critically, the Los Angeles-anchored instant is computed with zero reference to any other timezone, so nothing about the host browser's timezone can influence it. Also covered: UTC, a positive-offset non-US zone, and a real US DST transition date (2026-03-08) on both sides.
+
+**Historical data:** Part 3's backfill (`occurred_at = created_at` for every pre-existing row) was **not** touched or re-run. Only transaction dates entered or edited **going forward**, through the rewritten `TransactionForm`, use the new configured-timezone conversion. This is an intentional distinction: pre-Part-3 historical rows already have an inherently approximate `occurred_at` (their real transaction date was never captured at all), and rewriting history to "fix" that approximation using a timezone that may not have even been the user's configured timezone at the time would introduce a new, undocumented discontinuity rather than remove one.
+
+### 36.3 Row-cap dependency trace (Part B classification)
+
+Every consumer of `fetchTransactions`/`useTransactions` (the unbounded, no-`.range()` query) was traced and classified:
+
+| Consumer | Classification | Resolution this Part |
+|---|---|---|
+| `useDashboardData` (Dashboard) | (A) needs server aggregate | Moved to `dashboard_summary()` + `budgets_progress()`. No longer calls `useTransactions`. |
+| `useReportsData` (Reports) | (A) needs server aggregate, PLUS (C) legitimately needs raw rows for CSV export | Summary/buckets/category math moved to `reports_summary()`. CSV export moved to the existing bounded/batched `fetchAllTransactionsWithFilters`, scoped to the report's own range+category (see §36.6). No longer calls `useTransactions`. |
+| `useBudgetsForPeriod` (Budgets) | (A) needs server aggregate | Moved to `budgets_progress()`. No longer calls `useTransactions`. |
+| `TransactionFilterBar` (category-count badges on the Transactions page) | (B) needs only a small bounded query | **Not resolved this Part** -- still calls `useTransactions` to derive per-category counts client-side. See §36.13. |
+| `TransactionAnalytics` (Transactions-page "Average Daily Burn" / "Top Categories" cards) | (A) needs server aggregate (its own period math is browser-local, same class of bug as §36.1) | **Not resolved this Part** -- still calls `useTransactions`. See §36.13. |
+
+Because the last two consumers remain, `fetchTransactions`/`useTransactions` (`src/lib/transactions.ts`, `src/features/transactions/useTransactions.ts`) were **not removed** (Part J: "if some legitimate-for-now use remains, document why rather than leaving a dangerous fetch-everything utility available without clear reason"). This is documented explicitly here and in the final report as the recommended next step.
+
+### 36.4 Server aggregate function inventory
+
+One new migration, `supabase/migrations/20260915000000_financial_aggregate_functions.sql`, adds three functions -- one per page, matching each page's actual current data requirements rather than a larger or smaller number chosen a priori:
+
+**`dashboard_summary()`**
+- Args: none. Returns: `jsonb` (`{month, prevMonth, cashflow[12], categoryBreakdown[<=4], recentTransactions[5], currentYear, currentMonth}`).
+- `SECURITY INVOKER`, `STABLE`, `search_path` pinned to `public, pg_temp`.
+- Ownership: derives `auth.uid()` internally; returns an empty-but-well-typed zero payload if null (RLS would already return zero rows regardless; this is defense-in-depth on top of that).
+- Grants: `REVOKE ALL ... FROM PUBLIC`, `GRANT EXECUTE ... TO authenticated` only (not `anon`).
+- Notably does NOT include budget data -- the Dashboard's budget snapshot reuses `budgets_progress()` below (via the `currentYear`/`currentMonth` this function returns), so a budgets failure and a transactions failure remain two independently retryable error states, exactly as before this Part.
+
+**`reports_summary(p_months_count int, p_category_name text DEFAULT NULL)`**
+- Returns: `jsonb` (`{totals, previousTotals, monthlyBuckets[], categoryTotals[], previousCategoryTotals[], categoryNames[], budgetsInRange[], rangeStart, rangeEnd, hasAnyTransactionsEver}`).
+- Same `SECURITY INVOKER`/ownership/grants posture as `dashboard_summary()`.
+- `rangeStart`/`rangeEnd` are returned so the client's CSV export (a genuinely-raw-rows need, see §36.3/§36.6) can reuse the EXACT instant bounds the server used, rather than recomputing the range client-side and risking drift.
+- `hasAnyTransactionsEver` is a real all-time existence check (`EXISTS(...)`, index-backed, not a full scan), independent of the selected period -- preserves the pre-existing product distinction between "brand-new user" (empty state) and "real user with history, just none in this window" (real all-zero charts), which a naive "does this period have any data" check would have collapsed.
+
+**`budgets_progress(p_year int, p_month int)`**
+- Returns: `TABLE(category_id int, spent numeric)` -- one row per category with any expense spend in that period; a category with zero spend simply has no row (client defaults to 0 via `Map.get(id) ?? 0`).
+- Same `SECURITY INVOKER`/ownership/grants posture.
+- One grouped query returns spend for every category in the period at once -- used by BOTH the Budgets page and the Dashboard's budget snapshot, so a budget list of any size is never resolved with one spend query per budget (no N+1, confirmed by inspection: exactly one `budgets_progress` call per page render, joined client-side against the already-loaded `useBudgets` list).
+
+None of the three functions accepts a `p_user_id` (or any client-supplied-identity) parameter, and none accepts a client-supplied timezone -- confirmed by re-reading the final SQL before writing this section.
+
+**A second migration**, `supabase/migrations/20260915000100_drop_orphaned_sum_rpcs.sql`, drops `sum_income_amount(uuid)`, `sum_expense_amount(uuid)`, and `sum_category_amount(uuid,integer)` (see §36.5).
+
+### 36.5 Old orphaned RPCs — removed, not merely deprecated
+
+`sum_income_amount`/`sum_expense_amount`/`sum_category_amount` were re-checked for call sites before dropping them (per instruction: "verify no production code uses them before dropping"). Confirmed reachable only from three now-deleted files: `src/features/dashboard/useTotals.ts`, `src/features/budgets/useSpentAmount.ts`, and `getSpentAmount()` in `src/lib/budgets.ts` -- none of which were imported by any page or component (dead code; grepped for `useTotals`/`useSpentAmount`/`getSpentAmount` across `src/pages` and `src/components` with zero matches). All three frontend files/functions were deleted in this same Part, and the three RPCs are dropped outright (not left "deprecated") in `20260915000100_drop_orphaned_sum_rpcs.sql`.
+
+Worth recording explicitly: these three functions were `GRANT`ed to `anon` in the original baseline schema, and none of them checked the caller's identity against the `uid`/`cat_id` argument they were given -- meaning an unauthenticated request could already query ANY user's all-time income/expense/category total by supplying an arbitrary UUID. This was a real, live exposure (a privacy issue in the same family as the `delete_user_everything` finding from Backend Part 2, though lower severity since it only leaked aggregate numbers, not records) that this Part's removal closes, on top of removing their all-time-only correctness problem (the original P1/P2 finding).
+
+### 36.6 Dashboard architecture — before/after
+
+**Before:** `useDashboardData` called `useTransactions` (unbounded) + `useBudgets`, and `computeDashboardSummary` (in `dashboardMath.ts`) scanned the full transaction array client-side for month/prevMonth totals, a 12-month cashflow series, top-4 category breakdown, the 5 most recent transactions, and per-budget spend.
+
+**After:** `useDashboardData` calls `useDashboardSummary` (wraps `dashboard_summary()`) + `useBudgets` + `useBudgetsProgress` (wraps `budgets_progress()`, called with the `currentYear`/`currentMonth` the summary RPC returned). `dashboardMath.ts`'s `mapDashboardSummary` is now a pure transform from the RPC's jsonb payload (+ the already-loaded budget list + spend rows) into the exact same `DashboardSummary` shape the page has always rendered -- `Dashboard.tsx` itself required **no changes**. Loading/error states are still two independent flags (`transactions.*` from the summary query, `budgets.*` from `useBudgets`/`useBudgetsProgress` combined) exactly as before, so a budgets failure still only blanks the budget panel.
+
+### 36.7 Reports architecture — before/after
+
+**Before:** `useReportsData` called `useTransactions` (unbounded) + `useBudgets`; `financialAnalytics.ts`'s `sumIncomeExpense`/`rangeForLastNMonths`/`previousEquivalentRange`/`buildMonthlyBuckets`/`expenseCategoryTotals` computed everything client-side from the full array, for This Month/3/6/12-month windows.
+
+**After:** `useReportsData` calls `useReportsSummary` (wraps `reports_summary(monthsCount, categoryName)`) + `useBudgets` + `useExportTransactionsWithFilters` (the existing exhaustively-batched export query from Part 2, now scoped to `[rangeStart, rangeEnd)` + the selected category rather than the whole unbounded history). Previous-period comparison uses the immediately-preceding window of equal length (`v_prev_range_start`/`v_prev_range_end` in SQL, matching the pre-existing `previousEquivalentRange` semantics exactly, including the year-boundary roll-over case). Monthly buckets are timezone-aware and zero-filled via `generate_series` LEFT JOINed against the real aggregate (§36.4), not silently dropped for empty months. `financialAnalytics.ts`'s now-dead raw-transaction versions of `sumIncomeExpense`/`rangeForLastNMonths`/`previousEquivalentRange`/`buildMonthlyBuckets` were removed (kept: `expenseCategoryTotals`, `savingsRate`, `percentChange`, and the `MonthlyBucket`/`CategoryAmount`/`PeriodTotals` types, all still used elsewhere). `Reports.tsx` required no changes beyond wiring `useProfile`'s timezone into the CSV export call (§36.9).
+
+### 36.8 Budget architecture — before/after, N+1 confirmation
+
+**Before:** `useBudgetsForPeriod` called `useTransactions` (unbounded) + `useBudgets`; `computeBudgetProgress`/`computeBudgetSpend` (in `budgetMath.ts`) scanned the full transaction array per budget, filtering by category+month/year, for EVERY budget in the period.
+
+**After:** `useBudgetsForPeriod` calls `useBudgets` (unchanged -- the budget-definitions list is small, bounded by budget count not transaction count, never a row-cap concern) + a new `useBudgetsProgress` hook (wraps `budgets_progress(year, month)`). `budgetMath.ts`'s `computeBudgetSpend`/`computeBudgetProgress` (which scanned raw transactions) were replaced by `deriveBudgetProgress(budget, spent)`, a pure function taking an already-known `spent` number -- the 75%/95% threshold constants and `budgetToneFor`/`budgetStatusFor` logic are completely unchanged (still the single source of truth for those thresholds, now just fed a server-computed number instead of a client-computed one). Confirmed no N+1: `budgets_progress` is called exactly once per page render (one query, one grouped result covering every category), not once per budget row.
+
+### 36.9 Transactions page & CSV export — regression status
+
+**Server pagination (Part 2 architecture):** untouched. `transactionsWithFilters`, `fetchAllTransactionsWithFilters`, the exact page size/offset/`{count:"exact"}` behavior, and the `occurred_at` + `id` deterministic sort/tiebreak are all unchanged.
+
+**Date-filter timezone correctness (Part G):** the date-range picker in `TransactionFilterBar.tsx` was rewritten. Two real, independent bugs were found and fixed while making it timezone-aware (both pre-dated this Part):
+1. **Exclusive-bound bug:** `toISO` was previously set to the exact instant the user clicked on the calendar (effectively midnight of the END date), but `applyTransactionFilters` uses `.lt("occurred_at", toISO)` (an exclusive upper bound) -- so a selected end date was silently EXCLUDED from the results, and a single-day selection (`fromISO === toISO`) matched literally nothing. Fixed: `toISO` is now the start of the day **after** the selected end date, so the whole selected end day is genuinely included.
+2. **Browser-timezone bug:** boundaries were constructed via `.toISOString()` on browser-local calendar dates. Fixed: boundaries are now constructed via `zonedTimeToUtc` using the user's configured `profiles.timezone` (fetched via `useProfile`, same fallback pattern as `TransactionForm`), so a selected calendar day means the same real day regardless of the browser's own timezone.
+
+Both fixes are covered indirectly by `timezone.test.ts`'s primitives; the UI wiring itself was verified by code review and the existing `TransactionFilterBar.test.tsx` suite (unaffected assertions still pass) rather than a new interactive date-picker test, given the scope already covered this Part -- flagged as a residual test-coverage gap in §36.13.
+
+**CSV export (Part H):** both the Transactions page's and the Reports page's CSV exports continue to use the exhaustive 500-row-batch architecture from Part 2 (`fetchAllTransactionsWithFilters`) -- neither was replaced with an aggregate, since a raw-row export genuinely needs raw rows. `buildTransactionsCsv` now takes an explicit `timeZone` parameter and formats the Date column via `formatInTimeZone` instead of `.toISOString().slice(0,10)` -- the latter could disagree with the configured timezone's calendar date for any transaction stored near a UTC-day boundary (a real, if narrow, pre-existing bug: noon-anchored instants can cross a UTC day boundary for timezones east of roughly UTC+12). The Date column still represents `occurred_at`, never `created_at`.
+
+### 36.10 Row-cap exposure — before/after
+
+| Page | Before this Part | After this Part |
+|---|---|---|
+| Dashboard | Unbounded `fetchTransactions` (entire history) fetched to compute a monthly summary | Bounded: `dashboard_summary()` returns a fixed-size payload (12 cashflow points, <=4 category rows, 5 recent transactions) regardless of the user's total transaction count |
+| Reports | Same unbounded fetch, for up to a 12-month window | Bounded: `reports_summary()` returns a fixed-size payload (<=12 monthly buckets, one row per category actually present); CSV export uses the pre-existing exhaustive-batch architecture, which is correct at any volume by construction |
+| Budgets | Same unbounded fetch, scanned per budget | Bounded: `budgets_progress()` returns one row per category with spend in the period (bounded by category count) |
+| Transactions (table + pagination) | Already bounded since Part 2 | Unchanged, still bounded |
+| Transactions (filter-bar category counts, burn-rate analytics) | Unbounded `fetchTransactions` | **Still unbounded** -- explicitly not addressed this Part, see §36.13 |
+
+A user with 100, 1,000, 5,000, or 50,000+ transactions: Dashboard/Reports/Budgets now issue queries whose RESULT size depends only on the number of months/categories/budgets involved, never on total transaction count -- the underlying `SUM`/`GROUP BY` work scales with the number of matching rows Postgres scans (bounded by the query's own date-range predicate, using the existing `transactions_user_id_occurred_at_idx` index from Part 3), not with the size of any PostgREST response. The Transactions page's filter-bar/analytics gap above is the one place this guarantee does NOT yet hold.
+
+### 36.11 Index review
+
+Part 3's `transactions_user_id_occurred_at_idx` on `(user_id, occurred_at DESC)` is used by every new function's `WHERE user_id = ... AND occurred_at >= ... AND occurred_at < ...` predicate. No new index was added. `GROUP BY category_id`/`GROUP BY category_id, date_trunc(...)` in `reports_summary`/`budgets_progress` group an already-range-filtered, per-user row set (typically hundreds to low thousands of rows even for a heavy user's single month/year window), which Postgres can sort/hash-aggregate in memory without a dedicated index at any realistic Nexali transaction volume -- so a `(user_id, category_id, occurred_at)` index was deliberately NOT added, per instruction ("only add indexes supported by real query patterns, documented reasoning"), pending an actual `EXPLAIN ANALYZE` on the deployed database if a specific slow query is ever observed.
+
+### 36.12 Numeric precision, NULL handling, generated types
+
+- **Precision:** `transactions.amount`/`budgets.amount` are `numeric(10,2)`. Every `SUM`/arithmetic expression in the new functions stays in Postgres `numeric` end to end; `jsonb_build_object`/`jsonb_agg` serialize a `numeric` value as a real JSON number (not a string), so no value is routed through `float8` inside SQL. The frontend wrappers (`src/lib/financialAggregates.ts`) still defensively call `Number(...)` on every numeric field, consistent with how the rest of the codebase already treats `numeric` columns coming back through PostgREST/RPC.
+- **NULL/empty handling:** every `SUM(...)` that could return SQL NULL (no matching rows) is wrapped in `COALESCE(..., 0)`, since zero is the correct product meaning in every case here (no income this month is $0 income, not "unknown"). Empty months in `cashflow`/`monthlyBuckets` are explicitly zero-filled via `generate_series` LEFT JOINs rather than silently omitted, preserving the exact chart behavior the client-side `buildMonthlyBuckets` used to provide.
+- **Generated types:** `src/types/database.types.ts`'s `Functions` block was hand-updated (no live database to regenerate against) -- `sum_income_amount`/`sum_expense_amount`/`sum_category_amount` removed, `dashboard_summary`/`reports_summary`/`budgets_progress` added with explicit `Args`/`Returns` shapes. Recommended: re-run `npx supabase gen types typescript --linked` after deployment and diff against this hand-written version (same recommendation as Part 3).
+
+### 36.13 Explicitly deferred (documented per Part J, not silently dropped)
+
+Two real, pre-existing row-cap/timezone gaps were identified but **not** fixed this Part, to keep scope to what was explicitly mandated (Dashboard/Reports/Budgets):
+
+1. **`TransactionFilterBar`'s category-count badges** call `useTransactions` (unbounded) purely to compute a `Record<categoryName, count>` for the filter dropdown's badge numbers. This is a small, bounded-by-category-count result that belongs behind a dedicated grouped-count RPC, not a reason to fetch full history.
+2. **`TransactionAnalytics`'s "Average Daily Burn"/"Top Categories" cards** (below the Transactions table) call `useTransactions` (unbounded) and compute period math (`resolveBurnPeriod`) using the same browser-local `Date` arithmetic this Part fixed everywhere else.
+
+Because these two consumers remain, `fetchTransactions`/`useTransactions` were kept rather than removed (Part J). This is the top recommendation for Backend Part 5 (§ Recommended Backend Part 5, final report).
+
+### 36.14 Files changed this Part
+
+**New:** `src/lib/timezone.ts` (+test), `src/lib/financialAggregates.ts`, `src/features/dashboard/useDashboardSummary.ts`, `src/features/reports/useReportsSummary.ts`, `src/features/budgets/useBudgetsProgress.ts`, `supabase/migrations/20260915000000_financial_aggregate_functions.sql`, `supabase/migrations/20260915000100_drop_orphaned_sum_rpcs.sql`.
+
+**Rewritten:** `src/lib/transactionDate.ts` (+test), `src/features/dashboard/dashboardMath.ts` (+test), `src/features/dashboard/useDashboardData.ts`, `src/features/reports/useReportsData.ts` (+test), `src/features/budgets/useBudgetsForPeriod.ts` (+test), `src/lib/budgetMath.ts` (+test), `src/lib/financialAnalytics.ts` (+test, trimmed), `src/lib/csvExport.ts` (+test), `src/components/TransactionForm.tsx` (+test), `src/components/TransactionFilterBar.tsx` (+test), `src/pages/Reports.tsx`, `src/pages/Transactions.tsx`, `src/features/querykeys.ts`, `src/features/transactions/useTransactions.ts` (invalidation fix, see below), `src/types/database.types.ts`.
+
+**Deleted:** `src/features/dashboard/useTotals.ts`, `src/features/budgets/useSpentAmount.ts`, `getSpentAmount()` from `src/lib/budgets.ts`.
+
+**Also fixed (discovered during this Part, not pre-existing scope but load-bearing for it):** `useTransactions.ts`'s `invalidateRelatedQueries` previously invalidated `qk.totals`/`qk.spentRoot` (the now-deleted hooks' cache keys). Since Dashboard/Reports/Budgets no longer share ONE `useTransactions` cache the way they used to, a transaction add/edit/delete would have silently stopped refreshing the Dashboard/Reports/Budgets summaries after this Part's changes without an explicit fix -- `invalidateRelatedQueries` now invalidates `qk.dashboardSummary`, `qk.reportsSummaryRoot`, and `qk.budgetsProgressRoot` (new prefix-matching root keys added to `querykeys.ts` so every cached period/category/year-month variant is invalidated in one call) alongside the existing `qk.txRoot`.
+
+### 36.15 Quality gates (this Part)
+
+`npm run test`: 49 files, 427 tests, all passing. `npm run lint`: 0 errors, 0 warnings. `npm run build`: succeeds (pre-existing >500kB chunk-size warning, unrelated to this Part). `npx tsc -b --force`: 0 errors.
+
+**Not run:** any execution of the new SQL against a real Postgres instance (local or remote) -- per instruction, no `supabase db reset`, no automatic `db push`. The SQL was hand-reviewed multiple times for syntax and semantic correctness (variable declarations, type compatibility between `generate_series`/`date_trunc` naive-timestamp joins, RLS-equivalent ownership filtering, half-open range consistency) but has not been executed. See the final report's exact verification SQL for the recommended first checks after a real deployment.

@@ -1,7 +1,8 @@
 import { useMemo } from "react";
-import { useTransactions } from "../transactions/useTransactions";
+import { useDashboardSummary } from "./useDashboardSummary";
 import { useBudgets } from "../budgets/useBudgets";
-import { computeDashboardSummary, type DashboardSummary } from "./dashboardMath";
+import { useBudgetsProgress } from "../budgets/useBudgetsProgress";
+import { mapDashboardSummary, type DashboardSummary } from "./dashboardMath";
 
 export type DashboardData = {
   summary: DashboardSummary | null;
@@ -19,34 +20,52 @@ export type DashboardData = {
 };
 
 /**
- * Combines the real transaction and budget queries into the period-correct
- * summary the Dashboard renders. Transactions and budgets are kept as
- * separate loading/error states (rather than one merged flag) so a failure
- * in one does not have to blank out sections that only depend on the other
- * — see dashboardMath.ts for why the summary itself is computed
- * client-side instead of trusting the all-time backend RPCs.
+ * Combines the server-computed transaction summary (dashboard_summary(),
+ * timezone-aware and bounded -- see useDashboardSummary.ts) with the
+ * server-computed budget spend for the same period (budgets_progress(),
+ * shared with the Budgets page) into the DashboardSummary the page
+ * renders. Kept as two independent queries/error states -- exactly as
+ * before this Part -- so a budgets failure only ever blanks the budget
+ * panel, never the rest of the Dashboard.
  */
 export function useDashboardData(userId: string): DashboardData {
-  const txQuery = useTransactions(userId);
+  const summaryQuery = useDashboardSummary(userId);
   const budgetsQuery = useBudgets(userId);
+  const progressQuery = useBudgetsProgress(userId, summaryQuery.data?.currentYear, summaryQuery.data?.currentMonth);
+
+  const periodBudgets = useMemo(() => {
+    if (!summaryQuery.data) return [];
+    const { currentYear, currentMonth } = summaryQuery.data;
+    return (budgetsQuery.data ?? []).filter((b) => b.year === currentYear && b.month === currentMonth);
+  }, [budgetsQuery.data, summaryQuery.data]);
 
   const summary = useMemo(() => {
-    if (!txQuery.data) return null;
-    return computeDashboardSummary(txQuery.data, budgetsQuery.data ?? []);
-  }, [txQuery.data, budgetsQuery.data]);
+    if (!summaryQuery.data || !progressQuery.data) return null;
+    return mapDashboardSummary(summaryQuery.data, periodBudgets, progressQuery.data);
+  }, [summaryQuery.data, progressQuery.data, periodBudgets]);
 
   return {
     summary,
     transactions: {
-      isLoading: txQuery.isLoading,
-      isError: txQuery.isError,
-      hasData: (txQuery.data?.length ?? 0) > 0,
-      refetch: () => void txQuery.refetch(),
+      isLoading: summaryQuery.isLoading,
+      isError: summaryQuery.isError,
+      hasData: (summaryQuery.data?.recentTransactions.length ?? 0) > 0,
+      refetch: () => void summaryQuery.refetch(),
     },
     budgets: {
-      isLoading: budgetsQuery.isLoading,
-      isError: budgetsQuery.isError,
-      refetch: () => void budgetsQuery.refetch(),
+      // progressQuery.isPending (not isLoading) deliberately -- it stays
+      // true for the whole window before summaryQuery has resolved
+      // currentYear/currentMonth (progressQuery is disabled until then, so
+      // TanStack's own isLoading briefly reads false while idle). That
+      // window is already hidden behind the transactions.isLoading gate
+      // above, so this only matters once summary is available, at which
+      // point isPending correctly tracks "no budget-progress data yet".
+      isLoading: budgetsQuery.isLoading || progressQuery.isPending,
+      isError: budgetsQuery.isError || progressQuery.isError,
+      refetch: () => {
+        void budgetsQuery.refetch();
+        void progressQuery.refetch();
+      },
     },
   };
 }

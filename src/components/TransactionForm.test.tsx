@@ -3,8 +3,10 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../test/renderWithProviders";
 import { TransactionForm } from "./TransactionForm";
-import { toLocalDateInputValue, occurredAtFromLocalDateInput } from "../lib/transactionDate";
+import { toZonedDateInputValue, occurredAtFromZonedDateInput } from "../lib/transactionDate";
 import type { TransactionWithCat } from "../lib/transactions";
+
+const TEST_TZ = "America/Los_Angeles";
 
 const mutateAsync = vi.fn();
 let isPending = false;
@@ -24,6 +26,10 @@ vi.mock("../features/transactions/useTransactions", () => ({
       return error;
     },
   }),
+}));
+
+vi.mock("../features/profiles/useProfile", () => ({
+  useProfile: () => ({ data: { timezone: TEST_TZ }, isLoading: false, isError: false }),
 }));
 
 vi.mock("../features/categories/useCategories", () => ({
@@ -101,7 +107,7 @@ describe("TransactionForm", () => {
     });
     // Defaults to today (real local date), matching the visible Date field's default.
     const [{ occurredAt }] = mutateAsync.mock.calls[0];
-    expect(occurredAt).toBe(occurredAtFromLocalDateInput(toLocalDateInputValue(new Date())));
+    expect(occurredAt).toBe(occurredAtFromZonedDateInput(toZonedDateInputValue(new Date(), TEST_TZ), TEST_TZ));
     expect(onSaved).toHaveBeenCalledTimes(1);
   });
 
@@ -161,7 +167,7 @@ describe("TransactionForm", () => {
     // Built via the same local-date <-> ISO conversion the form itself
     // uses, so round-tripping through the (deliberately date-only, no
     // time-of-day UX) Date field is lossless for this fixture.
-    const originalOccurredAt = occurredAtFromLocalDateInput("2024-01-01");
+    const originalOccurredAt = occurredAtFromZonedDateInput("2024-01-01", TEST_TZ);
     const existingTx: TransactionWithCat = {
       id: 7,
       amount: 18.25,
@@ -208,12 +214,12 @@ describe("TransactionForm", () => {
 
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
     const [{ occurredAt }] = mutateAsync.mock.calls[0];
-    expect(occurredAt).toBe(occurredAtFromLocalDateInput("2024-02-14"));
+    expect(occurredAt).toBe(occurredAtFromZonedDateInput("2024-02-14", TEST_TZ));
   });
 
   it("defaults the Date field to today for a brand-new transaction", () => {
     renderWithProviders(<TransactionForm existingTx={null} onSaved={vi.fn()} onCancel={vi.fn()} />);
-    expect(screen.getByLabelText(/^date/i)).toHaveValue(toLocalDateInputValue(new Date()));
+    expect(screen.getByLabelText(/^date/i)).toHaveValue(toZonedDateInputValue(new Date(), TEST_TZ));
   });
 
   it("disables the submit button while saving", () => {

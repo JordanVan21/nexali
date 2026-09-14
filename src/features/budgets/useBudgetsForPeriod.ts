@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useBudgets } from "./useBudgets";
-import { useTransactions } from "../transactions/useTransactions";
-import { computeBudgetProgress, type BudgetProgressDetail } from "../../lib/budgetMath";
+import { useBudgetsProgress } from "./useBudgetsProgress";
+import { deriveBudgetProgress, type BudgetProgressDetail } from "../../lib/budgetMath";
 
 export type BudgetsPeriodSummary = {
   totalBudget: number;
@@ -33,26 +33,36 @@ export type BudgetsPeriodData = {
 };
 
 /**
- * Real budgets for one month/year, with spend computed from the user's
- * actual transactions for that same period (src/lib/budgetMath.ts) —
- * never the all-time `sum_category_amount` RPC. `useBudgets` already
- * returns every budget the user has ever created (all periods mixed, see
- * docs/AUDIT_REPORT.md P3); the month/year filtering happens here,
- * client-side, against those real rows.
+ * Real budgets for one month/year, with spend computed server-side
+ * (budgets_progress(), timezone-aware via profiles.timezone) for that same
+ * period. `useBudgets` already returns every budget the user has ever
+ * created (all periods mixed, see docs/AUDIT_REPORT.md P3); the month/year
+ * filtering happens here, client-side, against those real rows -- budget
+ * definitions are a small, bounded list (one row per budget, not per
+ * transaction), so this is not a row-cap concern the way transaction data
+ * was.
  */
 export function useBudgetsForPeriod(userId: string, year: number, month: number): BudgetsPeriodData {
   const budgetsQuery = useBudgets(userId);
-  const txQuery = useTransactions(userId);
+  const spendQuery = useBudgetsProgress(userId, year, month);
 
   const periodBudgets = useMemo(
     () => (budgetsQuery.data ?? []).filter((b) => b.year === year && b.month === month),
     [budgetsQuery.data, year, month]
   );
 
+  const spendByCategory = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const row of spendQuery.data ?? []) {
+      map.set(row.categoryId, row.spent);
+    }
+    return map;
+  }, [spendQuery.data]);
+
   const progress = useMemo(() => {
-    if (!txQuery.data) return [];
-    return periodBudgets.map((b) => computeBudgetProgress(txQuery.data, b));
-  }, [periodBudgets, txQuery.data]);
+    if (!spendQuery.data) return [];
+    return periodBudgets.map((b) => deriveBudgetProgress(b, spendByCategory.get(b.category_id ?? -1) ?? 0));
+  }, [periodBudgets, spendQuery.data, spendByCategory]);
 
   const summary = useMemo<BudgetsPeriodSummary>(() => {
     const totalBudget = progress.reduce((sum, b) => sum + b.amount, 0);
@@ -76,9 +86,9 @@ export function useBudgetsForPeriod(userId: string, year: number, month: number)
       refetch: () => void budgetsQuery.refetch(),
     },
     spendData: {
-      isLoading: txQuery.isLoading,
-      isError: txQuery.isError,
-      refetch: () => void txQuery.refetch(),
+      isLoading: spendQuery.isLoading,
+      isError: spendQuery.isError,
+      refetch: () => void spendQuery.refetch(),
     },
   };
 }

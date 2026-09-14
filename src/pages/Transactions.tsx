@@ -7,8 +7,10 @@ import { TransactionTable } from "../components/TransactionTable";
 import { TransactionAnalytics } from "../components/TransactionAnalytics";
 import { TransactionDialog } from "../components/TransactionDialog";
 import { useExportTransactionsWithFilters } from "../features/transactions/useTransactions";
+import { useProfile } from "../features/profiles/useProfile";
 import { useUserInfo } from "../shared/useUserId";
 import { buildTransactionsCsv, downloadCsv } from "../lib/csvExport";
+import { fallbackTimeZone } from "../lib/transactionDate";
 import { type Filters } from "../features/querykeys";
 import type { TransactionWithCat } from "../lib/transactions";
 
@@ -29,13 +31,15 @@ export default function Transactions() {
   const [dialogTarget, setDialogTarget] = useState<"add" | TransactionWithCat | null>(null);
 
   const { userId } = useUserInfo();
+  const profile = useProfile(userId);
+  const timeZone = profile.data?.timezone ?? fallbackTimeZone();
   // Every transaction matching the current filters, independent of the
   // table's current page/page size (see useExportTransactionsWithFilters).
   const exportQuery = useExportTransactionsWithFilters(userId, filters);
   const exportRows = exportQuery.data ?? [];
 
   const handleExport = () => {
-    const csv = buildTransactionsCsv(exportRows);
+    const csv = buildTransactionsCsv(exportRows, timeZone);
     downloadCsv(`nexali-transactions-${new Date().toISOString().slice(0, 10)}.csv`, csv);
   };
 

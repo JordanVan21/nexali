@@ -34,13 +34,35 @@ import {
   TrendingDown,
   SlidersHorizontal,
 } from "lucide-react";
-import { format } from "date-fns";
 import { useTransactions } from "../features/transactions/useTransactions";
+import { useProfile } from "../features/profiles/useProfile";
 import { useTransactionCounts } from "../lib/transactions";
 import { CategoryFilterDropdown } from "./CategoryFilterDropdown";
 import { hasActiveFilters, type Filters } from "../features/querykeys";
+import { zonedTimeToUtc, browserTimeZone } from "../lib/timezone";
 
 const SEARCH_DEBOUNCE_MS = 350;
+
+/** The real UTC instant for local midnight on `date`'s calendar day, in `timeZone` -- the inclusive lower bound of a date-range filter. */
+function startOfDayIso(date: Date, timeZone: string): string {
+  return zonedTimeToUtc({ year: date.getFullYear(), month: date.getMonth() + 1, day: date.getDate() }, timeZone, 0, 0, 0).toISOString();
+}
+
+/** The real UTC instant for local midnight on the day AFTER `date`, in `timeZone` -- the exclusive upper bound needed to include the WHOLE of `date`'s calendar day (applyTransactionFilters uses `.lt("occurred_at", toISO)`). */
+function startOfNextDayIso(date: Date, timeZone: string): string {
+  const next = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+  return startOfDayIso(next, timeZone);
+}
+
+/** "MMM dd" (or "MMM dd, yyyy") in `timeZone`, matching the date-range control's previous date-fns-based display format, but timezone-correct. */
+function formatShort(date: Date, timeZone: string, withYear = false): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    month: "short",
+    day: "2-digit",
+    ...(withYear ? { year: "numeric" } : {}),
+  }).format(date);
+}
 
 interface TransactionFilterBarProps {
   filters: Filters;
@@ -56,6 +78,13 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
   const { userId } = useUserInfo();
   const { data: transactions = [] } = useTransactions(userId);
   const categoryTransactionCounts = useTransactionCounts(transactions);
+  const profile = useProfile(userId);
+  // The real financial timezone (profiles.timezone) -- date-range filter
+  // boundaries must be computed relative to this, not the browser's own
+  // timezone, so a selected day always includes exactly that CALENDAR day
+  // in the user's configured financial timezone. See
+  // docs/BACKEND_AUDIT_REPORT.md Backend Part 4.
+  const timeZone = profile.data?.timezone ?? browserTimeZone();
 
   const updateFilters = (updates: Partial<Filters>) => {
     onFiltersChange({ ...filters, ...updates });
@@ -76,9 +105,14 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
     };
   }, []);
 
+  // filters.toISO is the EXCLUSIVE upper bound (start of the day after the
+  // selected end date -- see startOfNextDayIso), so the displayed "to" date
+  // is one day earlier than the stored instant. A plain 24h subtraction is
+  // safe for a display label even across a DST transition, since the
+  // month/day formatting below ignores time-of-day.
   const dateRange = {
     from: filters.fromISO ? new Date(filters.fromISO) : undefined,
-    to: filters.toISO ? new Date(filters.toISO) : undefined,
+    to: filters.toISO ? new Date(new Date(filters.toISO).getTime() - 24 * 60 * 60 * 1000) : undefined,
   };
 
   const [tempDateRange, setTempDateRange] = useState<{ from?: Date; to?: Date }>({
@@ -123,8 +157,8 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
             <span>
               {dateRange.from
                 ? dateRange.to
-                  ? `${format(dateRange.from, "MMM dd")} - ${format(dateRange.to, "MMM dd")}`
-                  : format(dateRange.from, "MMM dd, yyyy")
+                  ? `${formatShort(dateRange.from, timeZone)} - ${formatShort(dateRange.to, timeZone)}`
+                  : formatShort(dateRange.from, timeZone, true)
                 : "Date Range"}
             </span>
           </Button>
@@ -135,14 +169,18 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
             selected={{ from: tempDateRange.from, to: tempDateRange.to }}
             onSelect={(range) => {
               setTempDateRange({ from: range?.from, to: range?.to });
+              // fromISO/toISO are a half-open [start of `from`'s day, start
+              // of the day AFTER `to`'s day) range in the user's configured
+              // timezone, so the END date is genuinely included -- matching
+              // applyTransactionFilters' `.lt("occurred_at", toISO)`.
               if (range?.from && range?.to) {
-                updateFilters({ fromISO: range.from.toISOString(), toISO: range.to.toISOString() });
+                updateFilters({ fromISO: startOfDayIso(range.from, timeZone), toISO: startOfNextDayIso(range.to, timeZone) });
               } else if (
                 range?.from &&
                 tempDateRange.from &&
                 range.from.getTime() === tempDateRange.from.getTime()
               ) {
-                updateFilters({ fromISO: range.from.toISOString(), toISO: range.from.toISOString() });
+                updateFilters({ fromISO: startOfDayIso(range.from, timeZone), toISO: startOfNextDayIso(range.from, timeZone) });
               }
             }}
             numberOfMonths={1}
@@ -163,8 +201,8 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
                 size="sm"
                 onClick={() =>
                   updateFilters({
-                    fromISO: tempDateRange.from!.toISOString(),
-                    toISO: tempDateRange.from!.toISOString(),
+                    fromISO: startOfDayIso(tempDateRange.from!, timeZone),
+                    toISO: startOfNextDayIso(tempDateRange.from!, timeZone),
                   })
                 }
               >
@@ -432,11 +470,11 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
               </button>
             </Badge>
           ))}
-          {filters.fromISO && (
+          {dateRange.from && (
             <Badge variant="default" className="gap-1 text-xs">
-              {filters.toISO
-                ? `${format(new Date(filters.fromISO), "MMM dd")} - ${format(new Date(filters.toISO), "MMM dd")}`
-                : format(new Date(filters.fromISO), "MMM dd, yyyy")}
+              {dateRange.to
+                ? `${formatShort(dateRange.from, timeZone)} - ${formatShort(dateRange.to, timeZone)}`
+                : formatShort(dateRange.from, timeZone, true)}
               <button
                 type="button"
                 aria-label="Remove date filter"

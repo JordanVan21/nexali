@@ -16,7 +16,9 @@ import { TopCategoriesTable } from "../components/reports/TopCategoriesTable";
 import { BudgetPerformanceSection } from "../components/reports/BudgetPerformanceSection";
 import { ReportsSkeleton } from "../components/reports/ReportsSkeleton";
 import { useReportsData, REPORT_PERIODS, ALL_CATEGORIES, type ReportPeriodOption } from "../features/reports/useReportsData";
+import { useProfile } from "../features/profiles/useProfile";
 import { buildTransactionsCsv, downloadCsv } from "../lib/csvExport";
+import { fallbackTimeZone } from "../lib/transactionDate";
 import { formatCurrency } from "../lib/format";
 import { useUserInfo } from "../shared/useUserId";
 
@@ -42,6 +44,8 @@ function savingsRateTrend(
 
 export default function Reports() {
   const { userId } = useUserInfo();
+  const profile = useProfile(userId);
+  const timeZone = profile.data?.timezone ?? fallbackTimeZone();
   const [period, setPeriod] = useState<ReportPeriodOption>(6);
   const [category, setCategory] = useState<string>(ALL_CATEGORIES);
 
@@ -61,7 +65,7 @@ export default function Reports() {
   const savingsTrend = savingsRateTrend(data.savingsRatePercent, previousSavingsRate, comparisonLabel);
 
   const handleExport = () => {
-    const csv = buildTransactionsCsv(data.transactionsInRange);
+    const csv = buildTransactionsCsv(data.transactionsInRange, timeZone);
     downloadCsv(`nexali-transactions-${period}mo.csv`, csv);
   };
 

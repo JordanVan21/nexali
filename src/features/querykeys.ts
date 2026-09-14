@@ -81,13 +81,23 @@ export const qk = {
   // Budgets
   budgetsRoot: (userId: string) => ["budgets", userId] as const,
 
-  // Spent totals
-  spentRoot: (userId: string) => ["spent", userId] as const,
-  spent: (userId: string, categoryId: number) =>
-    [...qk.spentRoot(userId), categoryId] as const,
+  // Server-side financial aggregates (Backend Part 4). `userId` here is
+  // only a per-session cache namespace -- the RPCs themselves derive the
+  // real authorized user from auth.uid() on the server and accept no user
+  // id argument, so this never doubles as an authorization mechanism.
+  // The *Root variants exist so a transaction mutation can invalidate
+  // every cached variant (every monthsCount/categoryName, every
+  // year/month) in one call -- TanStack Query treats a shorter queryKey as
+  // a prefix match against every longer key that starts with it.
+  dashboardSummary: (userId: string) => ["dashboardSummary", userId] as const,
+  reportsSummaryRoot: (userId: string) => ["reportsSummary", userId] as const,
+  reportsSummary: (userId: string, monthsCount: number, categoryName: string) =>
+    [...qk.reportsSummaryRoot(userId), monthsCount, categoryName] as const,
+  budgetsProgressRoot: (userId: string) => ["budgetsProgress", userId] as const,
+  budgetsProgress: (userId: string, year: number, month: number) =>
+    [...qk.budgetsProgressRoot(userId), year, month] as const,
 
   profile: (userId: string) => ["profile", userId] as const,
-  totals:  (userId: string) => ["totals", userId] as const,
   expenseCategories: (userId: string) => ["expenseCategories", userId] as const,
   avatar: (userId: string) => ["avatar", userId] as const,
 

@@ -1,64 +1,22 @@
 import type { TransactionWithCat } from "./transactions";
-import {
-  type MonthRange,
-  monthRange,
-  isIncomeTx,
-  isExpenseTx,
-  isTransactionInRange,
-  sumTransactionAmounts,
-} from "./financialPeriods";
+import { type MonthRange, isExpenseTx, isTransactionInRange, sumTransactionAmounts } from "./financialPeriods";
 
 /**
- * Multi-month reporting math shared by the Dashboard (single current month)
- * and Reports (arbitrary N-month windows) — built on the same primitives
- * in financialPeriods.ts so every feature computes "income in a period" or
- * "expenses in a period" identically. Everything here operates on
- * already-loaded transactions; see docs/AUDIT_REPORT.md P1/P2 for why the
- * backend RPCs (all-time, no date range) can't back these figures.
+ * Category/rate math still computed client-side against an already-scoped
+ * transaction set (e.g. the Transactions page's active date filter --
+ * see src/lib/transactionsAnalytics.ts). As of Backend Part 4, the
+ * Dashboard/Reports/Budgets period totals and multi-month bucket math this
+ * module used to provide are computed server-side instead (see
+ * dashboard_summary()/reports_summary() in
+ * supabase/migrations/20260915000000_financial_aggregate_functions.sql
+ * and docs/BACKEND_AUDIT_REPORT.md Backend Part 4) — the raw-transaction
+ * versions of that math were removed here since fetching a user's entire
+ * history into the browser to compute them is exactly the row-cap
+ * exposure that Part fixed.
  */
 
 export type PeriodTotals = { income: number; expenses: number; net: number };
-
-export function sumIncomeExpense(transactions: TransactionWithCat[], range: MonthRange): PeriodTotals {
-  const inRange = transactions.filter((tx) => isTransactionInRange(tx, range));
-  const income = sumTransactionAmounts(inRange.filter(isIncomeTx));
-  const expenses = sumTransactionAmounts(inRange.filter(isExpenseTx));
-  return { income, expenses, net: income - expenses };
-}
-
-/** A window of `monthsCount` whole calendar months, ending with (and including) `now`'s month. */
-export function rangeForLastNMonths(monthsCount: number, now: Date = new Date()): MonthRange {
-  const start = monthRange(now.getFullYear(), now.getMonth() - (monthsCount - 1)).start;
-  const end = monthRange(now.getFullYear(), now.getMonth()).end;
-  return { start, end };
-}
-
-/** The immediately-preceding window of the same length — for period-over-period comparison. */
-export function previousEquivalentRange(range: MonthRange, monthsCount: number): MonthRange {
-  const start = new Date(range.start.getFullYear(), range.start.getMonth() - monthsCount, 1);
-  return { start, end: range.start };
-}
-
 export type MonthlyBucket = { month: string; income: number; expenses: number };
-
-/** `monthsCount` monthly buckets, oldest to newest, ending with `now`'s month. */
-export function buildMonthlyBuckets(
-  transactions: TransactionWithCat[],
-  monthsCount: number,
-  now: Date = new Date()
-): MonthlyBucket[] {
-  const buckets: MonthlyBucket[] = [];
-  for (let i = monthsCount - 1; i >= 0; i -= 1) {
-    const bucket = monthRange(now.getFullYear(), now.getMonth() - i);
-    const totals = sumIncomeExpense(transactions, bucket);
-    buckets.push({
-      month: bucket.start.toLocaleDateString(undefined, { month: "short" }),
-      income: totals.income,
-      expenses: totals.expenses,
-    });
-  }
-  return buckets;
-}
 
 export type CategoryAmount = {
   id: number;
