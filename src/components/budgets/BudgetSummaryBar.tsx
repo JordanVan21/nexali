@@ -1,5 +1,5 @@
 import { Gauge, PiggyBank, Wallet, type LucideIcon } from "lucide-react";
-import { formatCurrency } from "../../lib/format";
+import { useFormatCurrency } from "../../features/profiles/useFormatPreferences";
 import { cn } from "../../lib/utils";
 import type { BudgetsPeriodSummary } from "../../features/budgets/useBudgetsForPeriod";
 
@@ -10,6 +10,7 @@ import type { BudgetsPeriodSummary } from "../../features/budgets/useBudgetsForP
  * silently capping a genuinely over-budget period at "100%".
  */
 export function BudgetSummaryBar({ totalBudget, available, efficiency }: BudgetsPeriodSummary) {
+  const formatCurrency = useFormatCurrency();
   const stats: { id: string; icon: LucideIcon; label: string; value: string; valueClass: string }[] = [
     {
       id: "total",

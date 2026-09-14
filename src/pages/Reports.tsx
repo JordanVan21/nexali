@@ -19,7 +19,7 @@ import { useReportsData, REPORT_PERIODS, ALL_CATEGORIES, type ReportPeriodOption
 import { useProfile } from "../features/profiles/useProfile";
 import { buildTransactionsCsv, downloadCsv } from "../lib/csvExport";
 import { fallbackTimeZone } from "../lib/transactionDate";
-import { formatCurrency } from "../lib/format";
+import { useFormatCurrency } from "../features/profiles/useFormatPreferences";
 import { useUserInfo } from "../shared/useUserId";
 
 /** Percentage-point difference, for comparing two rates without the confusing "% change of a %" framing. */
@@ -46,6 +46,7 @@ export default function Reports() {
   const { userId } = useUserInfo();
   const profile = useProfile(userId);
   const timeZone = profile.data?.timezone ?? fallbackTimeZone();
+  const formatCurrency = useFormatCurrency();
   const [period, setPeriod] = useState<ReportPeriodOption>(6);
   const [category, setCategory] = useState<string>(ALL_CATEGORIES);
 

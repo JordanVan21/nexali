@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { PiggyBank } from "lucide-react";
 import { Button } from "../ui/button";
 import { BudgetProgressBar } from "../budgets/BudgetProgressBar";
-import { formatCurrency } from "../../lib/format";
+import { useFormatCurrency } from "../../features/profiles/useFormatPreferences";
 import { cn } from "../../lib/utils";
 import type { BudgetProgressDetail, BudgetStatus } from "../../lib/budgetMath";
 
@@ -32,6 +32,7 @@ const MONTH_NAMES = [
  * different months' budgets would not be a meaningful number.
  */
 export function BudgetPerformanceSection({ budgets }: { budgets: BudgetProgressDetail[] }) {
+  const formatCurrency = useFormatCurrency();
   if (budgets.length === 0) {
     return (
       <div className="nexali-panel flex flex-col items-center justify-center gap-3 rounded-xl p-8 text-center">

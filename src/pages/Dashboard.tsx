@@ -16,29 +16,30 @@ import { AuraEntryCard } from "../components/dashboard/AuraEntryCard";
 import { DashboardSkeleton } from "../components/dashboard/DashboardSkeleton";
 import { useProfile } from "../features/profiles/useProfile";
 import { useDashboardData } from "../features/dashboard/useDashboardData";
-import { formatCurrency } from "../lib/format";
+import { useFormatCurrency } from "../features/profiles/useFormatPreferences";
 import { useUserInfo } from "../shared/useUserId";
 import type { TransactionWithCat } from "../lib/transactions";
 
 export default function Dashboard() {
   const { userId } = useUserInfo();
   const [dialogTarget, setDialogTarget] = useState<"add" | TransactionWithCat | null>(null);
+  const formatCurrency = useFormatCurrency();
 
   const profile = useProfile(userId);
   const dashboard = useDashboardData(userId);
 
+  // Profile is optional presentation data on Dashboard -- it only backs the
+  // personalized greeting below, which already has a real fallback when
+  // there's no name to show. A profile-query failure must never blank the
+  // whole page over that; every other real Dashboard dependency
+  // (dashboard.transactions/.budgets) has its own independent error state
+  // below. This mirrors how every other real profile consumer in the app
+  // (ProfileMenu, TransactionFilterBar, TransactionForm, Reports, ...)
+  // already treats profile.data as optional rather than gating rendering
+  // on profile.isError -- Profile.tsx/Settings.tsx remain the only pages
+  // where profile data is genuinely required to render at all, since they
+  // ARE the profile editor.
   const firstName = profile.data?.full_name?.split(" ")[0];
-
-  if (profile.isError) {
-    return (
-      <PageContainer>
-        <ErrorState
-          title="Couldn't load your profile"
-          message="We couldn't load your account right now. Please try again."
-        />
-      </PageContainer>
-    );
-  }
 
   const summary = dashboard.summary;
   const income = trendForHigherIsBetter(summary?.month.income ?? 0, summary?.prevMonth.income ?? 0);

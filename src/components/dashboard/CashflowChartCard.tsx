@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ChartCard } from "./ChartCard";
-import { formatCurrency } from "../../lib/format";
+import { useFormatCurrency } from "../../features/profiles/useFormatPreferences";
 import { cn } from "../../lib/utils";
 import type { CashflowPoint } from "../../features/dashboard/dashboardMath";
 
@@ -17,6 +17,7 @@ function CashflowTooltip({
   payload?: { value: number; dataKey: string }[];
   label?: string;
 }) {
+  const formatCurrency = useFormatCurrency();
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-outline-variant bg-popover px-3 py-2 text-xs shadow-lg">
@@ -32,6 +33,7 @@ function CashflowTooltip({
 
 /** Real income-vs-expenses history, bucketed by calendar month from the user's actual transactions (see dashboardMath.ts). */
 export function CashflowChartCard({ data }: { data: CashflowPoint[] }) {
+  const formatCurrency = useFormatCurrency();
   const [range, setRange] = useState<Range>("6M");
   const visible = data.slice(-ranges[range]);
 

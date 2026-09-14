@@ -1,5 +1,5 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { formatCurrency } from "../../lib/format";
+import { useFormatCurrency } from "../../features/profiles/useFormatPreferences";
 import type { MonthlyBucket } from "../../lib/financialAnalytics";
 
 function IncomeExpenseTooltip({
@@ -11,6 +11,7 @@ function IncomeExpenseTooltip({
   payload?: { value: number; dataKey: string }[];
   label?: string;
 }) {
+  const formatCurrency = useFormatCurrency();
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-outline-variant bg-popover px-3 py-2 text-xs shadow-lg">
@@ -26,6 +27,7 @@ function IncomeExpenseTooltip({
 
 /** Real income vs. expenses per month, from the user's actual transactions (see useReportsData.ts). */
 export function IncomeExpenseChart({ data }: { data: MonthlyBucket[] }) {
+  const formatCurrency = useFormatCurrency();
   return (
     <>
       <div className="h-[260px] w-full sm:h-[320px]">

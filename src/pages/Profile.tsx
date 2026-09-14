@@ -18,6 +18,7 @@ import { useUploadAvatar, useDeleteAvatar } from "../features/profiles/useAvatar
 import { useUser } from "../features/user/userUser";
 import { useUserInfo } from "../shared/useUserId";
 import { getErrorMessage, cn } from "../lib/utils";
+import { currencyLabel } from "../lib/preferenceOptions";
 
 type BudgetCycle = "weekly" | "monthly" | "quarterly" | "yearly";
 
@@ -25,22 +26,15 @@ type FormState = {
   fullName: string;
   budgetCycle: BudgetCycle;
   resetDay: number;
+  phone: string;
+  location: string;
+  financialBio: string;
 };
 
 const FULL_NAME_MAX = 120;
 
-/**
- * Nexali's current application-wide fixed currency. Not a persisted
- * `profiles` column -- there is no real per-user currency preference yet, so
- * this is a static UI label, not a value loaded from the database. Profile
- * displays it as read-only info; it is not part of the Save payload.
- */
-const FIXED_CURRENCY_LABEL = "USD ($)";
-
+/** Matches the database's `profiles_financial_bio_length` CHECK constraint exactly (supabase/migrations/20260917000000_profile_settings_preferences.sql). */
 const BIO_LIMIT = 240;
-
-/** Real, disabled-but-visible caption pattern already used for read-only Email. */
-const COMING_SOON_CAPTION = "Coming soon — not saved yet.";
 
 function ProfileSkeleton() {
   return (
@@ -102,6 +96,9 @@ export default function Profile() {
       fullName: profile.full_name ?? "",
       budgetCycle: (profile.budget_reset_cycle as BudgetCycle) ?? "monthly",
       resetDay: profile.reset_day ?? 1,
+      phone: profile.phone ?? "",
+      location: profile.location ?? "",
+      financialBio: profile.financial_bio ?? "",
     };
     setForm(baseline);
     setSaved(baseline);
@@ -152,16 +149,34 @@ export default function Profile() {
     }
     setFullNameError(null);
 
+    const trimmedPhone = form.phone.trim();
+    const trimmedLocation = form.location.trim();
+    const trimmedBio = form.financialBio.trim();
+    const normalized: FormState = {
+      ...form,
+      fullName: trimmedName,
+      phone: trimmedPhone,
+      location: trimmedLocation,
+      financialBio: trimmedBio,
+    };
+
     updateProfile.mutate(
       {
         full_name: trimmedName,
         budget_reset_cycle: form.budgetCycle,
         reset_day: form.resetDay,
+        // Blank input is stored as real NULL, not an empty string -- these
+        // are optional profile fields, and NULL is the intended "never
+        // set"/"cleared" representation (see the migration's column
+        // comments), not a meaningless empty string.
+        phone: trimmedPhone || null,
+        location: trimmedLocation || null,
+        financial_bio: trimmedBio || null,
       },
       {
         onSuccess: () => {
-          setSaved({ ...form, fullName: trimmedName });
-          setForm({ ...form, fullName: trimmedName });
+          setSaved(normalized);
+          setForm(normalized);
           setSaveStatus({ type: "success", message: "Profile updated successfully." });
           setTimeout(() => setSaveStatus({ type: null, message: "" }), 3000);
         },
@@ -338,13 +353,11 @@ export default function Profile() {
                   <Input
                     id="profile-phone"
                     type="tel"
-                    value=""
-                    readOnly
-                    disabled
-                    placeholder="Coming soon"
-                    className="h-11 cursor-not-allowed bg-muted text-base md:text-base xl:h-12"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    placeholder="e.g. (555) 012-3456"
+                    className="h-11 text-base md:text-base xl:h-12"
                   />
-                  <p className="text-sm italic text-muted-foreground">{COMING_SOON_CAPTION}</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="profile-location" className="md:text-[15px]">
@@ -352,13 +365,11 @@ export default function Profile() {
                   </Label>
                   <Input
                     id="profile-location"
-                    value=""
-                    readOnly
-                    disabled
-                    placeholder="Coming soon"
-                    className="h-11 cursor-not-allowed bg-muted text-base md:text-base xl:h-12"
+                    value={form.location}
+                    onChange={(e) => setForm({ ...form, location: e.target.value })}
+                    placeholder="e.g. Seattle, WA"
+                    className="h-11 text-base md:text-base xl:h-12"
                   />
-                  <p className="text-sm italic text-muted-foreground">{COMING_SOON_CAPTION}</p>
                 </div>
               </div>
             </section>
@@ -366,7 +377,7 @@ export default function Profile() {
             <section className="md:col-span-12">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3 xl:mb-4">
                 <h2 className="font-display text-lg font-semibold text-foreground xl:text-xl">Financial bio</h2>
-                <span className="numeric text-xs text-muted-foreground">0/{BIO_LIMIT}</span>
+                <span className="numeric text-xs text-muted-foreground">{form.financialBio.length}/{BIO_LIMIT}</span>
               </div>
               <p className="-mt-2 mb-3 text-sm text-muted-foreground xl:-mt-3">
                 Briefly describe your financial goals for Aura.
@@ -376,14 +387,12 @@ export default function Profile() {
                   id="profile-bio"
                   rows={4}
                   maxLength={BIO_LIMIT}
-                  value=""
-                  readOnly
-                  disabled
+                  value={form.financialBio}
+                  onChange={(e) => setForm({ ...form, financialBio: e.target.value })}
                   placeholder="E.g., Focused on long-term wealth building and reducing recurring subscriptions…"
-                  className="cursor-not-allowed resize-none bg-muted text-base md:text-base"
+                  className="resize-none text-base md:text-base"
                   aria-label="Financial bio"
                 />
-                <p className="mt-2 text-sm italic text-muted-foreground">{COMING_SOON_CAPTION}</p>
               </div>
             </section>
 
@@ -398,7 +407,9 @@ export default function Profile() {
                       Used throughout budgets, transactions and reports.
                     </p>
                   </div>
-                  <span className="numeric text-sm text-foreground md:text-base">{FIXED_CURRENCY_LABEL}</span>
+                  <span className="numeric text-sm text-foreground md:text-base">
+                    {currencyLabel(profile?.currency ?? "USD")}
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 gap-2 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6 xl:py-5">

@@ -1,5 +1,5 @@
 import { getCategoryIcon } from "../../lib/categoryIcon";
-import { formatCurrency } from "../../lib/format";
+import { useFormatCurrency } from "../../features/profiles/useFormatPreferences";
 import { percentChange } from "../../lib/financialAnalytics";
 import { cn } from "../../lib/utils";
 import type { CategoryAmount } from "../../lib/financialAnalytics";
@@ -40,6 +40,7 @@ export function TopCategoriesTable({
   previousCategories: CategoryAmount[];
   comparisonLabel: string;
 }) {
+  const formatCurrency = useFormatCurrency();
   const previousById = new Map(previousCategories.map((c) => [c.id, c.amount]));
 
   if (categories.length === 0) {

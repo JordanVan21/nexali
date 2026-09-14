@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdownMenu";
 import { getCategoryIcon } from "../../lib/categoryIcon";
-import { formatCurrency } from "../../lib/format";
+import { useFormatCurrency } from "../../features/profiles/useFormatPreferences";
 import { cn } from "../../lib/utils";
 import type { BudgetProgressDetail, BudgetStatus } from "../../lib/budgetMath";
 import { BudgetProgressBar } from "./BudgetProgressBar";
@@ -49,6 +49,7 @@ export function BudgetCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const formatCurrency = useFormatCurrency();
   const Icon = getCategoryIcon(budget.category);
 
   return (

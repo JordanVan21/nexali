@@ -5,8 +5,21 @@ import { renderWithProviders } from "../test/renderWithProviders";
 import Profile from "./Profile";
 
 const updateMutate = vi.fn();
+type MockProfile = {
+  full_name: string | null;
+  avatar_url: string | null;
+  budget_reset_cycle: string;
+  reset_day: number;
+  timezone: string;
+  phone: string | null;
+  location: string | null;
+  financial_bio: string | null;
+  currency: string;
+  date_format: string;
+  number_format: string;
+};
 let profileState: {
-  data: { full_name: string | null; avatar_url: string | null; budget_reset_cycle: string; reset_day: number; timezone: string } | null | undefined;
+  data: MockProfile | null | undefined;
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
@@ -74,13 +87,20 @@ vi.mock("../features/user/userUser", () => ({
   useUser: () => ({ data: { created_at: "2024-03-15T00:00:00.000Z" } }),
 }));
 
-function baseProfile() {
+function baseProfile(overrides: Partial<MockProfile> = {}): MockProfile {
   return {
     full_name: "Jamie Rivera",
-    avatar_url: null as string | null,
+    avatar_url: null,
     budget_reset_cycle: "monthly",
     reset_day: 1,
     timezone: "America/Los_Angeles",
+    phone: null,
+    location: null,
+    financial_bio: null,
+    currency: "USD",
+    date_format: "mdy",
+    number_format: "standard",
+    ...overrides,
   };
 }
 
@@ -127,12 +147,11 @@ describe("Profile page", () => {
   });
 
   it("shows a real avatar image when avatar_url is set, taking priority over initials", () => {
-    profileState = { data: { ...baseProfile(), avatar_url: "https://example.com/avatar.jpg" }, isLoading: false, isError: false, error: null };
+    profileState = { data: baseProfile({ avatar_url: "https://example.com/avatar.jpg" }), isLoading: false, isError: false, error: null };
     const { container } = renderWithProviders(<Profile />);
 
     const images = Array.from(container.querySelectorAll("img"));
     expect(images.some((img) => img.src.includes("example.com/avatar.jpg"))).toBe(true);
-    // "Jamie Rivera" -> "JR" should not render as visible fallback text while a real image is shown.
     expect(screen.queryByText("JR")).not.toBeInTheDocument();
   });
 
@@ -145,10 +164,9 @@ describe("Profile page", () => {
   });
 
   it("falls back to an initial derived from the real email when no full name is set", () => {
-    profileState = { data: { ...baseProfile(), full_name: null }, isLoading: false, isError: false, error: null };
+    profileState = { data: baseProfile({ full_name: null }), isLoading: false, isError: false, error: null };
     renderWithProviders(<Profile />);
 
-    // renderWithProviders' test user has email "test@example.com"
     expect(screen.getByText("T")).toBeInTheDocument();
   });
 
@@ -159,13 +177,13 @@ describe("Profile page", () => {
   });
 
   it("offers Remove current when a real avatar exists", () => {
-    profileState = { data: { ...baseProfile(), avatar_url: "https://example.com/avatar.jpg" }, isLoading: false, isError: false, error: null };
+    profileState = { data: baseProfile({ avatar_url: "https://example.com/avatar.jpg" }), isLoading: false, isError: false, error: null };
     renderWithProviders(<Profile />);
     expect(screen.getByRole("button", { name: /remove current/i })).toBeInTheDocument();
   });
 
   it("requires confirmation before removing the avatar", async () => {
-    profileState = { data: { ...baseProfile(), avatar_url: "https://example.com/avatar.jpg" }, isLoading: false, isError: false, error: null };
+    profileState = { data: baseProfile({ avatar_url: "https://example.com/avatar.jpg" }), isLoading: false, isError: false, error: null };
     const user = userEvent.setup();
     renderWithProviders(<Profile />);
 
@@ -223,7 +241,7 @@ describe("Profile page", () => {
     expect(screen.getByLabelText(/full name/i)).toHaveValue("Jamie Rivera");
   });
 
-  it("calls the real update mutation with the edited full name and existing preferences", async () => {
+  it("calls the real update mutation with the edited full name, existing preferences, and existing (null) phone/location/bio", async () => {
     profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
     const user = userEvent.setup();
     renderWithProviders(<Profile />);
@@ -237,6 +255,9 @@ describe("Profile page", () => {
         full_name: "New Name",
         budget_reset_cycle: "monthly",
         reset_day: 1,
+        phone: null,
+        location: null,
+        financial_bio: null,
       },
       expect.anything()
     );
@@ -273,10 +294,12 @@ describe("Profile page", () => {
 
     await user.clear(screen.getByLabelText(/full name/i));
     await user.type(screen.getByLabelText(/full name/i), "Attempted Name");
+    await user.type(screen.getByLabelText(/phone number/i), "555-0100");
     await user.click(screen.getByRole("button", { name: /save changes/i }));
 
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/failed to update profile/i));
     expect(screen.getByLabelText(/full name/i)).toHaveValue("Attempted Name");
+    expect(screen.getByLabelText(/phone number/i)).toHaveValue("555-0100");
   });
 
   it("never renders Lovable's mock profile data", () => {
@@ -297,35 +320,6 @@ describe("Profile page", () => {
     expect(screen.queryByText(/delete account/i)).not.toBeInTheDocument();
   });
 
-  it("shows Phone, Location, and Financial bio as real fields, but disabled until the backend supports them", () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
-    renderWithProviders(<Profile />);
-
-    const phone = screen.getByLabelText(/phone number/i);
-    const location = screen.getByLabelText(/location/i);
-    const bio = screen.getByLabelText(/financial bio/i);
-
-    expect(phone).toBeDisabled();
-    expect(location).toBeDisabled();
-    expect(bio).toBeDisabled();
-    expect(screen.getAllByText(/coming soon/i).length).toBeGreaterThanOrEqual(3);
-  });
-
-  it("does not include Phone, Location, or Financial bio in the Save mutation payload", async () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
-    const user = userEvent.setup();
-    renderWithProviders(<Profile />);
-
-    await user.type(screen.getByLabelText(/full name/i), " Jr.");
-    await user.click(screen.getByRole("button", { name: /save changes/i }));
-
-    expect(updateMutate).toHaveBeenCalledTimes(1);
-    const [payload] = updateMutate.mock.calls[0];
-    expect(payload).not.toHaveProperty("phone");
-    expect(payload).not.toHaveProperty("location");
-    expect(payload).not.toHaveProperty("bio");
-  });
-
   it("still offers the real, working Budget Reset Cycle and Reset Day preferences", () => {
     profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
     renderWithProviders(<Profile />);
@@ -334,12 +328,12 @@ describe("Profile page", () => {
     expect(screen.getByLabelText(/reset day/i)).toBeInTheDocument();
   });
 
-  it("displays Preferred currency as a static USD ($) value, not an editable control", () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+  it("displays Preferred currency as a static, real persisted value, not an editable control", () => {
+    profileState = { data: baseProfile({ currency: "EUR" }), isLoading: false, isError: false, error: null };
     renderWithProviders(<Profile />);
 
     expect(screen.getByText(/preferred currency/i)).toBeInTheDocument();
-    expect(screen.getByText("USD ($)")).toBeInTheDocument();
+    expect(screen.getByText(/EUR \(€\)/)).toBeInTheDocument();
     expect(screen.queryByLabelText(/preferred currency/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: /currency/i })).not.toBeInTheDocument();
   });
@@ -355,7 +349,7 @@ describe("Profile page", () => {
     expect(screen.queryByRole("combobox", { name: /timezone/i })).not.toBeInTheDocument();
   });
 
-  it("does not render any select, input, or combobox for currency or timezone", () => {
+  it("does not render any select or combobox for currency or timezone", () => {
     profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
     renderWithProviders(<Profile />);
 
@@ -369,14 +363,11 @@ describe("Profile page", () => {
     profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
     renderWithProviders(<Profile />);
 
-    // Static text only -- there is no control to interact with, and editing
-    // the real editable field (Full name) is the only thing that should
-    // enable Save/Discard.
     expect(screen.getByRole("button", { name: /save changes/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /discard changes/i })).toBeDisabled();
   });
 
-  it("never includes currency or timezone in the Save mutation payload", async () => {
+  it("never includes currency, date_format, number_format, or timezone in the Save mutation payload (Profile is a read-only summary for these)", async () => {
     profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
     const user = userEvent.setup();
     renderWithProviders(<Profile />);
@@ -388,5 +379,134 @@ describe("Profile page", () => {
     const [payload] = updateMutate.mock.calls[0];
     expect(payload).not.toHaveProperty("timezone");
     expect(payload).not.toHaveProperty("currency");
+    expect(payload).not.toHaveProperty("date_format");
+    expect(payload).not.toHaveProperty("number_format");
+  });
+
+  describe("Phone / Location / Financial bio (real persistence)", () => {
+    it("loads a null phone/location/bio as empty, real, EDITABLE fields (not disabled)", () => {
+      profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+      renderWithProviders(<Profile />);
+
+      const phone = screen.getByLabelText(/phone number/i);
+      const location = screen.getByLabelText(/location/i);
+      const bio = screen.getByLabelText(/financial bio/i);
+
+      expect(phone).not.toBeDisabled();
+      expect(location).not.toBeDisabled();
+      expect(bio).not.toBeDisabled();
+      expect(phone).toHaveValue("");
+      expect(location).toHaveValue("");
+      expect(bio).toHaveValue("");
+      expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument();
+    });
+
+    it("loads real persisted phone/location/bio values", () => {
+      profileState = {
+        data: baseProfile({ phone: "555-0100", location: "Seattle, WA", financial_bio: "Saving for a house." }),
+        isLoading: false,
+        isError: false,
+        error: null,
+      };
+      renderWithProviders(<Profile />);
+
+      expect(screen.getByLabelText(/phone number/i)).toHaveValue("555-0100");
+      expect(screen.getByLabelText(/location/i)).toHaveValue("Seattle, WA");
+      expect(screen.getByLabelText(/financial bio/i)).toHaveValue("Saving for a house.");
+    });
+
+    it("shows a real live character count for the bio field", async () => {
+      profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+      const user = userEvent.setup();
+      renderWithProviders(<Profile />);
+
+      expect(screen.getByText("0/240")).toBeInTheDocument();
+      await user.type(screen.getByLabelText(/financial bio/i), "Hello");
+      expect(screen.getByText("5/240")).toBeInTheDocument();
+    });
+
+    it("editing phone/location/bio makes the page dirty", async () => {
+      profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+      const user = userEvent.setup();
+      renderWithProviders(<Profile />);
+
+      expect(screen.getByRole("button", { name: /save changes/i })).toBeDisabled();
+      await user.type(screen.getByLabelText(/location/i), "Austin, TX");
+      expect(screen.getByRole("button", { name: /save changes/i })).toBeEnabled();
+    });
+
+    it("discard restores phone/location/bio to the last-persisted values", async () => {
+      profileState = {
+        data: baseProfile({ phone: "555-0100", location: "Seattle, WA", financial_bio: "Saving for a house." }),
+        isLoading: false,
+        isError: false,
+        error: null,
+      };
+      const user = userEvent.setup();
+      renderWithProviders(<Profile />);
+
+      await user.clear(screen.getByLabelText(/location/i));
+      await user.type(screen.getByLabelText(/location/i), "Somewhere else");
+      await user.click(screen.getByRole("button", { name: /discard changes/i }));
+
+      expect(screen.getByLabelText(/location/i)).toHaveValue("Seattle, WA");
+    });
+
+    it("saves real trimmed phone/location/bio values through the real mutation", async () => {
+      profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+      const user = userEvent.setup();
+      renderWithProviders(<Profile />);
+
+      await user.type(screen.getByLabelText(/phone number/i), "  555-0100  ");
+      await user.type(screen.getByLabelText(/location/i), "  Seattle, WA  ");
+      await user.type(screen.getByLabelText(/financial bio/i), "  Saving for a house.  ");
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      expect(updateMutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          phone: "555-0100",
+          location: "Seattle, WA",
+          financial_bio: "Saving for a house.",
+        }),
+        expect.anything()
+      );
+    });
+
+    it("saves a blank phone/location/bio as real NULL, not an empty string", async () => {
+      profileState = {
+        data: baseProfile({ phone: "555-0100", location: "Seattle, WA", financial_bio: "Old bio" }),
+        isLoading: false,
+        isError: false,
+        error: null,
+      };
+      const user = userEvent.setup();
+      renderWithProviders(<Profile />);
+
+      await user.clear(screen.getByLabelText(/phone number/i));
+      await user.clear(screen.getByLabelText(/location/i));
+      await user.clear(screen.getByLabelText(/financial bio/i));
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      expect(updateMutate).toHaveBeenCalledWith(
+        expect.objectContaining({ phone: null, location: null, financial_bio: null }),
+        expect.anything()
+      );
+    });
+
+    it("refetches/reflects the new saved values after a successful save", async () => {
+      profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+      const user = userEvent.setup();
+      renderWithProviders(<Profile />);
+
+      updateMutate.mockImplementation((_vars, opts) => opts.onSuccess());
+
+      await user.type(screen.getByLabelText(/location/i), "Austin, TX");
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/updated successfully/i));
+      // Discard is disabled again -- the just-saved value is now the baseline.
+      expect(screen.getByRole("button", { name: /discard changes/i })).toBeDisabled();
+      expect(screen.getByLabelText(/location/i)).toHaveValue("Austin, TX");
+    });
   });
 });

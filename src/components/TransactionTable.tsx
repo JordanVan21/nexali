@@ -16,7 +16,7 @@ import { useDeleteTransaction, useTransactionWithFilters } from "../features/tra
 import { type TransactionWithCat } from "../lib/transactions";
 import { hasActiveFilters, type Filters } from "../features/querykeys";
 import { useUserInfo } from "../shared/useUserId";
-import { formatCurrency } from "../lib/format";
+import { useFormatCurrency, useFormatDate } from "../features/profiles/useFormatPreferences";
 import { getCategoryIcon, getCategoryIconClass, getCategoryBadgeClass } from "../lib/categoryIcon";
 import { getErrorMessage, cn } from "../lib/utils";
 import { Button } from "./ui/button";
@@ -83,6 +83,8 @@ export function TransactionTable({
   onAddTransaction,
   onEditTransaction,
 }: TransactionTableProps) {
+  const formatCurrency = useFormatCurrency();
+  const formatDate = useFormatDate();
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(itemsPerPage);
   const [pendingDelete, setPendingDelete] = useState<TransactionWithCat | null>(null);
@@ -208,7 +210,7 @@ export function TransactionTable({
               return (
                 <TableRow key={tx.id} className="transition-colors">
                   <TableCell className="numeric text-sm text-muted-foreground lg:px-6 xl:text-base">
-                    {tx.occurred_at ? new Date(tx.occurred_at).toLocaleDateString() : "—"}
+                    {tx.occurred_at ? formatDate(tx.occurred_at) : "—"}
                   </TableCell>
                   <TableCell className="lg:px-6">
                     <div className="flex items-center gap-3">

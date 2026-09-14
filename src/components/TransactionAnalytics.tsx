@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { useUserInfo } from "../shared/useUserId";
 import { useTransactionsActivitySummary } from "../features/transactions/useTransactionsActivitySummary";
-import { formatCurrency } from "../lib/format";
+import { useFormatCurrency } from "../features/profiles/useFormatPreferences";
 import { getErrorMessage, cn } from "../lib/utils";
 import { Skeleton } from "./states/Skeleton";
 import { ErrorState } from "./states/ErrorState";
@@ -44,6 +44,7 @@ function AnalyticsSkeleton() {
  */
 export function TransactionAnalytics({ filters }: { filters: Filters }) {
   const { userId } = useUserInfo();
+  const formatCurrency = useFormatCurrency();
   const query = useTransactionsActivitySummary(userId, filters.fromISO, filters.toISO);
 
   if (query.isLoading) return <AnalyticsSkeleton />;

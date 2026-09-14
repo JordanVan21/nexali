@@ -5,8 +5,21 @@ import { renderWithProviders } from "../test/renderWithProviders";
 import Settings from "./Settings";
 
 const updateMutate = vi.fn();
+type MockProfile = {
+  full_name: string | null;
+  avatar_url: string | null;
+  budget_reset_cycle: string;
+  reset_day: number;
+  timezone: string;
+  phone: string | null;
+  location: string | null;
+  financial_bio: string | null;
+  currency: string;
+  date_format: string;
+  number_format: string;
+};
 let profileState: {
-  data: { full_name: string | null; avatar_url: string | null; budget_reset_cycle: string; reset_day: number; timezone: string } | null | undefined;
+  data: MockProfile | null | undefined;
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
@@ -23,13 +36,20 @@ vi.mock("../features/profiles/useProfile", () => ({
   }),
 }));
 
-function baseProfile() {
+function baseProfile(overrides: Partial<MockProfile> = {}): MockProfile {
   return {
     full_name: "Jamie Rivera",
-    avatar_url: null as string | null,
+    avatar_url: null,
     budget_reset_cycle: "monthly",
     reset_day: 1,
     timezone: "America/Los_Angeles",
+    phone: null,
+    location: null,
+    financial_bio: null,
+    currency: "USD",
+    date_format: "mdy",
+    number_format: "standard",
+    ...overrides,
   };
 }
 
@@ -68,21 +88,55 @@ describe("Settings page", () => {
     expect(screen.getByRole("combobox", { name: /^timezone$/i })).toHaveTextContent(/pacific time/i);
   });
 
-  it("shows Default currency, Date format and Number format as disabled, not persisted", () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
-    renderWithProviders(<Settings />);
+  describe("Default currency / Date format / Number format (real persistence)", () => {
+    it("renders them as real, ENABLED controls with no 'Coming soon' caption", () => {
+      profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+      renderWithProviders(<Settings />);
 
-    expect(screen.getByRole("combobox", { name: /default currency/i })).toBeDisabled();
-    expect(screen.getByRole("combobox", { name: /date format/i })).toBeDisabled();
-    expect(screen.getByRole("combobox", { name: /number format/i })).toBeDisabled();
-    expect(screen.getAllByText(/coming soon/i).length).toBeGreaterThanOrEqual(3);
-  });
+      const currency = screen.getByRole("combobox", { name: /default currency/i });
+      const dateFormat = screen.getByRole("combobox", { name: /date format/i });
+      const numberFormat = screen.getByRole("combobox", { name: /number format/i });
 
-  it("defaults currency to USD ($), never a fabricated stored preference", () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
-    renderWithProviders(<Settings />);
+      expect(currency).not.toBeDisabled();
+      expect(dateFormat).not.toBeDisabled();
+      expect(numberFormat).not.toBeDisabled();
+      expect(screen.queryByText(/coming soon.*currency|currency.*coming soon/i)).not.toBeInTheDocument();
+    });
 
-    expect(screen.getByRole("combobox", { name: /default currency/i })).toHaveTextContent(/USD \(\$\)/);
+    it("loads the real persisted currency", () => {
+      profileState = { data: baseProfile({ currency: "EUR" }), isLoading: false, isError: false, error: null };
+      renderWithProviders(<Settings />);
+
+      expect(screen.getByRole("combobox", { name: /default currency/i })).toHaveTextContent(/EUR \(€\)/);
+    });
+
+    it("loads the real persisted date format", () => {
+      profileState = { data: baseProfile({ date_format: "dmy" }), isLoading: false, isError: false, error: null };
+      renderWithProviders(<Settings />);
+
+      expect(screen.getByRole("combobox", { name: /date format/i })).toHaveTextContent("DD/MM/YYYY");
+      expect(screen.getByText("24/10/2025")).toBeInTheDocument();
+    });
+
+    it("loads the real persisted number format", () => {
+      profileState = { data: baseProfile({ number_format: "european" }), isLoading: false, isError: false, error: null };
+      renderWithProviders(<Settings />);
+
+      expect(screen.getByRole("combobox", { name: /number format/i })).toHaveTextContent(/1\.234,56/);
+    });
+
+    it("editing currency/date-format/number-format makes the page dirty", async () => {
+      profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+      const user = userEvent.setup();
+      renderWithProviders(<Settings />);
+
+      expect(screen.getByRole("button", { name: /save changes/i })).toBeDisabled();
+
+      await user.click(screen.getByRole("combobox", { name: /default currency/i }));
+      await user.click(await screen.findByText(/EUR \(€\)/));
+
+      expect(screen.getByRole("button", { name: /save changes/i })).toBeEnabled();
+    });
   });
 
   it("shows Appearance as dark-only, with no fake Light or System mode control", () => {
@@ -101,6 +155,17 @@ describe("Settings page", () => {
 
     expect(screen.getByText(/budget approaching limit/i)).toBeInTheDocument();
     expect(screen.getAllByRole("switch").every((s) => s.hasAttribute("disabled"))).toBe(true);
+  });
+
+  it("keeps Reduce animations and Show chart values as backend-pending, not real toggles", () => {
+    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+    renderWithProviders(<Settings />);
+
+    expect(screen.getByText(/reduce animations/i)).toBeInTheDocument();
+    expect(screen.getByText(/show values on charts/i)).toBeInTheDocument();
+    // Still captioned as pending -- these two, unlike currency/date/number,
+    // have no backing column or app-wide behavior yet.
+    expect(screen.getAllByText(/coming soon/i).length).toBeGreaterThanOrEqual(2);
   });
 
   it("does not render Aura assistant preference toggles", () => {
@@ -136,7 +201,7 @@ describe("Settings page", () => {
     expect(screen.queryByText(/macbook pro/i)).not.toBeInTheDocument();
   });
 
-  it("disables Save and Discard until timezone actually changes", async () => {
+  it("disables Save and Discard until a real preference actually changes", async () => {
     profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
     const user = userEvent.setup();
     renderWithProviders(<Settings />);
@@ -151,19 +216,23 @@ describe("Settings page", () => {
     expect(screen.getByRole("button", { name: /discard changes/i })).toBeEnabled();
   });
 
-  it("discard resets timezone back to the loaded value", async () => {
+  it("discard resets ALL real editable fields back to the loaded values, not just some", async () => {
     profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
     const user = userEvent.setup();
     renderWithProviders(<Settings />);
 
     await user.click(screen.getByRole("combobox", { name: /^timezone$/i }));
     await user.click(await screen.findByText(/eastern time/i));
+    await user.click(screen.getByRole("combobox", { name: /default currency/i }));
+    await user.click(await screen.findByText(/EUR \(€\)/));
+
     await user.click(screen.getByRole("button", { name: /discard changes/i }));
 
     expect(screen.getByRole("combobox", { name: /^timezone$/i })).toHaveTextContent(/pacific time/i);
+    expect(screen.getByRole("combobox", { name: /default currency/i })).toHaveTextContent(/USD \(\$\)/);
   });
 
-  it("calls the real update mutation with only the changed timezone", async () => {
+  it("saves the full set of real preferences in one coherent update, even when only one changed", async () => {
     profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
     const user = userEvent.setup();
     renderWithProviders(<Settings />);
@@ -172,7 +241,32 @@ describe("Settings page", () => {
     await user.click(await screen.findByText(/eastern time/i));
     await user.click(screen.getByRole("button", { name: /save changes/i }));
 
-    expect(updateMutate).toHaveBeenCalledWith({ timezone: "America/New_York" }, expect.anything());
+    expect(updateMutate).toHaveBeenCalledTimes(1);
+    expect(updateMutate).toHaveBeenCalledWith(
+      { timezone: "America/New_York", currency: "USD", date_format: "mdy", number_format: "standard" },
+      expect.anything()
+    );
+  });
+
+  it("saves multiple changed preferences together in exactly one mutation call", async () => {
+    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+    const user = userEvent.setup();
+    renderWithProviders(<Settings />);
+
+    await user.click(screen.getByRole("combobox", { name: /^timezone$/i }));
+    await user.click(await screen.findByText(/eastern time/i));
+    await user.click(screen.getByRole("combobox", { name: /default currency/i }));
+    await user.click(await screen.findByText(/EUR \(€\)/));
+    await user.click(screen.getByRole("combobox", { name: /number format/i }));
+    await user.click(await screen.findByText(/1\.234,56/));
+
+    await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+    expect(updateMutate).toHaveBeenCalledTimes(1);
+    expect(updateMutate).toHaveBeenCalledWith(
+      { timezone: "America/New_York", currency: "EUR", date_format: "mdy", number_format: "european" },
+      expect.anything()
+    );
   });
 
   it("shows the saving state while the mutation is pending", () => {
@@ -197,6 +291,8 @@ describe("Settings page", () => {
     await user.click(screen.getByRole("button", { name: /save changes/i }));
 
     await waitFor(() => expect(screen.getByText(/settings saved/i)).toBeInTheDocument());
+    // The just-saved value is now the baseline -- Discard goes disabled again.
+    expect(screen.getByRole("button", { name: /discard changes/i })).toBeDisabled();
   });
 
   it("shows safe failure feedback and preserves the entered timezone after a failed save", async () => {
@@ -236,18 +332,20 @@ describe("Settings page", () => {
       expect(s).toBeDisabled();
       expect(s).toHaveAttribute("aria-checked", "false");
     }
-    expect(screen.getAllByText(/coming soon/i).length).toBeGreaterThanOrEqual(4 + 3);
   });
 
-  it("does not let notification preferences affect Settings dirty state", () => {
+  it("does not let notification preferences, reduce-animations, or show-chart-values affect Settings dirty state", () => {
     profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
     renderWithProviders(<Settings />);
 
+    // Every backend-pending control on the page is disabled -- there is
+    // nothing to interact with, so dirty state can only ever come from the
+    // four real editable fields.
     expect(screen.getByRole("button", { name: /save changes/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /discard changes/i })).toBeDisabled();
   });
 
-  it("keeps the Save payload timezone-only even with notification preferences present on the page", async () => {
+  it("never includes notification/appearance preferences in the Save payload", async () => {
     profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
     const user = userEvent.setup();
     renderWithProviders(<Settings />);
@@ -258,6 +356,6 @@ describe("Settings page", () => {
 
     expect(updateMutate).toHaveBeenCalledTimes(1);
     const [payload] = updateMutate.mock.calls[0];
-    expect(Object.keys(payload)).toEqual(["timezone"]);
+    expect(Object.keys(payload).sort()).toEqual(["currency", "date_format", "number_format", "timezone"]);
   });
 });

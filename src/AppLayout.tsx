@@ -3,6 +3,7 @@ import { AppNav } from "./components/shell/AppNav";
 import { MobileHeader } from "./components/shell/MobileHeader";
 import { MobileNav } from "./components/shell/MobileNav";
 import { WithErrorBoundary } from "./ErrorBoundary";
+import { FormatPreferencesProvider } from "./features/profiles/FormatPreferencesContext";
 
 /**
  * Authenticated application shell. Renders the desktop/tablet nav and the
@@ -10,18 +11,26 @@ import { WithErrorBoundary } from "./ErrorBoundary";
  * isMobile check) decide which is visible, so there is no first-render
  * flash of the wrong layout. A single error boundary wraps every route so
  * one crashed page never takes down the nav shell around it.
+ *
+ * FormatPreferencesProvider is mounted once here (inside AuthGate, so
+ * useUserInfo is safe) so every page/component below can read the caller's
+ * real persisted currency/number/date-format/timezone preferences via
+ * useFormatPreferences()/useFormatCurrency()/useFormatDate() without each
+ * one subscribing to its own useProfile() call -- see Backend Part 6.
  */
 export default function AppLayout() {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <AppNav />
-      <MobileHeader />
-      <main className="flex-1 pb-[calc(var(--mobile-nav-height)+env(safe-area-inset-bottom))] md:pb-0">
-        <WithErrorBoundary>
-          <Outlet />
-        </WithErrorBoundary>
-      </main>
-      <MobileNav />
-    </div>
+    <FormatPreferencesProvider>
+      <div className="flex min-h-screen flex-col bg-background">
+        <AppNav />
+        <MobileHeader />
+        <main className="flex-1 pb-[calc(var(--mobile-nav-height)+env(safe-area-inset-bottom))] md:pb-0">
+          <WithErrorBoundary>
+            <Outlet />
+          </WithErrorBoundary>
+        </main>
+        <MobileNav />
+      </div>
+    </FormatPreferencesProvider>
   );
 }

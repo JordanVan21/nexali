@@ -1,7 +1,7 @@
 import { Edit, MoreHorizontal, Trash2, TrendingDown, TrendingUp } from "lucide-react";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdownMenu";
-import { formatCurrency } from "../lib/format";
+import { useFormatCurrency, useFormatDate } from "../features/profiles/useFormatPreferences";
 import { getCategoryIcon, getCategoryIconClass, getCategoryBadgeClass } from "../lib/categoryIcon";
 import { cn } from "../lib/utils";
 import type { TransactionWithCat } from "../lib/transactions";
@@ -19,9 +19,11 @@ type MobileTransactionCardProps = {
  * Actions menu rather than separate always-visible Edit/Delete buttons.
  */
 export function MobileTransactionCard({ tx, onEdit, onDelete }: MobileTransactionCardProps) {
+  const formatCurrency = useFormatCurrency();
+  const formatDate = useFormatDate();
   const isIncome = tx.categories?.type === "income";
   const categoryName = tx.categories?.name ?? "Uncategorized";
-  const date = tx.occurred_at ? new Date(tx.occurred_at).toLocaleDateString() : "";
+  const date = tx.occurred_at ? formatDate(tx.occurred_at) : "";
   const amountLabel = `${isIncome ? "+" : "-"}${formatCurrency(Math.abs(tx.amount))}`;
   const MerchantIcon = getCategoryIcon(categoryName);
   const toneText = getCategoryIconClass(categoryName);

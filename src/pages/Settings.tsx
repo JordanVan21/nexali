@@ -11,6 +11,9 @@ import { Skeleton } from "../components/states/Skeleton";
 import { useProfile, useUpdateProfile } from "../features/profiles/useProfile";
 import { useUserInfo } from "../shared/useUserId";
 import { getErrorMessage } from "../lib/utils";
+import { CURRENCY_OPTIONS, DATE_FORMAT_OPTIONS, NUMBER_FORMAT_OPTIONS } from "../lib/preferenceOptions";
+import type { NumberFormatPref } from "../lib/format";
+import type { DateFormatPref } from "../lib/dateFormat";
 
 /** Real, disabled-but-visible caption pattern already used for read-only Profile fields. */
 const COMING_SOON_CAPTION = "Coming soon — not saved yet.";
@@ -27,27 +30,6 @@ const TIMEZONE_OPTIONS = [
   { value: "America/New_York", label: "Eastern Time (America/New_York)" },
   { value: "UTC", label: "Coordinated Universal Time (UTC)" },
   { value: "Europe/London", label: "Greenwich Mean Time (Europe/London)" },
-];
-
-const CURRENCY_OPTIONS = [
-  { value: "USD", label: "USD ($) · US Dollar" },
-  { value: "EUR", label: "EUR (€) · Euro" },
-  { value: "GBP", label: "GBP (£) · British Pound" },
-  { value: "CAD", label: "CAD ($) · Canadian Dollar" },
-  { value: "AUD", label: "AUD ($) · Australian Dollar" },
-  { value: "JPY", label: "JPY (¥) · Japanese Yen" },
-];
-
-const DATE_FORMAT_OPTIONS = [
-  { value: "mdy", label: "MM/DD/YYYY", preview: "10/24/2025" },
-  { value: "dmy", label: "DD/MM/YYYY", preview: "24/10/2025" },
-  { value: "ymd", label: "YYYY-MM-DD", preview: "2025-10-24" },
-];
-
-const NUMBER_FORMAT_OPTIONS = [
-  { value: "standard", label: "1,234.56 (Standard comma separator)" },
-  { value: "european", label: "1.234,56 (Period thousand separator)" },
-  { value: "space", label: "1 234.56 (Thin space separator)" },
 ];
 
 /** Real Lovable labels/descriptions -- no `notification_preferences` column exists yet, so every row stays disabled/unchecked. */
@@ -90,36 +72,49 @@ function SettingsSkeleton() {
   );
 }
 
+type FormState = {
+  timezone: string;
+  currency: string;
+  dateFormat: DateFormatPref;
+  numberFormat: NumberFormatPref;
+};
+
 /**
- * Application preferences. Timezone is the only currently persisted, real
- * editable field (profiles.timezone, via the same useUpdateProfile mutation
- * Profile uses) -- Profile keeps showing it read-only per the approved split.
- * Currency, date format and number format have no backing column yet, so
- * their controls are visually present (matching the real Lovable settings
- * route) but disabled, never claiming to save. Budget reset cycle/day stay
- * on Profile (its existing real editable location) rather than being
- * duplicated here. Notification preferences (Part 11) show the real Lovable
- * rows but stay disabled -- no `notification_preferences` table/column
- * exists yet. The Aura-preference section is deferred to a later phase
- * rather than faked.
+ * Application preferences. timezone/currency/date_format/number_format are
+ * all real, persisted `profiles` columns (Backend Part 6), edited here and
+ * saved through the same `useUpdateProfile` mutation Profile uses -- Profile
+ * keeps showing them read-only per the approved split (Settings is the
+ * primary editor). Budget reset cycle/day stay on Profile (its existing
+ * real editable location) rather than being duplicated here. Reduce
+ * animations/Show chart values/Appearance theme/Notification preferences
+ * remain visually present but disabled -- no backing column or app-wide
+ * behavior exists yet for any of them, so they intentionally do NOT affect
+ * dirty state or the save payload. The Aura-preference section is deferred
+ * to a later phase rather than faked.
  */
 export default function Settings() {
   const { userId } = useUserInfo();
   const { data: profile, isLoading, isError, error, refetch } = useProfile(userId);
   const updateProfile = useUpdateProfile(userId);
 
-  const [timezone, setTimezone] = useState<string | null>(null);
-  const [savedTimezone, setSavedTimezone] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState | null>(null);
+  const [saved, setSaved] = useState<FormState | null>(null);
   const [saveStatus, setSaveStatus] = useState<{ type: "success" | "error" | null; message: string }>({
     type: null,
     message: "",
   });
 
   useEffect(() => {
-    if (!profile || savedTimezone) return;
-    setTimezone(profile.timezone);
-    setSavedTimezone(profile.timezone);
-  }, [profile, savedTimezone]);
+    if (!profile || saved) return;
+    const baseline: FormState = {
+      timezone: profile.timezone,
+      currency: profile.currency,
+      dateFormat: profile.date_format as DateFormatPref,
+      numberFormat: profile.number_format as NumberFormatPref,
+    };
+    setForm(baseline);
+    setSaved(baseline);
+  }, [profile, saved]);
 
   if (isLoading) {
     return <SettingsSkeleton />;
@@ -137,23 +132,32 @@ export default function Settings() {
     );
   }
 
-  if (timezone === null || savedTimezone === null) {
+  if (!form || !saved) {
     return <SettingsSkeleton />;
   }
 
-  const timezoneOptions = TIMEZONE_OPTIONS.some((o) => o.value === savedTimezone)
+  const timezoneOptions = TIMEZONE_OPTIONS.some((o) => o.value === saved.timezone)
     ? TIMEZONE_OPTIONS
-    : [{ value: savedTimezone, label: savedTimezone }, ...TIMEZONE_OPTIONS];
+    : [{ value: saved.timezone, label: saved.timezone }, ...TIMEZONE_OPTIONS];
 
-  const isDirty = timezone !== savedTimezone;
+  const isDirty = JSON.stringify(form) !== JSON.stringify(saved);
+  const datePreview = DATE_FORMAT_OPTIONS.find((o) => o.value === form.dateFormat)?.preview ?? "";
 
   const handleSave = () => {
     if (updateProfile.isPending) return;
+    // One coherent update carrying every real editable preference -- never
+    // one mutation per dropdown -- so a save always leaves the four fields
+    // mutually consistent even if the user changed several at once.
     updateProfile.mutate(
-      { timezone },
+      {
+        timezone: form.timezone,
+        currency: form.currency,
+        date_format: form.dateFormat,
+        number_format: form.numberFormat,
+      },
       {
         onSuccess: () => {
-          setSavedTimezone(timezone);
+          setSaved(form);
           setSaveStatus({ type: "success", message: "Settings saved." });
           setTimeout(() => setSaveStatus({ type: null, message: "" }), 3000);
         },
@@ -165,7 +169,7 @@ export default function Settings() {
     );
   };
 
-  const handleDiscard = () => setTimezone(savedTimezone);
+  const handleDiscard = () => setForm(saved);
 
   return (
     <PageContainer>
@@ -201,7 +205,7 @@ export default function Settings() {
                 <Label htmlFor="settings-currency" className="md:text-[15px]">
                   Default currency
                 </Label>
-                <Select value="USD" disabled>
+                <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
                   <SelectTrigger id="settings-currency" className="h-11 text-base md:text-base xl:h-12">
                     <SelectValue />
                   </SelectTrigger>
@@ -213,14 +217,16 @@ export default function Settings() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-sm italic text-muted-foreground">{COMING_SOON_CAPTION}</p>
+                <p className="text-sm text-muted-foreground">
+                  A display convention only -- changing it never converts your stored amounts between currencies.
+                </p>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="settings-timezone" className="md:text-[15px]">
                   Timezone
                 </Label>
-                <Select value={timezone} onValueChange={setTimezone}>
+                <Select value={form.timezone} onValueChange={(v) => setForm({ ...form, timezone: v })}>
                   <SelectTrigger id="settings-timezone" className="h-11 text-base md:text-base xl:h-12">
                     <SelectValue />
                   </SelectTrigger>
@@ -239,7 +245,7 @@ export default function Settings() {
                 <Label htmlFor="settings-date-format" className="md:text-[15px]">
                   Date format
                 </Label>
-                <Select value="mdy" disabled>
+                <Select value={form.dateFormat} onValueChange={(v) => setForm({ ...form, dateFormat: v as DateFormatPref })}>
                   <SelectTrigger id="settings-date-format" className="h-11 text-base md:text-base xl:h-12">
                     <SelectValue />
                   </SelectTrigger>
@@ -252,16 +258,18 @@ export default function Settings() {
                   </SelectContent>
                 </Select>
                 <p className="text-sm text-muted-foreground">
-                  Preview: <span className="numeric text-foreground">10/24/2025</span>
+                  Preview: <span className="numeric text-foreground">{datePreview}</span>
                 </p>
-                <p className="text-sm italic text-muted-foreground">{COMING_SOON_CAPTION}</p>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="settings-number-format" className="md:text-[15px]">
                   Number format
                 </Label>
-                <Select value="standard" disabled>
+                <Select
+                  value={form.numberFormat}
+                  onValueChange={(v) => setForm({ ...form, numberFormat: v as NumberFormatPref })}
+                >
                   <SelectTrigger id="settings-number-format" className="h-11 text-base md:text-base xl:h-12">
                     <SelectValue />
                   </SelectTrigger>
@@ -273,7 +281,6 @@ export default function Settings() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-sm italic text-muted-foreground">{COMING_SOON_CAPTION}</p>
               </div>
             </div>
           </section>

@@ -1,12 +1,13 @@
 import { Link } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { formatCurrency } from "../../lib/format";
+import { useFormatCurrency } from "../../features/profiles/useFormatPreferences";
 import { cn } from "../../lib/utils";
 import { buttonVariants } from "../ui/button-variants";
 import type { MonthlyBucket } from "../../lib/financialAnalytics";
 
 function NetTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
+  const formatCurrency = useFormatCurrency();
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-outline-variant bg-popover px-3 py-2 text-xs shadow-lg">
@@ -22,6 +23,7 @@ function NetTooltip({ active, payload, label }: { active?: boolean; payload?: { 
  * Assistant page instead of fabricating a forecast.
  */
 export function CashflowTrendChart({ data }: { data: MonthlyBucket[] }) {
+  const formatCurrency = useFormatCurrency();
   const netSeries = data.map((d) => ({ month: d.month, net: d.income - d.expenses }));
   const averageNet = netSeries.length > 0 ? netSeries.reduce((sum, d) => sum + d.net, 0) / netSeries.length : 0;
 

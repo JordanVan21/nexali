@@ -1,12 +1,13 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { PieChart as PieChartIcon } from "lucide-react";
-import { formatCurrency } from "../../lib/format";
+import { useFormatCurrency } from "../../features/profiles/useFormatPreferences";
 import type { CategoryAmount } from "../../lib/financialAnalytics";
 
 const SLICE_TONES = ["oklch(var(--primary))", "oklch(var(--success))", "oklch(var(--warning))", "oklch(var(--destructive))"];
 const DOT_TONES = ["bg-primary", "bg-success", "bg-warning", "bg-destructive"];
 
 function SliceTooltip({ active, payload }: { active?: boolean; payload?: { value: number; name: string }[] }) {
+  const formatCurrency = useFormatCurrency();
   if (!active || !payload?.length) return null;
   const p = payload[0];
   return (
@@ -20,6 +21,7 @@ function SliceTooltip({ active, payload }: { active?: boolean; payload?: { value
 
 /** Real expense breakdown for the selected period/category filter (see useReportsData.ts). Income is never included. */
 export function SpendingByCategoryChart({ data }: { data: CategoryAmount[] }) {
+  const formatCurrency = useFormatCurrency();
   const total = data.reduce((sum, d) => sum + d.amount, 0);
 
   if (data.length === 0) {

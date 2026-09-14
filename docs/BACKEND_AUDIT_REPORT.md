@@ -892,3 +892,127 @@ Same posture as Backend Part 4: every `SUM`/arithmetic expression stays in Postg
 `npm run test`: 52 files, 443 tests, all passing. `npm run lint`: 0 errors, 0 warnings. `npm run build`: succeeds (same pre-existing >500kB chunk-size warning, unrelated). `npx tsc -b --force`: 0 errors.
 
 **Not run:** execution of the new SQL against any real Postgres instance -- same posture as Backend Part 4, hand-reviewed only. See the final report for exact post-deployment verification SQL.
+
+## 38. Backend Part 6 — Profile + Settings Schema Completion, Real Preference Persistence, App-Wide Formatting
+
+**Status at start of this Part:** confirmed via `npx supabase migration list` that all nine migrations, including `20260916000000_transactions_page_aggregate_functions.sql` (Backend Part 5), showed matching local/remote timestamps -- deployed. **Status at end of this Part: implemented in the repository, NOT yet applied to the live database.**
+
+### 38.1 Field matrix (Part A) -- re-audited from current code, not assumed
+
+| Field | Before this Part | After this Part |
+|---|---|---|
+| Profile: full_name | A (already persisted, already editable) | unchanged |
+| Profile: avatar_url | A (already persisted, via Storage) | unchanged |
+| Profile: budget_reset_cycle / reset_day | A (already persisted, already editable) | unchanged |
+| Profile: timezone | A (already persisted; editable on Settings, read-only summary on Profile) | unchanged |
+| Profile: phone | B (frontend-pending -- disabled `<input>`, "Coming soon", no column) | **A** -- real `profiles.phone`, editable |
+| Profile: location | B (same pattern) | **A** -- real `profiles.location`, editable |
+| Profile: financial_bio | B (same pattern) | **A** -- real `profiles.financial_bio`, editable, live char counter |
+| Settings: currency | B (disabled Select, hardcoded `"USD"`, no column) | **A** -- real `profiles.currency`, editable |
+| Settings: timezone | A (already real, already editable) | unchanged |
+| Settings: date format | B (disabled Select, hardcoded `"mdy"`, no column) | **A** -- real `profiles.date_format`, editable |
+| Settings: number format | B (disabled Select, hardcoded `"standard"`, no column) | **A** -- real `profiles.number_format`, editable |
+| Settings: appearance/theme | **E** (should not exist -- Nexali is dark-only v1; Lovable's Appearance section shows a static "Nexali Obsidian Dark" badge, not a real theme picker) | unchanged, confirmed correctly absent |
+| Settings: reduce animations | **D** (out of scope -- no app-wide motion-reduction implementation exists to back it) | unchanged, still disabled/"Coming soon" |
+| Settings: show chart values | **D** (same -- no app-wide chart-value-toggle implementation exists) | unchanged, still disabled/"Coming soon" |
+| Settings: notification preferences | **D** (explicitly out of scope for this Part per instruction) | unchanged, still disabled/"Coming soon" |
+
+No field was found to already secretly exist under a different name; no field was found to need a CHECK constraint the current UI doesn't already imply (financial_bio's 240-char limit was already a real, shipped UI contract -- `BIO_LIMIT`/`maxLength` in the pre-existing Profile.tsx).
+
+### 38.2 New `profiles` columns (Part B/C)
+
+All six added in one migration, `supabase/migrations/20260917000000_profile_settings_preferences.sql`:
+
+| Column | Type | Nullable | Default | CHECK |
+|---|---|---|---|---|
+| `phone` | `text` | NULL | none | none (deliberately unvalidated -- see below) |
+| `location` | `text` | NULL | none | none |
+| `financial_bio` | `text` | NULL | none | `char_length(financial_bio) <= 240` (matches the pre-existing UI's own `BIO_LIMIT`) |
+| `currency` | `text` | NOT NULL | `'USD'` | `currency IN ('USD','EUR','GBP','CAD','AUD','JPY')` (exactly Settings' real `CURRENCY_OPTIONS`) |
+| `date_format` | `text` | NOT NULL | `'mdy'` | `date_format IN ('mdy','dmy','ymd')` (exactly Settings' real `DATE_FORMAT_OPTIONS`) |
+| `number_format` | `text` | NOT NULL | `'standard'` | `number_format IN ('standard','european','space')` (exactly Settings' real `NUMBER_FORMAT_OPTIONS`) |
+
+**Phone:** stored as free-text, deliberately unvalidated against any international format. The current frontend's phone field is a plain `<input type="tel">` with no format contract of its own -- inventing a validation rule now would be adding a restriction the product never asked for, not preserving one. **Location:** plain user-entered text, display/context metadata only -- no geocoding, no structured address, no coordinates. **Financial bio:** user-authored context for Aura, never an Aura prompt or generated output -- length-capped to match the shipped UI exactly.
+
+### 38.3 Existing-user migration behavior (Part Q)
+
+Every new column is either nullable-with-no-default (`phone`/`location`/`financial_bio` → every existing row gets real `NULL`, matching "no info entered yet") or `NOT NULL DEFAULT` chosen to exactly reproduce Nexali's pre-existing implicit behavior: `currency DEFAULT 'USD'` (the app's formatCurrency hardcoded default before this Part), `date_format DEFAULT 'mdy'` (what the disabled Settings Select always showed as selected, and what `toLocaleDateString()`'s en-US-style rendering always effectively produced), `number_format DEFAULT 'standard'` (what the disabled Settings Select always showed, and what formatCurrency's hardcoded `"en-US"` locale always effectively produced). **No existing user sees any unexpected formatting change on deploy** -- every default was chosen specifically to reproduce current behavior byte-for-byte, not to introduce a new opinion.
+
+### 38.4 `handle_new_user` (Part R)
+
+**Not modified.** All six new columns have safe column-level defaults (`NULL` or a literal), matching the exact same pattern already established for `budget_reset_cycle`/`reset_day`/`timezone`, none of which `handle_new_user` sets explicitly either (it only sets `id`/`full_name`/`avatar_url`; every other column relies on its own `DEFAULT`). A new user row picks up correct defaults automatically with zero trigger changes.
+
+### 38.5 Profile page (Part G/H)
+
+`UpdateProfileVars` (`src/features/profiles/useProfile.ts`) extended with `phone`/`location`/`financial_bio` (all `string | null`) and `currency`/`date_format`/`number_format` (all editable via Settings, not Profile -- see §38.6). `lib/profile.ts`'s `getProfile`/`ProfileSelect` extended to select and type all six new columns.
+
+Phone/Location/Financial bio are now real, enabled, editable fields wired into Profile's existing `FormState`/dirty-state/save/discard machinery (the exact same pattern `full_name` already used) -- no new architecture was introduced. On save: values are trimmed; a blank field is sent as real `NULL` (not an empty string, since these are optional fields and `NULL` is the intended "not set" representation, matching the migration's own column semantics), and a save failure leaves the entered (untrimmed) text exactly as typed, matching the existing full_name failure behavior. The Financial bio character counter (`{form.financialBio.length}/240`) is now real and live, replacing the previous hardcoded `0/240`.
+
+**Preferences summary (unchanged pattern):** Profile's "Preferred currency" row remains a static, read-only summary -- Settings remains the sole editor -- but now displays the real persisted `profiles.currency` (via the shared `currencyLabel()` helper in the new `src/lib/preferenceOptions.ts`) instead of a hardcoded `"USD ($)"` constant. Neither currency nor timezone participates in Profile's dirty state or Save payload, exactly as before.
+
+### 38.6 Settings page (Part I)
+
+Currency/date format/number format converted from disabled `<Select value="X" disabled>` controls to real, enabled, two-way-bound controls, backed by a `FormState` mirroring Profile's own pattern (`{timezone, currency, dateFormat, numberFormat}`, loaded once from the profile query, diffed against a `saved` baseline for dirty state). The "Coming soon -- not saved yet." caption was removed from exactly these three fields and nowhere else -- Reduce animations, Show chart values, every Notification-preference row, and the Appearance section's theme badge all keep their pending captions/disabled state unchanged, since none of them has any backing column or app-wide behavior yet (confirmed by re-inspection, not assumed).
+
+**Dirty state:** now `true` whenever any of the four real fields (`timezone`, `currency`, `dateFormat`, `numberFormat`) differs from its saved baseline -- verified with a dedicated test that changing currency alone enables Save/Discard exactly like changing timezone alone always did. Every still-disabled control (reduce animations, notifications, etc.) cannot affect dirty state at all, since there is nothing to interact with.
+
+**Save:** one `useUpdateProfile.mutate(...)` call always carrying the full current value of all four real fields together (`{timezone, currency, date_format, number_format}`) -- never one mutation per dropdown, and never a partial/diff-only payload, so a save always leaves the four fields mutually consistent even when the user changed several at once in the same visit.
+
+**Discard:** resets the entire `form` object back to `saved` in one assignment -- all four fields restore together, never partially.
+
+**Date-format preview:** now reads its example string from the shared `DATE_FORMAT_OPTIONS[...].preview` (via `src/lib/preferenceOptions.ts`) instead of a hardcoded `"10/24/2025"` literal, so it updates live as the user changes the selected format.
+
+### 38.7 Currency: storage semantics, no FX conversion (Part J/currency semantics)
+
+`profiles.currency` is an **account/display convention**, not a conversion instruction. Changing it from `USD` to `EUR` changes how existing (and future) stored amounts are *rendered* -- a different symbol/code and locale-appropriate separator placement -- and never rescales, converts, or otherwise mutates a single stored `transactions.amount`/`budgets.amount` value. This is explicit both in the migration's column comment and in `formatCurrency`'s own doc comment, and directly tested (`format.test.ts`: "does not perform FX conversion: the same numeric amount is shown under every currency, never rescaled"). Nexali has no multi-currency transaction model (no per-transaction currency column) -- this is a deliberate, documented limitation of the display-preference feature, not an oversight.
+
+### 38.8 Currency formatting architecture (Part J/M/currency+number interaction)
+
+`src/lib/format.ts`'s `formatCurrency(amount, currency = "USD", numberFormat: NumberFormatPref = "standard")` is the single shared formatter -- every production call site was traced (16 files) and converted from a static import to the new `useFormatCurrency()` hook. `numberFormat` selects a base locale purely for its separator CONVENTION (`standard` → `en-US`, `european` → `de-DE`), with `currency` always passed independently, so a currency choice can never silently override the user's chosen separator style (verified directly: `formatCurrency(1234.5, "EUR", "standard")` still uses comma-thousands/period-decimal, not German conventions). The `space` option (`1 234.56` -- space thousands, PERIOD decimal) does not correspond to any real-world ICU locale (every real space-thousands locale, e.g. `fr-FR`/`sv-SE`, pairs it with a comma decimal), so it is produced deterministically by post-processing `en-US`'s comma-thousands output rather than guessing at a locale -- guaranteeing Nexali's own documented example exactly, regardless of ICU version differences across browsers/environments.
+
+### 38.9 Number-format architecture (Part K)
+
+There is no separate app-wide "format a plain number" utility -- every place `number_format` is user-visible is a currency amount (confirmed by re-tracing every `formatCurrency` call site; no plain-number display anywhere needed thousands-separator behavior, e.g. category counts and percentages are always small integers where separator style is invisible). Adding a generic `formatNumber` with no real call site would have been exactly the "settings with no application behavior" anti-pattern this Part explicitly warns against for reduce-animations/show-chart-values -- so `number_format`'s real behavior is entirely expressed through `formatCurrency`'s locale selection (§38.8).
+
+### 38.10 Date-format architecture (Part L)
+
+Every `toLocaleDateString()`/date-rendering call site in the app was traced and classified:
+
+- **(A) User-facing calendar dates, now honoring `date_format`:** the Transactions table's Date column, the Dashboard's Recent Activity list, and the mobile transaction card (`TransactionTable.tsx`, `RecentActivityList.tsx`, `MobileTransactionCard.tsx`) -- exactly three call sites. All three now call the new `useFormatDate()` hook (`src/lib/dateFormat.ts`'s `formatDate(date, dateFormat, timeZone)`), which also reads the calendar day in the caller's **configured** `profiles.timezone` (reusing the existing `formatInTimeZone` primitive from Backend Part 4) rather than the browser's own timezone -- closing a small pre-existing display gap (these three sites previously used browser-local `toLocaleDateString()`) at effectively zero extra cost, verified with an explicit no-browser-timezone-regression test.
+- **(B) Machine/stable export date, deliberately NOT changed:** the CSV Date column (`buildTransactionsCsv`) stays fixed `YYYY-MM-DD` regardless of `date_format` -- see §38.11.
+- **(C) Month/year-only semantic labels, deliberately NOT date_format-governed:** the Dashboard/Reports cashflow chart's month labels (`dashboardMath.ts`/`useReportsData.ts`'s `monthLabel`), the Transactions-analytics period label (`transactionsAnalytics.ts`'s `buildActivityLabel`), the date-range picker's compact chip label (`TransactionFilterBar.tsx`'s `formatShort`), and "Member since [Month Year]" (Profile/Account) -- none of these has a day-precision component for `mdy`/`dmy`/`ymd` to meaningfully reorder, so all were left as locale-aware short labels, not blindly routed through the new formatter.
+
+### 38.11 CSV date-format decision (Part L/CSV)
+
+**Deliberately unchanged.** The CSV export's Date column stays stable `YYYY-MM-DD` (via the existing `formatInTimeZone`) regardless of the user's `date_format` preference. This is a considered decision, not an oversight: CSV is a machine-readable/interoperable export format (the Backend Part 4/5 report already established this reasoning for keeping it stable rather than mirroring UI formatting), and Nexali's product behavior has never implied "export should visually match the screen" -- changing it now would be a scope-expanding behavior change, not a preservation of one. Batching/sort/filter/timezone-correctness of the export path are all unchanged from Backend Part 2/4/5.
+
+### 38.12 Formatter access strategy (Part M)
+
+A new `FormatPreferencesProvider` (`src/features/profiles/FormatPreferencesContext.tsx`) is mounted exactly once, in `AppLayout.tsx` (inside `AuthGate`, wrapping every authenticated route), backed by a single `useProfile(userId)` call -- the SAME cached query key every other Profile/Settings/Dashboard/Reports/Transactions consumer already subscribes to, so this adds zero new network requests. `useFormatPreferences()`/`useFormatCurrency()`/`useFormatDate()` (`src/features/profiles/useFormatPreferences.ts`) read from that one shared context rather than each of the 16+ leaf components independently calling `useProfile`. The context/provider/hooks are split across three small files (`formatPreferencesStore.ts`, `FormatPreferencesContext.tsx`, `useFormatPreferences.ts`) purely to satisfy the existing `react-refresh/only-export-components` lint rule (a component file may only export components) -- the same pattern already established elsewhere in this codebase (e.g. `getPasswordStrength` was previously split out of a component file for the same reason). `useFormatPreferences()` falls back to Nexali's pre-Part-6 defaults (USD/standard/mdy/browser timezone) rather than throwing when no provider is present, so isolated unit tests that render a component without the provider continue to work unchanged (confirmed: the full existing test suite passed with zero new provider wiring needed in any pre-existing test file).
+
+### 38.13 Query-key / invalidation changes (Part N, timezone invalidation)
+
+No new query keys were needed for formatting preferences themselves -- they are read directly off the existing `qk.profile(userId)` cache via the new context, not cached separately. `useUpdateProfile`'s mutation now branches on whether `timezone` is present in the update payload:
+
+- **Timezone changed:** invalidates `qk.profile`, `qk.dashboardSummary`, `qk.reportsSummaryRoot`, `qk.budgetsProgressRoot`, and `qk.activitySummaryRoot` -- every cache whose SQL derives real financial-period boundaries from `profiles.timezone` (Backend Parts 4/5). Deliberately excludes `qk.categoryCounts` (all-time, filter-independent, no date-boundary logic at all -- Backend Part 5) and `qk.txRoot` (a previously-selected date-range filter's cached results were correct for whatever timezone was in effect when the selection was made; a new selection picks up the new timezone naturally with nothing to invalidate).
+- **Currency/date_format/number_format changed (timezone unchanged):** invalidates only `qk.profile` -- confirmed directly (not assumed) with a real-`QueryClient` test: the financial aggregate caches are NOT touched, since the underlying numbers/periods they hold are unaffected by a display-only preference change; the UI simply re-renders under the new preference from data already in the (unrefetched) cache.
+
+Verified with a dedicated test file, `src/features/profiles/useProfile.test.tsx`, exercising the real `useUpdateProfile` hook (not mocked) against a real `QueryClient` with a spied `invalidateQueries`.
+
+### 38.14 Security (Part P)
+
+No new RPC, no new table, no `SECURITY DEFINER` function was added or needed. All six new columns belong to `profiles`, already RLS-protected by the existing `Users can view/update their own profile` policies (`auth.uid() = id`), confirmed still correctly scoping every update through the unchanged `supabase.from("profiles").update(vars).eq("id", userId)` path -- `userId` is always the authenticated user's own id from `useUserInfo()`'s context, never client-form-supplied, so user A cannot update user B's preferences.
+
+### 38.15 Generated types / query keys (Part F)
+
+`src/types/database.types.ts`'s `profiles` Row/Insert/Update all gained the six new fields (no `any`). New: `src/lib/dateFormat.ts` (`DateFormatPref`, `formatDate`), `src/lib/preferenceOptions.ts` (shared `CURRENCY_OPTIONS`/`DATE_FORMAT_OPTIONS`/`NUMBER_FORMAT_OPTIONS` + label helpers, imported by both Profile and Settings so the two pages can never show different labels for the same stored code). `src/lib/format.ts`'s `formatCurrency` gained a `NumberFormatPref`-typed third parameter (previously a raw `locale` string -- safe, since no existing call site ever passed a third argument).
+
+### 38.16 Tests added/updated
+
+New: `src/lib/dateFormat.test.ts`, `src/lib/preferenceOptions` covered indirectly via Profile/Settings tests, `src/features/profiles/useProfile.test.tsx` (timezone vs. display-preference invalidation, §38.13). Rewritten: `src/lib/format.test.ts` (new signature, currency+number-format interaction matrix, explicit no-FX-conversion test), `src/pages/Profile.test.tsx` (+13 new cases for phone/location/bio persistence, dirty state, discard, save/failure, real currency summary), `src/pages/Settings.test.tsx` (+9 new cases for real currency/date/number persistence, combined-save-in-one-mutation, full discard, pending-controls-excluded-from-dirty-state).
+
+### 38.17 Quality gates (this Part)
+
+`npm run test`: 55 files, 483 tests, all passing. `npm run lint`: 0 errors, 0 warnings. `npm run build`: succeeds (same pre-existing >500kB chunk-size warning, unrelated). `npx tsc -b --force`: 0 errors.
+
+**Not run:** execution of the new migration against any real Postgres instance -- hand-reviewed only, consistent with every prior Part. See the final report for exact post-deployment verification SQL.

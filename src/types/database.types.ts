@@ -82,8 +82,14 @@ export type Database = {
           avatar_url: string | null
           budget_reset_cycle: string
           created_at: string | null
+          currency: string
+          date_format: string
+          financial_bio: string | null
           full_name: string | null
           id: string
+          location: string | null
+          number_format: string
+          phone: string | null
           reset_day: number
           timezone: string
         }
@@ -91,8 +97,14 @@ export type Database = {
           avatar_url?: string | null
           budget_reset_cycle?: string
           created_at?: string | null
+          currency?: string
+          date_format?: string
+          financial_bio?: string | null
           full_name?: string | null
           id: string
+          location?: string | null
+          number_format?: string
+          phone?: string | null
           reset_day?: number
           timezone?: string
         }
@@ -100,8 +112,14 @@ export type Database = {
           avatar_url?: string | null
           budget_reset_cycle?: string
           created_at?: string | null
+          currency?: string
+          date_format?: string
+          financial_bio?: string | null
           full_name?: string | null
           id?: string
+          location?: string | null
+          number_format?: string
+          phone?: string | null
           reset_day?: number
           timezone?: string
         }

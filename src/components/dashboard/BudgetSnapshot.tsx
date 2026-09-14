@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { PiggyBank } from "lucide-react";
 import { ChartCard } from "./ChartCard";
 import { Button } from "../ui/button";
-import { formatCurrency } from "../../lib/format";
+import { useFormatCurrency } from "../../features/profiles/useFormatPreferences";
 import { cn } from "../../lib/utils";
 import type { BudgetProgress } from "../../features/dashboard/dashboardMath";
 
@@ -26,6 +26,7 @@ const statusTextTone: Record<BudgetProgress["tone"], string> = {
 
 /** Real budgets for the current month/year, with spend computed from this month's actual transactions (see dashboardMath.ts) — not the all-time sum_category_amount RPC. */
 export function BudgetSnapshot({ items }: { items: BudgetProgress[] }) {
+  const formatCurrency = useFormatCurrency();
   return (
     <ChartCard
       title="Budget Snapshot"

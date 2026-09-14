@@ -1,13 +1,14 @@
 import { Link } from "react-router-dom";
 import { PieChart } from "lucide-react";
 import { ChartCard } from "./ChartCard";
-import { formatCurrency } from "../../lib/format";
+import { useFormatCurrency } from "../../features/profiles/useFormatPreferences";
 import type { CategorySlice } from "../../features/dashboard/dashboardMath";
 
 const DOT_TONES = ["bg-primary", "bg-success", "bg-warning", "bg-destructive"];
 
 /** This month's real expense transactions, grouped by category (see dashboardMath.ts). */
 export function SpendingBreakdownCard({ slices }: { slices: CategorySlice[] }) {
+  const formatCurrency = useFormatCurrency();
   return (
     <ChartCard title="Top Spending" description="Where this month's money went">
       {slices.length === 0 ? (

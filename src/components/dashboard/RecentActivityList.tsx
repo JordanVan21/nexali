@@ -1,12 +1,14 @@
 import { Link } from "react-router-dom";
 import { ChartCard } from "./ChartCard";
 import { getCategoryIcon } from "../../lib/categoryIcon";
-import { formatCurrency } from "../../lib/format";
+import { useFormatCurrency, useFormatDate } from "../../features/profiles/useFormatPreferences";
 import { cn } from "../../lib/utils";
 import type { TransactionWithCat } from "../../lib/transactions";
 
 /** The Dashboard's most recent transactions, reusing the same real transaction data and category icons as the Transactions page (see src/lib/categoryIcon.ts) — not a second transaction UI. */
 export function RecentActivityList({ items }: { items: TransactionWithCat[] }) {
+  const formatCurrency = useFormatCurrency();
+  const formatDate = useFormatDate();
   return (
     <ChartCard
       title="Recent Activity"
@@ -38,7 +40,7 @@ export function RecentActivityList({ items }: { items: TransactionWithCat[] }) {
                     {item.merchant || categoryName}
                   </span>
                   <span className="block truncate text-xs text-muted-foreground">
-                    {item.occurred_at ? new Date(item.occurred_at).toLocaleDateString() : "—"} • {categoryName}
+                    {item.occurred_at ? formatDate(item.occurred_at) : "—"} • {categoryName}
                   </span>
                 </span>
                 <span
