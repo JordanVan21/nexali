@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Edit,
   Trash2,
@@ -88,14 +88,28 @@ export function TransactionTable({
   const [pendingDelete, setPendingDelete] = useState<TransactionWithCat | null>(null);
 
   const { userId } = useUserInfo();
-  const txQuery = useTransactionWithFilters(userId, filters);
+  // Real server-side pagination: limit/offset here select the requested
+  // page itself (not an overall cap), and the query separately returns the
+  // true total match count -- see transactionsWithFilters /
+  // docs/BACKEND_AUDIT_REPORT.md P1-1 for why this replaced a client-side
+  // re-slice of an already 50-row-capped server response.
+  const txQuery = useTransactionWithFilters(userId, {
+    ...filters,
+    limit: pageSize,
+    offset: (currentPage - 1) * pageSize,
+  });
   const delTx = useDeleteTransaction(userId);
 
-  const transactions = (txQuery.data ?? []) as TransactionWithCat[];
-  const totalPages = Math.max(1, Math.ceil(transactions.length / pageSize));
+  // Reset to page 1 whenever the caller's own filters change (search, date,
+  // category, type, amount, sort) -- pageSize/currentPage are this
+  // component's own state and must not trigger themselves.
+  useEffect(() => setCurrentPage(1), [filters]);
+
+  const currentTransactions = txQuery.data?.rows ?? [];
+  const totalCount = txQuery.data?.totalCount ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
-  const currentTransactions = transactions.slice(startIndex, endIndex);
 
   const handlePageChange = (page: number) => setCurrentPage(page);
   const handlePageSizeChange = (newPageSize: string) => {
@@ -126,7 +140,7 @@ export function TransactionTable({
     );
   }
 
-  if (transactions.length === 0) {
+  if (totalCount === 0) {
     const filtered = hasActiveFilters(filters);
     return (
       <div className="p-4 sm:p-6">
@@ -285,7 +299,7 @@ export function TransactionTable({
       >
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
           <span>
-            {startIndex + 1}-{Math.min(endIndex, transactions.length)} of {transactions.length}
+            {startIndex + 1}-{Math.min(endIndex, totalCount)} of {totalCount}
           </span>
           <div className="hidden items-center gap-2 sm:flex">
             <span aria-hidden="true">·</span>

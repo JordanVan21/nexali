@@ -6,7 +6,7 @@ import { TransactionFilterBar } from "../components/TransactionFilterBar";
 import { TransactionTable } from "../components/TransactionTable";
 import { TransactionAnalytics } from "../components/TransactionAnalytics";
 import { TransactionDialog } from "../components/TransactionDialog";
-import { useTransactionWithFilters } from "../features/transactions/useTransactions";
+import { useExportTransactionsWithFilters } from "../features/transactions/useTransactions";
 import { useUserInfo } from "../shared/useUserId";
 import { buildTransactionsCsv, downloadCsv } from "../lib/csvExport";
 import { type Filters } from "../features/querykeys";
@@ -29,10 +29,9 @@ export default function Transactions() {
   const [dialogTarget, setDialogTarget] = useState<"add" | TransactionWithCat | null>(null);
 
   const { userId } = useUserInfo();
-  // Same query key TransactionTable uses for this filter set, so this shares
-  // its cached fetch (TanStack Query dedupes by key) rather than issuing a
-  // second request purely for Export.
-  const exportQuery = useTransactionWithFilters(userId, filters);
+  // Every transaction matching the current filters, independent of the
+  // table's current page/page size (see useExportTransactionsWithFilters).
+  const exportQuery = useExportTransactionsWithFilters(userId, filters);
   const exportRows = exportQuery.data ?? [];
 
   const handleExport = () => {
@@ -62,7 +61,7 @@ export default function Transactions() {
             title={
               exportRows.length === 0
                 ? "No transactions currently shown to export"
-                : "Export the transactions currently shown (up to 50 matching rows) as CSV"
+                : "Export all transactions matching your current filters as CSV"
             }
           >
             <Download className="h-4 w-4" aria-hidden="true" />

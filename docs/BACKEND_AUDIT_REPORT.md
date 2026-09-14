@@ -547,3 +547,24 @@ No `npm run build` was needed (no `src/` changes); the above three were run to c
 ## 33. What This Report Is / Is Not
 
 This is an audit and prioritized roadmap, not a set of applied fixes. Per the governing instructions for this Part: no migrations were applied, no destructive commands were run, no frontend was modified, and no production backend code was changed. The only artifact produced is this file.
+
+---
+
+## 34. Backend Part 2 — Changes Applied (2026-09-13)
+
+Two new forward-only migrations were **created but not applied**:
+
+- `supabase/migrations/20260913000000_secure_delete_user_rpc.sql` — fixes **P0-1**: revokes `EXECUTE` on `delete_user_everything(uuid)` from `anon`/`authenticated`, grants it to `service_role` only, and adds an in-function `auth.role() = 'service_role'` guard as defense-in-depth. Does not change the function's deletion logic (still deletes `transactions`/`budgets`/`categories`/`profiles` for the given id, same order).
+- `supabase/migrations/20260913000100_correct_profile_defaults.sql` — fixes **P1-2**: changes `profiles.budget_reset_cycle`'s default from `'month'` to `'monthly'`, plus a narrowly-scoped backfill (`WHERE budget_reset_cycle = 'month'`) for existing rows, justified because `'month'` was never a frontend-selectable value (see §12).
+
+Application code changes (P1-1 and Edge Function hardening, no migration needed):
+- `src/lib/transactions.ts`: `transactionsWithFilters` now does real server-side pagination with an exact total count (`{ count: "exact" }` + `.range()`), returning `{ rows, totalCount }` instead of a bare, silently-capped array. Added `fetchAllTransactionsWithFilters` for CSV export (same filters, no page cap).
+- `src/features/querykeys.ts`: `normalizeFilters`'s default `limit` changed from `50` (a de facto hard cap) to `10` (a real page size); added `normalizeExportFilters` and `qk.txExport`.
+- `src/features/transactions/useTransactions.ts`: added `useExportTransactionsWithFilters`; `useTransactionWithFilters` unchanged in shape but now backed by the real paginated query.
+- `src/components/TransactionTable.tsx`: removed the client-side re-slice of an already-capped array; page/pageSize now drive real server `limit`/`offset`; footer and page count now come from the server's real `totalCount`; resets to page 1 when filters change.
+- `src/pages/Transactions.tsx`: CSV export now uses `useExportTransactionsWithFilters` (all matching filtered rows) instead of sharing the table's paginated query; tooltip updated to no longer claim a 50-row cap.
+- `supabase/functions/delete-user/index.ts`: CORS now allowlist-based (configurable `ALLOWED_ORIGINS` env var + built-in localhost dev origins) instead of `*`; all error responses now return a safe generic message with the real detail logged server-side only; the request body's `userId` is no longer read at all -- the target user is derived solely from the verified JWT (`authData.user.id`), removing the client-supplied destructive identifier entirely; avatar Storage cleanup failures are now logged (still non-blocking).
+
+**Dead/orphaned RPCs, not removed in this Part** (candidates for removal once Backend Part 4 replaces them with real period-aware functions, per §13/§29 P3-1): `sum_income_amount(uuid)`, `sum_expense_amount(uuid)`, `sum_category_amount(uuid, int)`. Confirmed zero frontend call sites (`useTotals`, `getSpentAmount`/`useSpentAmount` are themselves orphaned). Not exploitable (RLS still applies, see §14), left in place per this Part's "minimal, audit-grounded" scope -- removing them is a cleanup task, not a security or correctness fix.
+
+Full detail, exact SQL, and the deployment/verification plan for the two migrations are in the Backend Part 2 completion report (session record); the migration files themselves are the source of truth for what will change once applied.

@@ -1,7 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchTransactions, deleteTransaction, upsertTransaction, type TxId, type TransactionWithCat, transactionsWithFilters } from "../../lib/transactions";
+import {
+  fetchTransactions,
+  deleteTransaction,
+  upsertTransaction,
+  type TxId,
+  type TransactionWithCat,
+  transactionsWithFilters,
+  fetchAllTransactionsWithFilters,
+} from "../../lib/transactions";
 import { resolveCategoryId } from "../../lib/categories";
-import { qk, normalizeFilters, type Filters } from "../querykeys";
+import { qk, normalizeFilters, normalizeExportFilters, type Filters } from "../querykeys";
 
 // Constants
 const OPTIMISTIC_CATEGORY_ID = -1;
@@ -222,6 +230,7 @@ export function useSaveTransaction(userId: string) {
 }
 
 
+/** Real server-paginated page of transactions for the current filters -- see transactionsWithFilters. */
 export function useTransactionWithFilters(userId: string, filters: Filters) {
   const normalizedFilters = normalizeFilters(filters);
   return useQuery({
@@ -229,5 +238,16 @@ export function useTransactionWithFilters(userId: string, filters: Filters) {
     queryFn: () => transactionsWithFilters(userId, normalizedFilters),
     enabled: !!userId,
     staleTime: 60_000,
-  })
+  });
+}
+
+/** Every transaction matching the current filters (no page cap) -- CSV export only. */
+export function useExportTransactionsWithFilters(userId: string, filters: Filters) {
+  const normalizedFilters = normalizeExportFilters(filters);
+  return useQuery({
+    queryKey: qk.txExport(userId, normalizedFilters),
+    queryFn: () => fetchAllTransactionsWithFilters(userId, normalizedFilters),
+    enabled: !!userId,
+    staleTime: 60_000,
+  });
 }

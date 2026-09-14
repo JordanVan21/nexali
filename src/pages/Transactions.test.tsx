@@ -17,9 +17,18 @@ vi.mock("../components/TransactionTable", () => ({
   ),
 }));
 
+let exportRows: unknown[] = [];
+
 vi.mock("../features/transactions/useTransactions", () => ({
   useSaveTransaction: () => ({ mutateAsync: vi.fn(), isPending: false, isError: false, error: null }),
-  useTransactionWithFilters: () => ({ data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() }),
+  useTransactionWithFilters: () => ({
+    data: { rows: [], totalCount: 0 },
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+  useExportTransactionsWithFilters: () => ({ data: exportRows, isLoading: false, isError: false, error: null, refetch: vi.fn() }),
   useTransactions: () => ({ data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() }),
 }));
 
@@ -31,6 +40,7 @@ vi.mock("../features/categories/useCategories", () => ({
 describe("Transactions page", () => {
   afterEach(() => {
     vi.clearAllMocks();
+    exportRows = [];
   });
 
   it("renders the page heading, filter bar, and transaction table", () => {
@@ -54,6 +64,16 @@ describe("Transactions page", () => {
     renderWithProviders(<Transactions />);
 
     expect(screen.getByRole("button", { name: /^export$/i })).toBeDisabled();
+  });
+
+  it("enables Export and describes it truthfully as exporting all filtered matches, not a fixed 50-row cap", () => {
+    exportRows = [{ id: 1 }, { id: 2 }];
+    renderWithProviders(<Transactions />);
+
+    const exportButton = screen.getByRole("button", { name: /^export$/i });
+    expect(exportButton).toBeEnabled();
+    expect(exportButton).toHaveAttribute("title", "Export all transactions matching your current filters as CSV");
+    expect(exportButton.getAttribute("title")).not.toMatch(/50/);
   });
 
   it("opens the Add Transaction dialog from the page header action", async () => {
