@@ -3,6 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../test/renderWithProviders";
 import { TransactionForm } from "./TransactionForm";
+import { toLocalDateInputValue, occurredAtFromLocalDateInput } from "../lib/transactionDate";
 import type { TransactionWithCat } from "../lib/transactions";
 
 const mutateAsync = vi.fn();
@@ -95,8 +96,12 @@ describe("TransactionForm", () => {
         amount: 42.5,
         merchant: "Whole Foods",
         note: "Weekly shop",
+        occurredAt: expect.any(String),
       });
     });
+    // Defaults to today (real local date), matching the visible Date field's default.
+    const [{ occurredAt }] = mutateAsync.mock.calls[0];
+    expect(occurredAt).toBe(occurredAtFromLocalDateInput(toLocalDateInputValue(new Date())));
     expect(onSaved).toHaveBeenCalledTimes(1);
   });
 
@@ -130,13 +135,14 @@ describe("TransactionForm", () => {
     expect(screen.getByRole("button", { name: /^category:/i })).toHaveTextContent("Salary");
   });
 
-  it("pre-fills fields when editing an existing transaction", () => {
+  it("pre-fills fields, including the real Date, when editing an existing transaction", () => {
     const existingTx: TransactionWithCat = {
       id: 7,
       amount: 18.25,
       merchant: "Shell Oil",
       note: "Gas",
-      created_at: "2024-01-01T00:00:00.000Z",
+      created_at: "2024-03-15T00:00:00.000Z",
+      occurred_at: "2024-01-01T12:00:00.000Z",
       category_id: 1,
       categories: { id: 1, name: "Groceries", type: "expense" },
     };
@@ -145,7 +151,69 @@ describe("TransactionForm", () => {
     expect(screen.getByLabelText(/amount/i)).toHaveValue(18.25);
     expect(screen.getByLabelText(/merchant/i)).toHaveValue("Shell Oil");
     expect(screen.getByLabelText(/note/i)).toHaveValue("Gas");
+    // The Date field loads the real financial date (occurred_at), not the
+    // technical created_at -- these are deliberately different above.
+    expect(screen.getByLabelText(/^date/i)).toHaveValue("2024-01-01");
     expect(screen.getByRole("button", { name: /save changes/i })).toBeInTheDocument();
+  });
+
+  it("resubmitting unrelated field changes preserves the original occurred_at's real calendar date rather than overwriting it with today", async () => {
+    // Built via the same local-date <-> ISO conversion the form itself
+    // uses, so round-tripping through the (deliberately date-only, no
+    // time-of-day UX) Date field is lossless for this fixture.
+    const originalOccurredAt = occurredAtFromLocalDateInput("2024-01-01");
+    const existingTx: TransactionWithCat = {
+      id: 7,
+      amount: 18.25,
+      merchant: "Shell Oil",
+      note: "Gas",
+      created_at: "2024-03-15T00:00:00.000Z",
+      occurred_at: originalOccurredAt,
+      category_id: 1,
+      categories: { id: 1, name: "Groceries", type: "expense" },
+    };
+    mutateAsync.mockResolvedValue({ id: 7, categoryId: 1 });
+    const user = userEvent.setup();
+    renderWithProviders(<TransactionForm existingTx={existingTx} onSaved={vi.fn()} onCancel={vi.fn()} />);
+
+    // Only change the amount -- never touch the Date field.
+    await user.clear(screen.getByLabelText(/amount/i));
+    await user.type(screen.getByLabelText(/amount/i), "25");
+    await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+    const [{ occurredAt }] = mutateAsync.mock.calls[0];
+    expect(occurredAt).toBe(originalOccurredAt);
+  });
+
+  it("changing the Date field updates occurred_at in the saved payload", async () => {
+    const existingTx: TransactionWithCat = {
+      id: 7,
+      amount: 18.25,
+      merchant: "Shell Oil",
+      note: "Gas",
+      created_at: "2024-03-15T00:00:00.000Z",
+      occurred_at: "2024-01-01T12:00:00.000Z",
+      category_id: 1,
+      categories: { id: 1, name: "Groceries", type: "expense" },
+    };
+    mutateAsync.mockResolvedValue({ id: 7, categoryId: 1 });
+    const user = userEvent.setup();
+    renderWithProviders(<TransactionForm existingTx={existingTx} onSaved={vi.fn()} onCancel={vi.fn()} />);
+
+    const dateField = screen.getByLabelText(/^date/i);
+    await user.clear(dateField);
+    await user.type(dateField, "2024-02-14");
+    await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+    const [{ occurredAt }] = mutateAsync.mock.calls[0];
+    expect(occurredAt).toBe(occurredAtFromLocalDateInput("2024-02-14"));
+  });
+
+  it("defaults the Date field to today for a brand-new transaction", () => {
+    renderWithProviders(<TransactionForm existingTx={null} onSaved={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.getByLabelText(/^date/i)).toHaveValue(toLocalDateInputValue(new Date()));
   });
 
   it("disables the submit button while saving", () => {

@@ -68,6 +68,7 @@ const makeTx = (overrides: Partial<TransactionWithCat> = {}): TransactionWithCat
   merchant: "Whole Foods Market",
   note: null,
   created_at: "2024-01-15T00:00:00.000Z",
+  occurred_at: "2024-01-15T00:00:00.000Z",
   category_id: 1,
   categories: { id: 1, name: "Groceries", type: "expense" },
   ...overrides,

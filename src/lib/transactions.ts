@@ -11,7 +11,7 @@ type TxUpdate = Database["public"]["Tables"]["transactions"]["Update"];
 export type TxId   = Database["public"]["Tables"]["transactions"]["Row"]["id"];
 
 export type TransactionWithCat =
-  Pick<TxRow, "id" | "amount" | "merchant" | "note" | "created_at" | "category_id"> & {
+  Pick<TxRow, "id" | "amount" | "merchant" | "note" | "created_at" | "occurred_at" | "category_id"> & {
     categories: { id: number; name: string; type: "income" | "expense" } | null;
   };
 
@@ -24,11 +24,12 @@ export async function fetchTransactions(userId: string): Promise<TransactionWith
       merchant,
       note,
       created_at,
+      occurred_at,
       category_id,
       categories:categories!transactions_category_id_fkey ( id, name, type )
     `)
     .eq("user_id", userId)
-    .order("created_at", { ascending: false })
+    .order("occurred_at", { ascending: false })
     .returns<TransactionWithCat[]>(); // tell TS the shape
 
   if (error) throw error;
@@ -52,8 +53,10 @@ export async function upsertTransaction(args : {
   amount: number;
   merchant?: string | null;
   note?: string | null;
+  /** Real financial transaction date (ISO), from the form's Date field -- never inferred. */
+  occurredAt: string;
 }): Promise<{ id: number}> {
-  const { existingId, userId, categoryId, amount, merchant, note } = args;
+  const { existingId, userId, categoryId, amount, merchant, note, occurredAt } = args;
 
   if (existingId != null) {
     const patch: TxUpdate = {
@@ -61,13 +64,17 @@ export async function upsertTransaction(args : {
       amount,
       merchant: merchant ?? null,
       note: note ?? null,
+      // Always re-sent, whether or not the user changed it, so editing
+      // amount/category never silently overwrites occurred_at with "now"
+      // -- the form always loads and resubmits the real current value.
+      occurred_at: occurredAt,
     };
 
     const { error } = await supabase
       .from("transactions")
       .update(patch)
       .eq("id", existingId)
-      .eq("user_id", userId); 
+      .eq("user_id", userId);
 
     if (error) throw error;
     return { id: existingId };
@@ -79,7 +86,9 @@ export async function upsertTransaction(args : {
     amount,
     merchant: merchant ?? null,
     note: note ?? null,
-    created_at: new Date().toISOString(),
+    // created_at: the technical row-creation timestamp, left to its own
+    // DEFAULT now() rather than set explicitly here.
+    occurred_at: occurredAt,
   };
 
   const { data, error } = await supabase
@@ -116,11 +125,13 @@ type VTxSearchRow = {
   merchant: string | null;
   note: string | null;
   created_at: string | null;
+  occurred_at: string | null;
   category_name: string | null;
   category_type: string | null;
 };
 
-const V_TX_SEARCH_COLUMNS = "id, user_id, amount, category_id, merchant, note, created_at, category_name, category_type";
+const V_TX_SEARCH_COLUMNS =
+  "id, user_id, amount, category_id, merchant, note, created_at, occurred_at, category_name, category_type";
 
 /**
  * Base v_tx_search query for one user, always requesting an exact count --
@@ -140,10 +151,10 @@ function applyTransactionFilters(query: ReturnType<typeof baseTxSearchQuery>, fi
   let q = query;
 
   if (filter.fromISO) {
-    q = q.gte("created_at", filter.fromISO);
+    q = q.gte("occurred_at", filter.fromISO);
   }
   if (filter.toISO) {
-    q = q.lt("created_at", filter.toISO);
+    q = q.lt("occurred_at", filter.toISO);
   }
   if (filter.categoryNames?.length) {
     q = q.in("category_name", filter.categoryNames);
@@ -165,10 +176,10 @@ function applyTransactionFilters(query: ReturnType<typeof baseTxSearchQuery>, fi
   const sortCol =
     filter.sortBy === "amount" ? "amount" :
     filter.sortBy === "category" ? "category_name" :
-    "created_at"; // "date" default
+    "occurred_at"; // "date" default -- the financial transaction date, not created_at
   // A secondary, always-unique tiebreak (id) keeps ordering fully
   // deterministic when the primary sort column has equal values (e.g. two
-  // transactions with the same created_at or amount) -- without it, ties
+  // transactions with the same occurred_at or amount) -- without it, ties
   // could be returned in a different relative order between separate
   // range()/batch requests (paginated table pages, or export batches),
   // letting a row shift between pages or get duplicated/skipped.
@@ -185,6 +196,7 @@ function toTransactionWithCat(row: VTxSearchRow): TransactionWithCat {
     merchant: row.merchant,
     note: row.note,
     created_at: row.created_at,
+    occurred_at: row.occurred_at as string,
     categories: {
       id: row.category_id as number,
       name: row.category_name as string,

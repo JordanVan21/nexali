@@ -12,6 +12,7 @@ const makeTx = (overrides: Partial<TransactionWithCat> & { categoryType?: "incom
     merchant: "Test Merchant",
     note: null,
     created_at: NOW.toISOString(),
+    occurred_at: NOW.toISOString(),
     category_id: 1,
     categories: { id: 1, name: "Groceries", type: categoryType },
     ...rest,
@@ -40,8 +41,8 @@ describe("computeDailyBurn", () => {
   it("excludes income and only counts real expense transactions", () => {
     const period = resolveBurnPeriod(undefined, undefined, NOW);
     const transactions = [
-      makeTx({ amount: 30, created_at: new Date(2024, 2, 5).toISOString(), categoryType: "expense" }),
-      makeTx({ amount: 5000, created_at: new Date(2024, 2, 5).toISOString(), categoryType: "income" }),
+      makeTx({ amount: 30, occurred_at: new Date(2024, 2, 5).toISOString(), categoryType: "expense" }),
+      makeTx({ amount: 5000, occurred_at: new Date(2024, 2, 5).toISOString(), categoryType: "income" }),
     ];
 
     const burn = computeDailyBurn(transactions, period);
@@ -62,7 +63,7 @@ describe("computeDailyBurn", () => {
 
   it("reports no previous-period data instead of a fabricated percentage when the previous period has no expenses", () => {
     const period = resolveBurnPeriod(undefined, undefined, NOW);
-    const transactions = [makeTx({ amount: 100, created_at: new Date(2024, 2, 5).toISOString() })];
+    const transactions = [makeTx({ amount: 100, occurred_at: new Date(2024, 2, 5).toISOString() })];
 
     const burn = computeDailyBurn(transactions, period);
 
@@ -73,8 +74,8 @@ describe("computeDailyBurn", () => {
   it("computes a real percent-change when a previous-period baseline exists", () => {
     const period = resolveBurnPeriod(undefined, undefined, NOW);
     const transactions = [
-      makeTx({ amount: 290, created_at: new Date(2024, 2, 5).toISOString() }), // current month: 290 / 10 days = 29/day
-      makeTx({ amount: 290, created_at: new Date(2024, 1, 5).toISOString() }), // previous month: 290 / 29 days = 10/day
+      makeTx({ amount: 290, occurred_at: new Date(2024, 2, 5).toISOString() }), // current month: 290 / 10 days = 29/day
+      makeTx({ amount: 290, occurred_at: new Date(2024, 1, 5).toISOString() }), // previous month: 290 / 29 days = 10/day
     ];
 
     const burn = computeDailyBurn(transactions, period);
@@ -93,19 +94,19 @@ describe("topExpenseCategories", () => {
         amount: 60,
         category_id: 1,
         categories: { id: 1, name: "Groceries", type: "expense" },
-        created_at: new Date(2024, 2, 2).toISOString(),
+        occurred_at: new Date(2024, 2, 2).toISOString(),
       }),
       makeTx({
         amount: 40,
         category_id: 2,
         categories: { id: 2, name: "Dining", type: "expense" },
-        created_at: new Date(2024, 2, 3).toISOString(),
+        occurred_at: new Date(2024, 2, 3).toISOString(),
       }),
       makeTx({
         amount: 500,
         category_id: 3,
         categories: { id: 3, name: "Salary", type: "income" },
-        created_at: new Date(2024, 2, 3).toISOString(),
+        occurred_at: new Date(2024, 2, 3).toISOString(),
       }),
     ];
 

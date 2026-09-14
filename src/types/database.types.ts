@@ -115,6 +115,7 @@ export type Database = {
           id: number
           merchant: string | null
           note: string | null
+          occurred_at: string
           user_id: string
         }
         Insert: {
@@ -124,6 +125,7 @@ export type Database = {
           id?: number
           merchant?: string | null
           note?: string | null
+          occurred_at: string
           user_id: string
         }
         Update: {
@@ -133,6 +135,7 @@ export type Database = {
           id?: number
           merchant?: string | null
           note?: string | null
+          occurred_at?: string
           user_id?: string
         }
         Relationships: [
@@ -157,6 +160,7 @@ export type Database = {
           id: number | null
           merchant: string | null
           note: string | null
+          occurred_at: string | null
           user_id: string | null
         }
         Relationships: [

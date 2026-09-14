@@ -22,13 +22,14 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
-function tx(overrides: Partial<TransactionWithCat> & { created_at: string }): TransactionWithCat {
+function tx(overrides: Partial<TransactionWithCat> & { occurred_at: string }): TransactionWithCat {
   return {
     id: overrides.id ?? 1,
     amount: 0,
     merchant: null,
     note: null,
     category_id: 1,
+    created_at: "2099-01-01T00:00:00Z",
     categories: { id: 1, name: "Groceries", type: "expense" },
     ...overrides,
   };
@@ -67,7 +68,7 @@ describe("useBudgetsForPeriod", () => {
 
   it("aggregates real per-budget spend into the period summary", () => {
     budgetsState = { data: [budget({ amount: 200 })], isLoading: false, isError: false };
-    txState = { data: [tx({ amount: 150, created_at: "2025-06-05T12:00:00Z" })], isLoading: false, isError: false };
+    txState = { data: [tx({ amount: 150, occurred_at: "2025-06-05T12:00:00Z" })], isLoading: false, isError: false };
 
     const { result } = renderHook(() => useBudgetsForPeriod("u1", 2025, 6), { wrapper });
 
@@ -79,7 +80,7 @@ describe("useBudgetsForPeriod", () => {
 
   it("does not clamp efficiency at 100 when the period is over budget overall", () => {
     budgetsState = { data: [budget({ amount: 100 })], isLoading: false, isError: false };
-    txState = { data: [tx({ amount: 150, created_at: "2025-06-05T12:00:00Z" })], isLoading: false, isError: false };
+    txState = { data: [tx({ amount: 150, occurred_at: "2025-06-05T12:00:00Z" })], isLoading: false, isError: false };
 
     const { result } = renderHook(() => useBudgetsForPeriod("u1", 2025, 6), { wrapper });
 
@@ -95,8 +96,8 @@ describe("useBudgetsForPeriod", () => {
     };
     txState = {
       data: [
-        tx({ amount: 10, created_at: "2025-06-01T12:00:00Z", category_id: 1 }), // normal
-        tx({ amount: 90, created_at: "2025-06-01T12:00:00Z", category_id: 2 }), // warning
+        tx({ amount: 10, occurred_at: "2025-06-01T12:00:00Z", category_id: 1 }), // normal
+        tx({ amount: 90, occurred_at: "2025-06-01T12:00:00Z", category_id: 2 }), // warning
       ],
       isLoading: false,
       isError: false,

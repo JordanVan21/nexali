@@ -17,7 +17,7 @@ function escapeCsvField(value: string): string {
  */
 export function buildTransactionsCsv(transactions: TransactionWithCat[]): string {
   const rows = transactions.map((tx) => [
-    tx.created_at ? new Date(tx.created_at).toISOString().slice(0, 10) : "",
+    tx.occurred_at ? new Date(tx.occurred_at).toISOString().slice(0, 10) : "",
     tx.categories?.type ?? "",
     tx.categories?.name ?? "Uncategorized",
     tx.merchant ?? "",

@@ -568,3 +568,63 @@ Application code changes (P1-1 and Edge Function hardening, no migration needed)
 **Dead/orphaned RPCs, not removed in this Part** (candidates for removal once Backend Part 4 replaces them with real period-aware functions, per §13/§29 P3-1): `sum_income_amount(uuid)`, `sum_expense_amount(uuid)`, `sum_category_amount(uuid, int)`. Confirmed zero frontend call sites (`useTotals`, `getSpentAmount`/`useSpentAmount` are themselves orphaned). Not exploitable (RLS still applies, see §14), left in place per this Part's "minimal, audit-grounded" scope -- removing them is a cleanup task, not a security or correctness fix.
 
 Full detail, exact SQL, and the deployment/verification plan for the two migrations are in the Backend Part 2 completion report (session record); the migration files themselves are the source of truth for what will change once applied.
+
+**Part 2 deployment status (checked at the start of Part 3 via the read-only `npx supabase migration list`): both `20260913000000_secure_delete_user_rpc.sql` and `20260913000100_correct_profile_defaults.sql` are confirmed deployed to the live project** (`local`/`remote` timestamps matched for all four migrations that existed at that point). Backend Part 3 was safe to build on top of them.
+
+---
+
+## 35. Backend Part 3 — Transaction Date Architecture (implemented in repository, NOT yet deployed)
+
+**Status: implementation complete and tested in this repository. The two new migrations below have NOT been applied to the live database -- `transactions.occurred_at` does not exist on the hosted project yet.** Do not assume any of this section is live until `npx supabase migration list` confirms it the same way §4/§34 confirmed prior parts.
+
+### What changed conceptually
+
+`transactions.created_at` was being read everywhere as if it were the transaction's financial date (§5/P1-3). It no longer is. A new column, `occurred_at`, now carries that meaning; `created_at` reverts to being purely a technical/audit timestamp (row-insertion time) that nothing in the application reads for date/period logic anymore.
+
+### Migrations created (NOT applied)
+
+- `supabase/migrations/20260914000000_add_transactions_occurred_at.sql` -- adds `transactions.occurred_at timestamptz`, nullable first; backfills `occurred_at = created_at` for every existing row (the only defensible fallback, since no separate financial date ever existed before); sets `NOT NULL`; adds `transactions_user_id_occurred_at_idx` on `(user_id, occurred_at DESC)`. No `DEFAULT` -- every insert path now supplies it explicitly, so a future insert that omits it fails loudly (NOT NULL violation) rather than silently defaulting to "now" and masking a bug.
+- `supabase/migrations/20260914000100_expose_occurred_at_in_v_tx_search.sql` -- `CREATE OR REPLACE VIEW v_tx_search` to add `occurred_at` (appended at the end of the column list, since `CREATE OR REPLACE VIEW` cannot reorder or insert existing columns), keeping `security_invoker='on'` and `created_at` exposed exactly as before.
+
+### Application code changed to use occurred_at
+
+- `src/lib/transactions.ts`: `TransactionWithCat` now includes `occurred_at`; `fetchTransactions` selects and orders by it; `upsertTransaction` takes a required `occurredAt` and writes it on both insert and update (update always resends it, so unrelated edits never blank it toward "now"); `applyTransactionFilters` (shared by the table's paginated query and the export batcher) now filters (`fromISO`/`toISO`) and defaults the "date" sort to `occurred_at`.
+- `src/features/transactions/useTransactions.ts`: `SaveVars` gained `occurredAt`; the optimistic-update object now carries a real `occurred_at` (from the form) alongside its own always-"now" `created_at` (the optimistic row's own technical stamp).
+- `src/components/TransactionForm.tsx`: added a real Date field (date-only, defaults to today, loads the existing transaction's date when editing). New helper module `src/lib/transactionDate.ts` (`toLocalDateInputValue`, `occurredAtFromLocalDateInput`) converts between the `<input type="date">` value and a real ISO timestamp, storing local **noon** (not midnight) so the chosen calendar date can never appear to shift by a day under `toLocaleDateString()`-based display -- the same browser-local convention already used everywhere else in the app (see P2-2 below; this does not fix that gap, it stays consistent with it).
+- Display: `TransactionTable.tsx`, `MobileTransactionCard.tsx`, `RecentActivityList.tsx`, and CSV export (`csvExport.ts`) all now render/export `occurred_at` instead of `created_at`.
+- Period math: `src/lib/financialPeriods.ts`'s `transactionTime()` -- the single shared choke point `budgetMath.ts`, `financialAnalytics.ts` (Dashboard/Reports), and `transactionsAnalytics.ts` (Transactions-page analytics) all build on -- now reads `occurred_at`. This one change correctly propagates the fix to Dashboard, Reports, Budgets, and the Transactions page's Average-Daily-Burn/Top-Categories cards simultaneously, with no separate per-feature changes needed.
+- `src/types/database.types.ts`: `transactions` and `v_tx_search` Row/Insert/Update types updated to match the pending migrations exactly (`occurred_at: string` required on `transactions`, `occurred_at: string | null` on the view, matching that table's other nullable-typed columns).
+
+### What intentionally did NOT change
+
+- `created_at` itself: never modified, never removed, still the row's real insertion timestamp (now actually sourced from the database's own `DEFAULT now()` on insert rather than the client's clock, a minor incidental improvement -- the explicit client-side `created_at: new Date().toISOString()` on insert was removed since it's redundant with the column default and less trustworthy than a server-generated timestamp for an audit field).
+- `profiles.timezone` is still not read by any date/period calculation (P2-2, unchanged, explicitly out of scope for this Part) -- all "today"/"this month" boundaries continue to use the browser's local timezone via plain `Date` arithmetic, exactly as before. The new Date field's local-noon storage strategy was deliberately chosen to be consistent with this existing (unfixed) behavior rather than introducing new, inconsistent timezone logic alongside it.
+- Dashboard/Reports/Budgets aggregate architecture: still fully client-side against `fetchTransactions`'s full result set (§8/P2-1's row-cap caveat is unchanged and unaffected by this Part).
+- `sum_income_amount`/`sum_expense_amount`/`sum_category_amount` (still orphaned, still all-time, untouched).
+
+### Tests added
+
+`src/lib/transactionDate.test.ts` (new), plus updated/extended coverage in `financialPeriods.test.ts`, `budgetMath.test.ts`, `dashboardMath.test.ts`, `financialAnalytics.test.ts`, `transactionsAnalytics.test.ts`, `useReportsData.test.tsx`, `useBudgetsForPeriod.test.tsx`, `csvExport.test.ts`, `transactions.test.ts`, `TransactionForm.test.tsx`, `Budgets.test.tsx`, `Dashboard.test.tsx`, `Reports.test.tsx` -- every transaction fixture across these files now carries a deliberately-different `created_at` from its `occurred_at` so a regression back to reading `created_at` anywhere in the date-sensitive code paths would fail loudly. Full suite: 48 files, 427 tests passing.
+
+### Deployment steps (not yet run -- requires explicit approval)
+
+```bash
+npx supabase migration list                          # confirm current state first
+npx supabase db push                                  # applies both new migrations, in order
+npx supabase gen types typescript --linked > src/types/database.types.ts   # optional: re-generate and diff against the hand-written update above
+```
+
+Post-deployment verification:
+```sql
+select column_name, is_nullable, column_default
+from information_schema.columns
+where table_name = 'transactions' and column_name = 'occurred_at';
+-- expect: is_nullable = 'NO', column_default = null
+
+select count(*) from public.transactions where occurred_at is null;
+-- expect: 0
+
+select indexname from pg_indexes
+where tablename = 'transactions' and indexname = 'transactions_user_id_occurred_at_idx';
+-- expect: 1 row
+```

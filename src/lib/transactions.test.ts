@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { transactionsWithFilters, fetchAllTransactionsWithFilters } from "./transactions";
+import { transactionsWithFilters, fetchAllTransactionsWithFilters, fetchTransactions } from "./transactions";
 import type { Filters } from "../features/querykeys";
 
 type ChainResult = { data: unknown[] | null; error: null; count: number | null };
@@ -14,6 +14,7 @@ interface SupabaseChainMock extends PromiseLike<ChainResult> {
   or: (...args: unknown[]) => SupabaseChainMock;
   order: (...args: unknown[]) => SupabaseChainMock;
   range: (...args: unknown[]) => SupabaseChainMock;
+  returns: (...args: unknown[]) => SupabaseChainMock;
 }
 
 function makeChainable(result: ChainResult): SupabaseChainMock {
@@ -27,6 +28,7 @@ function makeChainable(result: ChainResult): SupabaseChainMock {
     or: vi.fn(() => chain),
     order: vi.fn(() => chain),
     range: vi.fn(() => chain),
+    returns: vi.fn(() => chain),
     then: (resolve, reject) => Promise.resolve(result).then(resolve, reject),
   };
   return chain;
@@ -46,6 +48,7 @@ function mockRow(id: number) {
     merchant: "Test",
     note: null,
     created_at: "2024-01-01T00:00:00.000Z",
+    occurred_at: "2024-01-01T00:00:00.000Z",
     category_name: "Groceries",
     category_type: "expense",
   };
@@ -181,6 +184,15 @@ describe("transactionsWithFilters (real server pagination)", () => {
     expect(chain.range).toHaveBeenCalledWith(0, 9);
   });
 
+  it("defaults the 'date' sort to the real financial occurred_at column, not created_at", async () => {
+    const chain = mockFrom({ data: [], error: null, count: 0 });
+
+    await transactionsWithFilters("u1", { limit: 10, offset: 0 }); // no sortBy -- the default
+
+    expect(chain.order).toHaveBeenCalledWith("occurred_at", { ascending: false });
+    expect(chain.order).not.toHaveBeenCalledWith("created_at", expect.anything());
+  });
+
   it("passes every active filter to the query", async () => {
     const chain = mockFrom({ data: [], error: null, count: 0 });
 
@@ -194,8 +206,8 @@ describe("transactionsWithFilters (real server pagination)", () => {
       search: "coffee",
     });
 
-    expect(chain.gte).toHaveBeenCalledWith("created_at", "2024-01-01");
-    expect(chain.lt).toHaveBeenCalledWith("created_at", "2024-02-01");
+    expect(chain.gte).toHaveBeenCalledWith("occurred_at", "2024-01-01");
+    expect(chain.lt).toHaveBeenCalledWith("occurred_at", "2024-02-01");
     expect(chain.in).toHaveBeenCalledWith("category_name", ["Groceries"]);
     expect(chain.in).toHaveBeenCalledWith("category_type", ["expense"]);
     expect(chain.gte).toHaveBeenCalledWith("amount", 5);
@@ -312,8 +324,8 @@ describe("fetchAllTransactionsWithFilters (batched export path)", () => {
 
     expect(chains).toHaveLength(3);
     for (const chain of chains) {
-      expect(chain.gte).toHaveBeenCalledWith("created_at", "2024-01-01");
-      expect(chain.lt).toHaveBeenCalledWith("created_at", "2024-02-01");
+      expect(chain.gte).toHaveBeenCalledWith("occurred_at", "2024-01-01");
+      expect(chain.lt).toHaveBeenCalledWith("occurred_at", "2024-02-01");
       expect(chain.in).toHaveBeenCalledWith("category_name", ["Groceries"]);
       expect(chain.in).toHaveBeenCalledWith("category_type", ["expense"]);
       expect(chain.gte).toHaveBeenCalledWith("amount", 5);
@@ -350,5 +362,22 @@ describe("fetchAllTransactionsWithFilters (batched export path)", () => {
     await fetchAllTransactionsWithFilters("u1", NO_FILTERS);
 
     expect(vi.mocked(supabase.from)).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("fetchTransactions (unfiltered, used by Dashboard/Reports/Budgets/Analytics)", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("selects and orders by occurred_at, the real financial date -- not created_at", async () => {
+    const chain = makeChainable({ data: [], error: null, count: null });
+    vi.mocked(supabase.from).mockReturnValue(chain as unknown as ReturnType<typeof supabase.from>);
+
+    await fetchTransactions("u1");
+
+    expect(chain.select).toHaveBeenCalledWith(expect.stringContaining("occurred_at"));
+    expect(chain.order).toHaveBeenCalledWith("occurred_at", { ascending: false });
+    expect(chain.order).not.toHaveBeenCalledWith("created_at", expect.anything());
   });
 });

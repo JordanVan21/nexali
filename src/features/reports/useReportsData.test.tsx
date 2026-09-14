@@ -24,13 +24,14 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
-function tx(overrides: Partial<TransactionWithCat> & { created_at: string }): TransactionWithCat {
+function tx(overrides: Partial<TransactionWithCat> & { occurred_at: string }): TransactionWithCat {
   return {
     id: overrides.id ?? Math.floor(Math.random() * 1_000_000),
     amount: 0,
     merchant: null,
     note: null,
     category_id: 1,
+    created_at: "2099-01-01T00:00:00Z",
     categories: { id: 1, name: "Groceries", type: "expense" },
     ...overrides,
   };
@@ -44,9 +45,9 @@ describe("useReportsData", () => {
   it("computes real income/expenses/net for the selected period only", () => {
     txState = {
       data: [
-        tx({ amount: 3000, created_at: "2025-06-01T12:00:00Z", categories: { id: 9, name: "Salary", type: "income" } }),
-        tx({ amount: 200, created_at: "2025-06-05T12:00:00Z" }),
-        tx({ amount: 9999, created_at: "2024-01-05T12:00:00Z" }), // well outside any tested period
+        tx({ amount: 3000, occurred_at: "2025-06-01T12:00:00Z", categories: { id: 9, name: "Salary", type: "income" } }),
+        tx({ amount: 200, occurred_at: "2025-06-05T12:00:00Z" }),
+        tx({ amount: 9999, occurred_at: "2024-01-05T12:00:00Z" }), // well outside any tested period
       ],
       isLoading: false,
       isError: false,
@@ -61,8 +62,8 @@ describe("useReportsData", () => {
   it("changing the period changes the computed totals", () => {
     txState = {
       data: [
-        tx({ amount: 100, created_at: "2025-06-05T12:00:00Z" }), // this month
-        tx({ amount: 50, created_at: "2025-04-05T12:00:00Z" }), // 3 months back, not 1
+        tx({ amount: 100, occurred_at: "2025-06-05T12:00:00Z" }), // this month
+        tx({ amount: 50, occurred_at: "2025-04-05T12:00:00Z" }), // 3 months back, not 1
       ],
       isLoading: false,
       isError: false,
@@ -79,8 +80,8 @@ describe("useReportsData", () => {
   it("computes the previous equivalent-length period for comparison", () => {
     txState = {
       data: [
-        tx({ amount: 100, created_at: "2025-06-05T12:00:00Z" }), // in the 1-month window
-        tx({ amount: 40, created_at: "2025-05-05T12:00:00Z" }), // in the previous 1-month window
+        tx({ amount: 100, occurred_at: "2025-06-05T12:00:00Z" }), // in the 1-month window
+        tx({ amount: 40, occurred_at: "2025-05-05T12:00:00Z" }), // in the previous 1-month window
       ],
       isLoading: false,
       isError: false,
@@ -103,8 +104,8 @@ describe("useReportsData", () => {
   it("computes a real, guarded savings rate", () => {
     txState = {
       data: [
-        tx({ amount: 1000, created_at: "2025-06-01T12:00:00Z", categories: { id: 9, name: "Salary", type: "income" } }),
-        tx({ amount: 600, created_at: "2025-06-05T12:00:00Z" }),
+        tx({ amount: 1000, occurred_at: "2025-06-01T12:00:00Z", categories: { id: 9, name: "Salary", type: "income" } }),
+        tx({ amount: 600, occurred_at: "2025-06-05T12:00:00Z" }),
       ],
       isLoading: false,
       isError: false,
@@ -116,7 +117,7 @@ describe("useReportsData", () => {
   });
 
   it("returns null savings rate instead of Infinity/NaN when there is no income in the period", () => {
-    txState = { data: [tx({ amount: 100, created_at: "2025-06-05T12:00:00Z" })], isLoading: false, isError: false };
+    txState = { data: [tx({ amount: 100, occurred_at: "2025-06-05T12:00:00Z" })], isLoading: false, isError: false };
     budgetsState = { data: [], isLoading: false, isError: false };
 
     const { result } = renderHook(() => useReportsData("u1", 1, ALL_CATEGORIES, NOW), { wrapper });
@@ -126,9 +127,9 @@ describe("useReportsData", () => {
   it("filters category totals by the selected category, excluding income", () => {
     txState = {
       data: [
-        tx({ amount: 300, created_at: "2025-06-01T12:00:00Z", category_id: 1, categories: { id: 1, name: "Housing", type: "expense" } }),
-        tx({ amount: 100, created_at: "2025-06-02T12:00:00Z", category_id: 2, categories: { id: 2, name: "Dining", type: "expense" } }),
-        tx({ amount: 5000, created_at: "2025-06-03T12:00:00Z", categories: { id: 9, name: "Salary", type: "income" } }),
+        tx({ amount: 300, occurred_at: "2025-06-01T12:00:00Z", category_id: 1, categories: { id: 1, name: "Housing", type: "expense" } }),
+        tx({ amount: 100, occurred_at: "2025-06-02T12:00:00Z", category_id: 2, categories: { id: 2, name: "Dining", type: "expense" } }),
+        tx({ amount: 5000, occurred_at: "2025-06-03T12:00:00Z", categories: { id: 9, name: "Salary", type: "income" } }),
       ],
       isLoading: false,
       isError: false,
@@ -173,9 +174,9 @@ describe("useReportsData", () => {
   it("builds the real category filter list from expense categories actually present in the data", () => {
     txState = {
       data: [
-        tx({ amount: 10, created_at: "2025-06-01T12:00:00Z", categories: { id: 1, name: "Zebra", type: "expense" } }),
-        tx({ amount: 10, created_at: "2025-06-01T12:00:00Z", categories: { id: 2, name: "Apple", type: "expense" } }),
-        tx({ amount: 10, created_at: "2025-06-01T12:00:00Z", categories: { id: 9, name: "Salary", type: "income" } }),
+        tx({ amount: 10, occurred_at: "2025-06-01T12:00:00Z", categories: { id: 1, name: "Zebra", type: "expense" } }),
+        tx({ amount: 10, occurred_at: "2025-06-01T12:00:00Z", categories: { id: 2, name: "Apple", type: "expense" } }),
+        tx({ amount: 10, occurred_at: "2025-06-01T12:00:00Z", categories: { id: 9, name: "Salary", type: "income" } }),
       ],
       isLoading: false,
       isError: false,

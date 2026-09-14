@@ -21,7 +21,7 @@ type MobileTransactionCardProps = {
 export function MobileTransactionCard({ tx, onEdit, onDelete }: MobileTransactionCardProps) {
   const isIncome = tx.categories?.type === "income";
   const categoryName = tx.categories?.name ?? "Uncategorized";
-  const date = tx.created_at ? new Date(tx.created_at).toLocaleDateString() : "";
+  const date = tx.occurred_at ? new Date(tx.occurred_at).toLocaleDateString() : "";
   const amountLabel = `${isIncome ? "+" : "-"}${formatCurrency(Math.abs(tx.amount))}`;
   const MerchantIcon = getCategoryIcon(categoryName);
   const toneText = getCategoryIconClass(categoryName);

@@ -38,7 +38,7 @@ export function RecentActivityList({ items }: { items: TransactionWithCat[] }) {
                     {item.merchant || categoryName}
                   </span>
                   <span className="block truncate text-xs text-muted-foreground">
-                    {item.created_at ? new Date(item.created_at).toLocaleDateString() : "—"} • {categoryName}
+                    {item.occurred_at ? new Date(item.occurred_at).toLocaleDateString() : "—"} • {categoryName}
                   </span>
                 </span>
                 <span

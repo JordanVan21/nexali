@@ -31,6 +31,7 @@ const GROCERIES_TX: TransactionWithCat = {
   note: null,
   category_id: 1,
   created_at: isoThisMonth(5),
+  occurred_at: isoThisMonth(5),
   categories: { id: 1, name: "Groceries", type: "expense" },
 };
 

@@ -23,6 +23,8 @@ export type SaveVars = {
   amount: number;
   merchant: string | null;
   note: string | null;
+  /** Real financial transaction date (ISO), from the form's Date field. */
+  occurredAt: string;
 };
 
 type MutationContext = {
@@ -147,6 +149,7 @@ export function useSaveTransaction(userId: string) {
         amount: vars.amount,
         merchant: trimmedMerchant, // Add this line
         note: trimmedNote,
+        occurredAt: vars.occurredAt,
       });
       
       return { ...result, categoryId };
@@ -167,6 +170,7 @@ export function useSaveTransaction(userId: string) {
         note: vars.note?.trim() || null,
         merchant: vars.merchant?.trim() || null,
         created_at: new Date().toISOString(),
+        occurred_at: vars.occurredAt,
         category_id: OPTIMISTIC_CATEGORY_ID,
         categories: {
           id: OPTIMISTIC_CATEGORY_ID,

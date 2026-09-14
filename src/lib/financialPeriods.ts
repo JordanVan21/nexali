@@ -22,8 +22,9 @@ export function monthRange(year: number, monthIndex0: number): MonthRange {
   return { start: startOfMonth(year, monthIndex0), end: startOfMonth(year, monthIndex0 + 1) };
 }
 
+/** The real financial transaction date/time (occurred_at), not the technical created_at row-insertion timestamp. */
 export function transactionTime(tx: TransactionWithCat): number {
-  return tx.created_at ? new Date(tx.created_at).getTime() : 0;
+  return tx.occurred_at ? new Date(tx.occurred_at).getTime() : 0;
 }
 
 export function isTransactionInRange(tx: TransactionWithCat, range: MonthRange): boolean {

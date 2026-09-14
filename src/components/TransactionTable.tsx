@@ -208,7 +208,7 @@ export function TransactionTable({
               return (
                 <TableRow key={tx.id} className="transition-colors">
                   <TableCell className="numeric text-sm text-muted-foreground lg:px-6 xl:text-base">
-                    {tx.created_at ? new Date(tx.created_at).toLocaleDateString() : "—"}
+                    {tx.occurred_at ? new Date(tx.occurred_at).toLocaleDateString() : "—"}
                   </TableCell>
                   <TableCell className="lg:px-6">
                     <div className="flex items-center gap-3">

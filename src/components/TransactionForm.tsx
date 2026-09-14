@@ -8,6 +8,7 @@ import { Button } from "./ui/button";
 import { CategoryPicker } from "./CategoryPicker";
 import { StatusBanner } from "./states/StatusBanner";
 import { getErrorMessage } from "../lib/utils";
+import { toLocalDateInputValue, occurredAtFromLocalDateInput } from "../lib/transactionDate";
 import type { TransactionWithCat } from "../lib/transactions";
 
 type CatItem = { id: number | string; name: string };
@@ -23,10 +24,14 @@ const toTxType = (t: unknown): "income" | "expense" =>
   t === "income" || t === "expense" ? t : "expense";
 
 /**
- * The Add/Edit Transaction form. Fields match the actual transactions
- * schema (amount, category, type, merchant, note) — there is no dedicated
- * transaction-date column (only an auto-set created_at), so no date field
- * is offered here; see the Phase 3 report for that known limitation.
+ * The Add/Edit Transaction form. Fields match the real transactions
+ * schema: amount, category, type, merchant, note, and Date (occurred_at --
+ * the real financial transaction date, separate from the technical
+ * created_at row-insertion timestamp; see docs/BACKEND_AUDIT_REPORT.md
+ * §5/P1-3 and Backend Part 3). Date defaults to today and is a plain
+ * calendar date, not a date+time picker -- Nexali has no other use for a
+ * time-of-day on a transaction yet, and keeping the control simple matches
+ * the rest of the form.
  */
 export function TransactionForm({ existingTx, onSaved, onCancel }: TransactionFormProps) {
   const [category, setCategory] = useState<CatItem | null>(
@@ -38,6 +43,9 @@ export function TransactionForm({ existingTx, onSaved, onCancel }: TransactionFo
   const [amount, setAmount] = useState(existingTx?.amount?.toString() ?? "");
   const [merchant, setMerchant] = useState(existingTx?.merchant ?? "");
   const [note, setNote] = useState(existingTx?.note ?? "");
+  const [occurredAtInput, setOccurredAtInput] = useState(
+    existingTx?.occurred_at ? toLocalDateInputValue(new Date(existingTx.occurred_at)) : toLocalDateInputValue(new Date())
+  );
   const [amountInvalid, setAmountInvalid] = useState(false);
   const [categoryTouched, setCategoryTouched] = useState(false);
 
@@ -55,12 +63,16 @@ export function TransactionForm({ existingTx, onSaved, onCancel }: TransactionFo
       setAmount(existingTx.amount.toString());
       setNote(existingTx.note ?? "");
       setMerchant(existingTx.merchant ?? "");
+      setOccurredAtInput(
+        existingTx.occurred_at ? toLocalDateInputValue(new Date(existingTx.occurred_at)) : toLocalDateInputValue(new Date())
+      );
     } else {
       setCategory(null);
       setType("expense");
       setAmount("");
       setNote("");
       setMerchant("");
+      setOccurredAtInput(toLocalDateInputValue(new Date()));
     }
   }, [existingTx]);
 
@@ -78,6 +90,8 @@ export function TransactionForm({ existingTx, onSaved, onCancel }: TransactionFo
     }
     setAmountInvalid(false);
 
+    if (!occurredAtInput) return;
+
     try {
       await saveTx.mutateAsync({
         existingId: existingTx?.id,
@@ -86,6 +100,7 @@ export function TransactionForm({ existingTx, onSaved, onCancel }: TransactionFo
         amount: amt,
         merchant: merchant.trim() || null,
         note: note.trim() || null,
+        occurredAt: occurredAtFromLocalDateInput(occurredAtInput),
       });
       await onSaved();
     } catch {
@@ -180,6 +195,20 @@ export function TransactionForm({ existingTx, onSaved, onCancel }: TransactionFo
             Enter an amount greater than zero.
           </p>
         )}
+      </div>
+
+      <div>
+        <Label htmlFor="tx-date" className="text-foreground">
+          Date *
+        </Label>
+        <Input
+          id="tx-date"
+          type="date"
+          value={occurredAtInput}
+          onChange={(e) => setOccurredAtInput(e.target.value)}
+          required
+          className="mt-2 h-11"
+        />
       </div>
 
       <div>

@@ -18,6 +18,7 @@ const SALARY: TransactionWithCat = {
   note: null,
   category_id: 9,
   created_at: isoThisMonth(1),
+  occurred_at: isoThisMonth(1),
   categories: { id: 9, name: "Salary", type: "income" },
 };
 
@@ -28,6 +29,7 @@ const GROCERIES: TransactionWithCat = {
   note: null,
   category_id: 1,
   created_at: isoThisMonth(5),
+  occurred_at: isoThisMonth(5),
   categories: { id: 1, name: "Groceries", type: "expense" },
 };
 
@@ -99,6 +101,7 @@ describe("Reports page", () => {
           note: null,
           category_id: 1,
           created_at: new Date(fourMonthsBack.getFullYear(), fourMonthsBack.getMonth(), 10, 12).toISOString(),
+          occurred_at: new Date(fourMonthsBack.getFullYear(), fourMonthsBack.getMonth(), 10, 12).toISOString(),
           categories: { id: 1, name: "Groceries", type: "expense" },
         },
       ],
