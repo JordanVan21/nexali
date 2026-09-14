@@ -40,8 +40,27 @@ export function useDashboardData(userId: string): DashboardData {
   }, [budgetsQuery.data, summaryQuery.data]);
 
   const summary = useMemo(() => {
-    if (!summaryQuery.data || !progressQuery.data) return null;
-    return mapDashboardSummary(summaryQuery.data, periodBudgets, progressQuery.data);
+    // Deliberately gated on summaryQuery.data ALONE, matching
+    // dashboard.transactions.isLoading/isError/hasData below (all three
+    // also derive purely from summaryQuery) -- month/prevMonth/cashflow/
+    // categoryBreakdown/recentTransactions never depended on budget-progress
+    // data in the first place (see mapDashboardSummary). Requiring
+    // progressQuery.data too here (as a previous version of this file did)
+    // decoupled "is summary safe to render" from "is transactions.isLoading
+    // false", which on a cold cache let Dashboard.tsx reach its `summary!.*`
+    // render branch for one render while `summary` was still null --
+    // `progressQuery` only *becomes* enabled once summaryQuery.data
+    // supplies currentYear/currentMonth, so its own data is never populated
+    // in that same render, throwing a TypeError caught by the page Error
+    // Boundary. `spendRows` defaults to [] while budget-progress hasn't
+    // loaded yet -- the budget figures it feeds (`summary.budgets`/
+    // `warningsCount`) read as a real, if momentarily stale, zero until
+    // progressQuery resolves, exactly mirroring how this hook worked before
+    // Backend Part 4 (`budgetsQuery.data ?? []`) -- the BudgetSnapshot
+    // panel itself still has its own independent `dashboard.budgets.isLoading`
+    // skeleton gate below, unaffected by this.
+    if (!summaryQuery.data) return null;
+    return mapDashboardSummary(summaryQuery.data, periodBudgets, progressQuery.data ?? []);
   }, [summaryQuery.data, progressQuery.data, periodBudgets]);
 
   return {

@@ -16,8 +16,13 @@ export function useBudgetsProgress(userId: string, year: number | undefined, mon
     // year/month are undefined for the brief window before a caller (e.g.
     // Dashboard) has learned the caller's current local month from
     // dashboard_summary() -- disabled rather than guessing, so this never
-    // queries the wrong period.
-    enabled: !!userId && year != null && month != null,
+    // queries the wrong period. Number.isInteger (not just `!= null`) also
+    // guards against ever sending NaN/non-integer garbage to the RPC if an
+    // upstream response were ever malformed -- supabase-js JSON-serializes
+    // RPC args, and JSON.stringify(NaN) silently becomes `null`, so without
+    // this check a NaN year/month wouldn't crash here, but it's a cheap,
+    // correct guard to keep this query's own contract honest regardless.
+    enabled: !!userId && Number.isInteger(year) && Number.isInteger(month),
     staleTime: 60_000,
   });
 }
