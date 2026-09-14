@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useUserInfo } from "../shared/useUserId";
 import { Button } from "./ui/button";
 import {
@@ -34,9 +34,8 @@ import {
   TrendingDown,
   SlidersHorizontal,
 } from "lucide-react";
-import { useTransactions } from "../features/transactions/useTransactions";
+import { useTransactionCategoryCounts } from "../features/transactions/useTransactionCategoryCounts";
 import { useProfile } from "../features/profiles/useProfile";
-import { useTransactionCounts } from "../lib/transactions";
 import { CategoryFilterDropdown } from "./CategoryFilterDropdown";
 import { hasActiveFilters, type Filters } from "../features/querykeys";
 import { zonedTimeToUtc, browserTimeZone } from "../lib/timezone";
@@ -76,8 +75,18 @@ export function TransactionFilterBar({ filters, onFiltersChange }: TransactionFi
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const { userId } = useUserInfo();
-  const { data: transactions = [] } = useTransactions(userId);
-  const categoryTransactionCounts = useTransactionCounts(transactions);
+  // Real, all-time, server-computed per-category transaction counts for
+  // the filter dropdown's badge numbers -- see
+  // transaction_category_counts() (Backend Part 5). Independent of every
+  // other active filter, matching the exact semantics of the removed
+  // client-side useTransactionCounts() (see docs/BACKEND_AUDIT_REPORT.md
+  // Backend Part 5).
+  const countsQuery = useTransactionCategoryCounts(userId);
+  const categoryTransactionCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const row of countsQuery.data ?? []) map[row.categoryName] = row.count;
+    return map;
+  }, [countsQuery.data]);
   const profile = useProfile(userId);
   // The real financial timezone (profiles.timezone) -- date-range filter
   // boundaries must be computed relative to this, not the browser's own

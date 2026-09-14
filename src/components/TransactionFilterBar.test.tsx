@@ -5,8 +5,8 @@ import { renderWithProviders } from "../test/renderWithProviders";
 import { TransactionFilterBar } from "./TransactionFilterBar";
 import type { Filters } from "../features/querykeys";
 
-vi.mock("../features/transactions/useTransactions", () => ({
-  useTransactions: () => ({ data: [] }),
+vi.mock("../features/transactions/useTransactionCategoryCounts", () => ({
+  useTransactionCategoryCounts: () => ({ data: [], isLoading: false, isError: false }),
 }));
 
 vi.mock("../features/profiles/useProfile", () => ({

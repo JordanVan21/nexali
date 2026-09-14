@@ -1,6 +1,5 @@
 import { supabase } from "../supabaseClient";
 import type { Database } from "../types/database.types";
-import { useMemo } from "react";
 import { type Filters } from "../features/querykeys";
 
 type TxRow    = Database["public"]["Tables"]["transactions"]["Row"];
@@ -14,27 +13,6 @@ export type TransactionWithCat =
   Pick<TxRow, "id" | "amount" | "merchant" | "note" | "created_at" | "occurred_at" | "category_id"> & {
     categories: { id: number; name: string; type: "income" | "expense" } | null;
   };
-
-export async function fetchTransactions(userId: string): Promise<TransactionWithCat[]> {
-  const { data, error } = await supabase
-    .from("transactions")
-    .select(`
-      id,
-      amount,
-      merchant,
-      note,
-      created_at,
-      occurred_at,
-      category_id,
-      categories:categories!transactions_category_id_fkey ( id, name, type )
-    `)
-    .eq("user_id", userId)
-    .order("occurred_at", { ascending: false })
-    .returns<TransactionWithCat[]>(); // tell TS the shape
-
-  if (error) throw error;
-  return data ?? [];
-}
 
 export const deleteTransaction = async (id: TxId, userId: string) => {
   const { error } = await supabase
@@ -99,17 +77,6 @@ export async function upsertTransaction(args : {
 
   if (error) throw error;
   return { id: data!.id as number };
-}
-
-export function useTransactionCounts(transactions: TransactionWithCat[]) {
-  return useMemo(() => {
-    const counts: Record<string, number> = {};
-    transactions.forEach(transaction => {
-      const categoryName = transaction.categories?.name || 'Uncategorized';
-      counts[categoryName] = (counts[categoryName] || 0) + 1;
-    });
-    return counts;
-  }, [transactions]);
 }
 
 export type TransactionsPage = {

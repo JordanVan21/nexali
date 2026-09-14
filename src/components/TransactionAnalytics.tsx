@@ -1,12 +1,12 @@
 import { Link } from "react-router-dom";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { useUserInfo } from "../shared/useUserId";
-import { useTransactions } from "../features/transactions/useTransactions";
+import { useTransactionsActivitySummary } from "../features/transactions/useTransactionsActivitySummary";
 import { formatCurrency } from "../lib/format";
 import { getErrorMessage, cn } from "../lib/utils";
 import { Skeleton } from "./states/Skeleton";
 import { ErrorState } from "./states/ErrorState";
-import { resolveBurnPeriod, computeDailyBurn, topExpenseCategories, dailyExpenseBuckets } from "../lib/transactionsAnalytics";
+import { buildActivityLabel } from "../lib/transactionsAnalytics";
 import type { Filters } from "../features/querykeys";
 
 const CATEGORY_TONES = [
@@ -35,41 +35,40 @@ function AnalyticsSkeleton() {
 
 /**
  * Deterministic, real-data summary section below the Transactions table:
- * Average Daily Burn and Top Categories. Both are computed client-side from
- * the same unbounded real transaction set the filter bar already loads
- * (features/transactions/useTransactions -- shares one cached fetch via
- * TanStack Query, so this does not add a second network request), scoped to
- * `resolveBurnPeriod` (the active date filter, or the current month to
- * date). No AI, no fabricated trend, no mock category labels.
+ * Average Daily Burn and Top Categories. Both are computed server-side
+ * (transactions_activity_summary() -- Backend Part 5), timezone-aware via
+ * the caller's configured profiles.timezone, scoped to the Transactions
+ * page's active date filter (`filters.fromISO`/`toISO`) or the current
+ * month to date when neither is set. No AI, no fabricated trend, no mock
+ * category labels.
  */
 export function TransactionAnalytics({ filters }: { filters: Filters }) {
   const { userId } = useUserInfo();
-  const txQuery = useTransactions(userId);
+  const query = useTransactionsActivitySummary(userId, filters.fromISO, filters.toISO);
 
-  if (txQuery.isLoading) return <AnalyticsSkeleton />;
+  if (query.isLoading) return <AnalyticsSkeleton />;
 
-  if (txQuery.isError) {
+  if (query.isError || !query.data) {
     return (
       <ErrorState
         title="Couldn't load your activity summary"
-        message={getErrorMessage(txQuery.error, "Please try again.")}
-        onRetry={() => txQuery.refetch()}
+        message={getErrorMessage(query.error, "Please try again.")}
+        onRetry={() => query.refetch()}
       />
     );
   }
 
-  const transactions = txQuery.data ?? [];
-  const period = resolveBurnPeriod(filters.fromISO, filters.toISO);
-  const burn = computeDailyBurn(transactions, period);
-  const categories = topExpenseCategories(transactions, period, 4);
-  const buckets = dailyExpenseBuckets(transactions, period);
+  const summary = query.data;
+  const label = buildActivityLabel(summary);
+  const categories = summary.topCategories;
+  const buckets = summary.dailyBuckets;
   const maxBucket = Math.max(0, ...buckets.map((b) => b.amount));
-  const up = burn.changePercent !== null && burn.changePercent > 0;
+  const up = summary.changePercent !== null && summary.changePercent > 0;
 
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Based on real expense transactions for {period.label}. Independent of the search, category, type, and amount
+        Based on real expense transactions for {label}. Independent of the search, category, type, and amount
         filters above.
       </p>
       <div className="grid gap-4 md:grid-cols-2 md:gap-6">
@@ -80,16 +79,16 @@ export function TransactionAnalytics({ filters }: { filters: Filters }) {
                 Average Daily Burn
               </h2>
               <p className="font-display mt-1 flex flex-wrap items-baseline gap-2 text-[28px] font-bold leading-tight text-foreground xl:text-[34px]">
-                {formatCurrency(burn.dailyRate)}
+                {formatCurrency(summary.dailyRate)}
                 <span
                   className={cn(
                     "text-sm font-medium",
-                    burn.changePercent === null ? "text-muted-foreground" : up ? "text-destructive" : "text-success"
+                    summary.changePercent === null ? "text-muted-foreground" : up ? "text-destructive" : "text-success"
                   )}
                 >
-                  {burn.changePercent === null
+                  {summary.changePercent === null
                     ? "No previous-period data"
-                    : `${up ? "+" : "−"}${Math.abs(Math.round(burn.changePercent))}% vs previous period`}
+                    : `${up ? "+" : "−"}${Math.abs(Math.round(summary.changePercent))}% vs previous period`}
                 </span>
               </p>
             </div>

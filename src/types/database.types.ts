@@ -195,6 +195,14 @@ export type Database = {
         Args: { p_year: number; p_month: number }
         Returns: { category_id: number | null; spent: number }[]
       }
+      transaction_category_counts: {
+        Args: Record<PropertyKey, never>
+        Returns: { category_name: string; count: number }[]
+      }
+      transactions_activity_summary: {
+        Args: { p_from?: string | null; p_to?: string | null }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

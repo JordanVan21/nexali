@@ -55,6 +55,29 @@ export type ReportsSummaryResponse = {
 
 export type BudgetsProgressRow = { categoryId: number; spent: number };
 
+export type CategoryCountRow = { categoryName: string; count: number };
+
+export type ActivityDailyBucket = { date: string; amount: number };
+export type ActivityTopCategory = { id: number; label: string; amount: number; percent: number };
+
+export type TransactionsActivitySummaryResponse = {
+  rangeStart: string;
+  rangeEnd: string;
+  previousRangeStart: string;
+  previousRangeEnd: string;
+  days: number;
+  previousDays: number;
+  /** True when p_from/p_to were supplied (an active Transactions-page date filter); false for the default "month to date" period. */
+  isCustomRange: boolean;
+  expenseAmount: number;
+  dailyRate: number;
+  /** null when there is no truthful previous-period baseline (no previous data, or previous expense was exactly 0). */
+  previousDailyRate: number | null;
+  changePercent: number | null;
+  dailyBuckets: ActivityDailyBucket[];
+  topCategories: ActivityTopCategory[];
+};
+
 function n(value: unknown): number {
   return Number(value ?? 0);
 }
@@ -156,4 +179,53 @@ export async function getBudgetsProgress(year: number, month: number): Promise<B
   const { data, error } = await supabase.rpc("budgets_progress", { p_year: year, p_month: month });
   if (error) throw error;
   return (data ?? []).map((row) => ({ categoryId: Number(row.category_id), spent: n(row.spent) }));
+}
+
+/** Real, all-time transaction count per category name (see transaction_category_counts() -- Backend Part 5). */
+export async function getTransactionCategoryCounts(): Promise<CategoryCountRow[]> {
+  const { data, error } = await supabase.rpc("transaction_category_counts");
+  if (error) throw error;
+  return (data ?? []).map((row) => ({ categoryName: String(row.category_name), count: Number(row.count ?? 0) }));
+}
+
+/**
+ * Real, server-computed, timezone-aware Transactions-page analytics
+ * ("Average Daily Burn"/"Top Categories") -- see
+ * transactions_activity_summary() (Backend Part 5). `fromISO`/`toISO`
+ * should be the exact half-open bounds already constructed by
+ * TransactionFilterBar's active date filter (both provided together), or
+ * both omitted for the default "month to date" period.
+ */
+export async function getTransactionsActivitySummary(fromISO?: string, toISO?: string): Promise<TransactionsActivitySummaryResponse> {
+  const { data, error } = await supabase.rpc("transactions_activity_summary", {
+    p_from: fromISO ?? null,
+    p_to: toISO ?? null,
+  });
+  if (error) throw error;
+
+  const raw = (data ?? {}) as Record<string, unknown>;
+  const dailyBuckets = (raw.dailyBuckets as unknown[]) ?? [];
+  const topCategories = (raw.topCategories as unknown[]) ?? [];
+
+  return {
+    rangeStart: String(raw.rangeStart),
+    rangeEnd: String(raw.rangeEnd),
+    previousRangeStart: String(raw.previousRangeStart),
+    previousRangeEnd: String(raw.previousRangeEnd),
+    days: Number(raw.days ?? 0),
+    previousDays: Number(raw.previousDays ?? 0),
+    isCustomRange: Boolean(raw.isCustomRange),
+    expenseAmount: n(raw.expenseAmount),
+    dailyRate: n(raw.dailyRate),
+    previousDailyRate: raw.previousDailyRate == null ? null : n(raw.previousDailyRate),
+    changePercent: raw.changePercent == null ? null : n(raw.changePercent),
+    dailyBuckets: dailyBuckets.map((b) => {
+      const row = b as Record<string, unknown>;
+      return { date: String(row.date), amount: n(row.amount) };
+    }),
+    topCategories: topCategories.map((c) => {
+      const row = c as Record<string, unknown>;
+      return { id: Number(row.id), label: String(row.label), amount: n(row.amount), percent: n(row.percent) };
+    }),
+  };
 }

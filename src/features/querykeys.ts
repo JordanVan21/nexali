@@ -69,8 +69,6 @@ export const qk = {
 
   // Transactions
   txRoot: (userId: string) => ["transactions", userId] as const,
-  transactions: (userId: string) => [...qk.txRoot(userId), "list"] as const,
-  // (later) txByMonth: (userId, y, m) => [...qk.txRoot(userId), "byMonth", y, m] as const,
 
   txSearch: (userId: string, f: ReturnType<typeof normalizeFilters>) =>
     [...qk.txRoot(userId), "search", f] as const,
@@ -97,10 +95,28 @@ export const qk = {
   budgetsProgress: (userId: string, year: number, month: number) =>
     [...qk.budgetsProgressRoot(userId), year, month] as const,
 
+  // Backend Part 5: Transactions page's category-count badges and
+  // Average-Daily-Burn/Top-Categories analytics. categoryCounts has no
+  // variant (all-time, filter-independent -- see
+  // transaction_category_counts()'s docs), so its root IS its full key.
+  // activitySummary varies by the active date-range filter (or its
+  // absence, for the default month-to-date period).
+  categoryCounts: (userId: string) => ["categoryCounts", userId] as const,
+  activitySummaryRoot: (userId: string) => ["activitySummary", userId] as const,
+  activitySummary: (userId: string, fromISO?: string, toISO?: string) =>
+    [...qk.activitySummaryRoot(userId), fromISO ?? null, toISO ?? null] as const,
+
   profile: (userId: string) => ["profile", userId] as const,
   expenseCategories: (userId: string) => ["expenseCategories", userId] as const,
   avatar: (userId: string) => ["avatar", userId] as const,
 
-  categories: (userId: string, type?: "income" | "expense") => 
-  ["categories", userId, type ?? "all"] as const
+  // categoriesRoot lets a category mutation invalidate every cached
+  // type-variant (income/expense/"all") in one call, the same *Root
+  // prefix-invalidation pattern used everywhere else in this file --
+  // previously a category mutation only invalidated its OWN type's cached
+  // list, silently leaving the "all types" list (and the other type's
+  // list) stale.
+  categoriesRoot: (userId: string) => ["categories", userId] as const,
+  categories: (userId: string, type?: "income" | "expense") =>
+    [...qk.categoriesRoot(userId), type ?? "all"] as const,
 };

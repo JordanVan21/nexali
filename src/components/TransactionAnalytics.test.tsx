@@ -2,28 +2,36 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { screen } from "@testing-library/react";
 import { renderWithProviders } from "../test/renderWithProviders";
 import { TransactionAnalytics } from "./TransactionAnalytics";
-import type { TransactionWithCat } from "../lib/transactions";
 import type { Filters } from "../features/querykeys";
+import type { TransactionsActivitySummaryResponse } from "../lib/financialAggregates";
 
-let queryState: { data: TransactionWithCat[]; isLoading: boolean; isError: boolean; error: Error | null };
+let queryState: { data?: TransactionsActivitySummaryResponse; isLoading: boolean; isError: boolean; error: Error | null };
+const refetch = vi.fn();
 
-vi.mock("../features/transactions/useTransactions", () => ({
-  useTransactions: () => ({ ...queryState, refetch: vi.fn() }),
+vi.mock("../features/transactions/useTransactionsActivitySummary", () => ({
+  useTransactionsActivitySummary: () => ({ ...queryState, refetch }),
 }));
 
 const BASE_FILTERS: Filters = { sortBy: "date", sortOrder: "desc" };
 
-const makeTx = (overrides: Partial<TransactionWithCat> = {}): TransactionWithCat => ({
-  id: Math.random(),
-  amount: 50,
-  merchant: "Whole Foods Market",
-  note: null,
-  created_at: new Date().toISOString(),
-  occurred_at: new Date().toISOString(),
-  category_id: 1,
-  categories: { id: 1, name: "Groceries", type: "expense" },
-  ...overrides,
-});
+function summary(overrides: Partial<TransactionsActivitySummaryResponse> = {}): TransactionsActivitySummaryResponse {
+  return {
+    rangeStart: "2024-03-01T08:00:00.000Z",
+    rangeEnd: "2024-03-11T08:00:00.000Z",
+    previousRangeStart: "2024-02-01T08:00:00.000Z",
+    previousRangeEnd: "2024-03-01T08:00:00.000Z",
+    days: 10,
+    previousDays: 29,
+    isCustomRange: false,
+    expenseAmount: 0,
+    dailyRate: 0,
+    previousDailyRate: null,
+    changePercent: null,
+    dailyBuckets: [],
+    topCategories: [],
+    ...overrides,
+  };
+}
 
 describe("TransactionAnalytics", () => {
   afterEach(() => {
@@ -31,7 +39,7 @@ describe("TransactionAnalytics", () => {
   });
 
   it("shows a truthful empty state instead of fabricated figures when there are no transactions", () => {
-    queryState = { data: [], isLoading: false, isError: false, error: null };
+    queryState = { data: summary(), isLoading: false, isError: false, error: null };
     renderWithProviders(<TransactionAnalytics filters={BASE_FILTERS} />);
 
     expect(screen.getByText("Average Daily Burn")).toBeInTheDocument();
@@ -39,26 +47,35 @@ describe("TransactionAnalytics", () => {
     expect(screen.getByText("No expenses in this period.")).toBeInTheDocument();
   });
 
-  it("computes Average Daily Burn from real expense transactions and excludes income", () => {
+  it("renders the real server-computed Average Daily Burn and excludes income (the server never returns income in topCategories)", () => {
     queryState = {
-      data: [
-        makeTx({ amount: 100, categories: { id: 1, name: "Groceries", type: "expense" } }),
-        makeTx({ amount: 5000, categories: { id: 2, name: "Salary", type: "income" } }),
-      ],
+      data: summary({ dailyRate: 10, expenseAmount: 100, topCategories: [{ id: 1, label: "Groceries", amount: 100, percent: 100 }] }),
       isLoading: false,
       isError: false,
       error: null,
     };
     renderWithProviders(<TransactionAnalytics filters={BASE_FILTERS} />);
 
-    // Real category renders in Top Categories; the income category never does.
+    expect(screen.getByText("$10.00")).toBeInTheDocument();
     expect(screen.getByText("Groceries")).toBeInTheDocument();
     expect(screen.queryByText("Salary")).not.toBeInTheDocument();
   });
 
+  it("shows a real percent-change badge when a previous-period baseline exists", () => {
+    queryState = {
+      data: summary({ dailyRate: 29, previousDailyRate: 10, changePercent: 190 }),
+      isLoading: false,
+      isError: false,
+      error: null,
+    };
+    renderWithProviders(<TransactionAnalytics filters={BASE_FILTERS} />);
+
+    expect(screen.getByText(/190% vs previous period/)).toBeInTheDocument();
+  });
+
   it("never renders Lovable's mock category groupings", () => {
     queryState = {
-      data: [makeTx({ amount: 40, categories: { id: 1, name: "Dining", type: "expense" } })],
+      data: summary({ topCategories: [{ id: 1, label: "Dining", amount: 40, percent: 100 }] }),
       isLoading: false,
       isError: false,
       error: null,
@@ -70,10 +87,19 @@ describe("TransactionAnalytics", () => {
     expect(screen.queryByText(/investments & savings/i)).not.toBeInTheDocument();
   });
 
-  it("shows a retryable error state when the underlying fetch fails", () => {
-    queryState = { data: [], isLoading: false, isError: true, error: new Error("network down") };
+  it("shows a retryable error state when the server aggregate fails, never a fake $0", () => {
+    queryState = { data: undefined, isLoading: false, isError: true, error: new Error("network down") };
     renderWithProviders(<TransactionAnalytics filters={BASE_FILTERS} />);
 
     expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.queryByText("$0.00")).not.toBeInTheDocument();
+  });
+
+  it("retries the activity summary query when Retry is activated", async () => {
+    queryState = { data: undefined, isLoading: false, isError: true, error: new Error("network down") };
+    renderWithProviders(<TransactionAnalytics filters={BASE_FILTERS} />);
+
+    screen.getByRole("button", { name: /retry/i }).click();
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 });

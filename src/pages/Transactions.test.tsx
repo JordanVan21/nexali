@@ -29,7 +29,30 @@ vi.mock("../features/transactions/useTransactions", () => ({
     refetch: vi.fn(),
   }),
   useExportTransactionsWithFilters: () => ({ data: exportRows, isLoading: false, isError: false, error: null, refetch: vi.fn() }),
-  useTransactions: () => ({ data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() }),
+}));
+
+vi.mock("../features/transactions/useTransactionsActivitySummary", () => ({
+  useTransactionsActivitySummary: () => ({
+    data: {
+      rangeStart: "2024-03-01T08:00:00.000Z",
+      rangeEnd: "2024-03-11T08:00:00.000Z",
+      previousRangeStart: "2024-02-01T08:00:00.000Z",
+      previousRangeEnd: "2024-03-01T08:00:00.000Z",
+      days: 10,
+      previousDays: 29,
+      isCustomRange: false,
+      expenseAmount: 0,
+      dailyRate: 0,
+      previousDailyRate: null,
+      changePercent: null,
+      dailyBuckets: [],
+      topCategories: [],
+    },
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
 }));
 
 vi.mock("../features/categories/useCategories", () => ({
