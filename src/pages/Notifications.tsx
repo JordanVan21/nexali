@@ -3,11 +3,22 @@ import { BellOff, CheckCheck } from "lucide-react";
 import { PageContainer } from "../components/shell/PageContainer";
 import { Button } from "../components/ui/button";
 import { EmptyState } from "../components/states/EmptyState";
+import { ErrorState } from "../components/states/ErrorState";
 import { NotificationItem } from "../components/notifications/NotificationItem";
-import { cn } from "../lib/utils";
-import { notificationDay, notificationTypeLabels, type NotificationDay, type NotificationItemData, type NotificationType } from "../lib/notifications";
+import { NotificationsSkeleton } from "../components/notifications/NotificationsSkeleton";
+import { cn, getErrorMessage } from "../lib/utils";
+import { notificationDay, notificationTypeLabels, type NotificationDay, type NotificationItemData } from "../lib/notifications";
+import type { NotificationFilter } from "../lib/notificationsData";
+import { useUserInfo } from "../shared/useUserId";
+import {
+  useDismissNotification,
+  useMarkAllNotificationsRead,
+  useMarkNotificationRead,
+  useNotificationsFeed,
+  useUnreadNotificationCount,
+} from "../features/notifications/useNotifications";
 
-type FilterKey = "all" | "unread" | NotificationType;
+type FilterKey = NotificationFilter;
 
 const FILTER_TABS: { key: FilterKey; label: string }[] = [
   { key: "all", label: "All" },
@@ -27,37 +38,36 @@ const DAY_LABELS: Record<NotificationDay, string> = {
 const ORDERED_DAYS: NotificationDay[] = ["today", "yesterday", "earlier"];
 
 /**
- * No notifications table/RPC/Edge Function exists yet. `notifications`
- * starts as a real empty array -- never Lovable's mock feed -- so the page
- * always shows a truthful empty state today. The filter tabs, day-grouping,
- * mark-read/dismiss/mark-all-read handlers and unread count are all real,
- * just permanently inert against zero data, so a future real query can
- * replace the useState seed without another visual redesign.
+ * Backend Part 7: real, owner-scoped notification feed
+ * (src/lib/notificationsData.ts / useNotifications.ts) replaces the
+ * previous permanently-empty useState seed. Visual structure (filter
+ * tabs, day-grouping, empty-state copy) is unchanged from the pre-backend
+ * version -- only the data source and loading/error states are new.
  */
 export default function Notifications() {
-  const [notifications, setNotifications] = useState<NotificationItemData[]>([]);
+  const { userId } = useUserInfo();
   const [filter, setFilter] = useState<FilterKey>("all");
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const feed = useNotificationsFeed(userId, filter);
+  const unreadCountQuery = useUnreadNotificationCount(userId);
+  const markReadMutation = useMarkNotificationRead(userId);
+  const dismissMutation = useDismissNotification(userId);
+  const markAllMutation = useMarkAllNotificationsRead(userId);
 
-  const filtered = useMemo(() => {
-    if (filter === "all") return notifications;
-    if (filter === "unread") return notifications.filter((n) => !n.read);
-    return notifications.filter((n) => n.type === filter);
-  }, [notifications, filter]);
+  const unreadCount = unreadCountQuery.data ?? 0;
 
+  const notifications = useMemo(() => feed.data ?? [], [feed.data]);
   const grouped = useMemo(() => {
     const groups: Record<NotificationDay, NotificationItemData[]> = { today: [], yesterday: [], earlier: [] };
-    for (const n of filtered) groups[notificationDay(n.createdAt)].push(n);
+    for (const n of notifications) groups[notificationDay(n.createdAt)].push(n);
     return groups;
-  }, [filtered]);
+  }, [notifications]);
 
-  const markRead = (id: string) =>
-    setNotifications((list) => list.map((n) => (n.id === id ? { ...n, read: true } : n)));
-  const dismiss = (id: string) => setNotifications((list) => list.filter((n) => n.id !== id));
-  const markAllRead = () => setNotifications((list) => list.map((n) => ({ ...n, read: true })));
+  const markRead = (id: string) => markReadMutation.mutate(id);
+  const dismiss = (id: string) => dismissMutation.mutate(id);
+  const markAllRead = () => markAllMutation.mutate();
 
-  const hasAny = filtered.length > 0;
+  const hasAny = notifications.length > 0;
 
   return (
     <PageContainer>
@@ -76,7 +86,7 @@ export default function Notifications() {
             variant="surface"
             size="control"
             onClick={markAllRead}
-            disabled={unreadCount === 0}
+            disabled={unreadCount === 0 || markAllMutation.isPending}
             className="w-full md:w-auto"
           >
             <CheckCheck className="h-4 w-4" aria-hidden="true" />
@@ -109,7 +119,15 @@ export default function Notifications() {
           })}
         </div>
 
-        {!hasAny ? (
+        {feed.isLoading ? (
+          <NotificationsSkeleton />
+        ) : feed.isError ? (
+          <ErrorState
+            title="Couldn't load your notifications"
+            message={getErrorMessage(feed.error, "Please check your connection and try again.")}
+            onRetry={() => feed.refetch()}
+          />
+        ) : !hasAny ? (
           <div className="nexali-panel rounded-xl">
             <EmptyState
               icon={BellOff}

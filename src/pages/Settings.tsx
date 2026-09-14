@@ -9,6 +9,7 @@ import { StatusBanner } from "../components/states/StatusBanner";
 import { ErrorState } from "../components/states/ErrorState";
 import { Skeleton } from "../components/states/Skeleton";
 import { useProfile, useUpdateProfile } from "../features/profiles/useProfile";
+import { useNotificationPreferences, useUpdateNotificationPreferences } from "../features/notifications/useNotifications";
 import { useUserInfo } from "../shared/useUserId";
 import { getErrorMessage } from "../lib/utils";
 import { CURRENCY_OPTIONS, DATE_FORMAT_OPTIONS, NUMBER_FORMAT_OPTIONS } from "../lib/preferenceOptions";
@@ -32,27 +33,37 @@ const TIMEZONE_OPTIONS = [
   { value: "Europe/London", label: "Greenwich Mean Time (Europe/London)" },
 ];
 
-/** Real Lovable labels/descriptions -- no `notification_preferences` column exists yet, so every row stays disabled/unchecked. */
-const NOTIFICATION_PREFERENCE_ROWS = [
+type NotificationPrefFormKey = "notifyApproaching" | "notifyExceeded" | "notifySummary" | "notifySecurity";
+
+/**
+ * Real Lovable labels/descriptions, now backed by the real
+ * `notification_preferences` table (Backend Part 7) -- `formKey` names the
+ * matching FormState field each row edits.
+ */
+const NOTIFICATION_PREFERENCE_ROWS: { id: string; label: string; description: string; formKey: NotificationPrefFormKey }[] = [
   {
     id: "notify-approaching",
     label: "Budget approaching limit",
     description: "Get notified when spending nears a category budget.",
+    formKey: "notifyApproaching",
   },
   {
     id: "notify-exceeded",
     label: "Budget exceeded",
     description: "Get notified when spending passes a budget ceiling.",
+    formKey: "notifyExceeded",
   },
   {
     id: "notify-summary",
     label: "Monthly financial summary",
     description: "Receive a summary when your monthly period ends.",
+    formKey: "notifySummary",
   },
   {
     id: "notify-security",
     label: "Account and security notifications",
     description: "Important sign-in and security updates.",
+    formKey: "notifySecurity",
   },
 ];
 
@@ -77,25 +88,39 @@ type FormState = {
   currency: string;
   dateFormat: DateFormatPref;
   numberFormat: NumberFormatPref;
+  notifyApproaching: boolean;
+  notifyExceeded: boolean;
+  notifySummary: boolean;
+  notifySecurity: boolean;
 };
 
 /**
  * Application preferences. timezone/currency/date_format/number_format are
- * all real, persisted `profiles` columns (Backend Part 6), edited here and
- * saved through the same `useUpdateProfile` mutation Profile uses -- Profile
- * keeps showing them read-only per the approved split (Settings is the
- * primary editor). Budget reset cycle/day stay on Profile (its existing
- * real editable location) rather than being duplicated here. Reduce
- * animations/Show chart values/Appearance theme/Notification preferences
- * remain visually present but disabled -- no backing column or app-wide
- * behavior exists yet for any of them, so they intentionally do NOT affect
- * dirty state or the save payload. The Aura-preference section is deferred
- * to a later phase rather than faked.
+ * all real, persisted `profiles` columns (Backend Part 6); the four
+ * notification switches are real, persisted `notification_preferences`
+ * columns (Backend Part 7) -- all eight are edited here and saved through
+ * one combined save (see handleSave), matching the page's existing "one
+ * coherent update" model. Profile keeps showing timezone/currency/etc.
+ * read-only per the approved split (Settings is the primary editor).
+ * Budget reset cycle/day stay on Profile (its existing real editable
+ * location) rather than being duplicated here. Reduce animations/Show
+ * chart values/Appearance theme remain visually present but disabled -- no
+ * backing column or app-wide behavior exists yet for either, so they
+ * intentionally do NOT affect dirty state or the save payload. The
+ * Aura-preference section is deferred to a later phase rather than faked.
  */
 export default function Settings() {
   const { userId } = useUserInfo();
-  const { data: profile, isLoading, isError, error, refetch } = useProfile(userId);
+  const { data: profile, isLoading: profileLoading, isError: profileIsError, error: profileError, refetch: refetchProfile } = useProfile(userId);
+  const {
+    data: preferences,
+    isLoading: preferencesLoading,
+    isError: preferencesIsError,
+    error: preferencesError,
+    refetch: refetchPreferences,
+  } = useNotificationPreferences(userId);
   const updateProfile = useUpdateProfile(userId);
+  const updatePreferences = useUpdateNotificationPreferences(userId);
 
   const [form, setForm] = useState<FormState | null>(null);
   const [saved, setSaved] = useState<FormState | null>(null);
@@ -104,17 +129,24 @@ export default function Settings() {
     message: "",
   });
 
+  const isLoading = profileLoading || preferencesLoading;
+  const isError = profileIsError || preferencesIsError;
+
   useEffect(() => {
-    if (!profile || saved) return;
+    if (!profile || !preferences || saved) return;
     const baseline: FormState = {
       timezone: profile.timezone,
       currency: profile.currency,
       dateFormat: profile.date_format as DateFormatPref,
       numberFormat: profile.number_format as NumberFormatPref,
+      notifyApproaching: preferences.budget_approaching,
+      notifyExceeded: preferences.budget_exceeded,
+      notifySummary: preferences.monthly_summary,
+      notifySecurity: preferences.account_security,
     };
     setForm(baseline);
     setSaved(baseline);
-  }, [profile, saved]);
+  }, [profile, preferences, saved]);
 
   if (isLoading) {
     return <SettingsSkeleton />;
@@ -125,8 +157,11 @@ export default function Settings() {
       <PageContainer>
         <ErrorState
           title="Couldn't load your settings"
-          message={getErrorMessage(error, "Please check your connection and try again.")}
-          onRetry={() => refetch()}
+          message={getErrorMessage(profileError ?? preferencesError, "Please check your connection and try again.")}
+          onRetry={() => {
+            void refetchProfile();
+            void refetchPreferences();
+          }}
         />
       </PageContainer>
     );
@@ -141,32 +176,38 @@ export default function Settings() {
     : [{ value: saved.timezone, label: saved.timezone }, ...TIMEZONE_OPTIONS];
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(saved);
+  const isSaving = updateProfile.isPending || updatePreferences.isPending;
   const datePreview = DATE_FORMAT_OPTIONS.find((o) => o.value === form.dateFormat)?.preview ?? "";
 
-  const handleSave = () => {
-    if (updateProfile.isPending) return;
-    // One coherent update carrying every real editable preference -- never
-    // one mutation per dropdown -- so a save always leaves the four fields
-    // mutually consistent even if the user changed several at once.
-    updateProfile.mutate(
-      {
-        timezone: form.timezone,
-        currency: form.currency,
-        date_format: form.dateFormat,
-        number_format: form.numberFormat,
-      },
-      {
-        onSuccess: () => {
-          setSaved(form);
-          setSaveStatus({ type: "success", message: "Settings saved." });
-          setTimeout(() => setSaveStatus({ type: null, message: "" }), 3000);
-        },
-        onError: (err) => {
-          setSaveStatus({ type: "error", message: getErrorMessage(err, "Failed to save settings.") });
-          setTimeout(() => setSaveStatus({ type: null, message: "" }), 5000);
-        },
-      }
-    );
+  const handleSave = async () => {
+    if (isSaving) return;
+    // One coherent update carrying every real editable preference across
+    // both profiles and notification_preferences -- never one mutation per
+    // control -- so a save always leaves every field mutually consistent
+    // even if the user changed several at once, and a failure on either
+    // side preserves ALL local edits rather than saving half the form.
+    try {
+      await Promise.all([
+        updateProfile.mutateAsync({
+          timezone: form.timezone,
+          currency: form.currency,
+          date_format: form.dateFormat,
+          number_format: form.numberFormat,
+        }),
+        updatePreferences.mutateAsync({
+          budget_approaching: form.notifyApproaching,
+          budget_exceeded: form.notifyExceeded,
+          monthly_summary: form.notifySummary,
+          account_security: form.notifySecurity,
+        }),
+      ]);
+      setSaved(form);
+      setSaveStatus({ type: "success", message: "Settings saved." });
+      setTimeout(() => setSaveStatus({ type: null, message: "" }), 3000);
+    } catch (err) {
+      setSaveStatus({ type: "error", message: getErrorMessage(err, "Failed to save settings.") });
+      setTimeout(() => setSaveStatus({ type: null, message: "" }), 5000);
+    }
   };
 
   const handleDiscard = () => setForm(saved);
@@ -352,8 +393,12 @@ export default function Settings() {
                     <p className="mt-0.5 text-sm text-muted-foreground">{row.description}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm italic text-muted-foreground">{COMING_SOON_CAPTION}</span>
-                    <Switch id={row.id} checked={false} disabled aria-label={row.label} />
+                    <Switch
+                      id={row.id}
+                      checked={form[row.formKey]}
+                      onCheckedChange={(checked) => setForm({ ...form, [row.formKey]: checked })}
+                      aria-label={row.label}
+                    />
                   </div>
                 </div>
               ))}
@@ -365,7 +410,7 @@ export default function Settings() {
               type="button"
               variant="ghost"
               onClick={handleDiscard}
-              disabled={!isDirty || updateProfile.isPending}
+              disabled={!isDirty || isSaving}
             >
               Discard changes
             </Button>
@@ -374,9 +419,9 @@ export default function Settings() {
               variant="hero"
               size="control"
               onClick={handleSave}
-              disabled={!isDirty || updateProfile.isPending}
+              disabled={!isDirty || isSaving}
             >
-              {updateProfile.isPending ? "Saving…" : "Save changes"}
+              {isSaving ? "Saving…" : "Save changes"}
             </Button>
           </div>
         </div>

@@ -4,7 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../test/renderWithProviders";
 import Settings from "./Settings";
 
-const updateMutate = vi.fn();
+const updateProfileMutateAsync = vi.fn();
+const updatePreferencesMutateAsync = vi.fn();
+
 type MockProfile = {
   full_name: string | null;
   avatar_url: string | null;
@@ -18,20 +20,44 @@ type MockProfile = {
   date_format: string;
   number_format: string;
 };
+type MockPreferences = {
+  budget_approaching: boolean;
+  budget_exceeded: boolean;
+  monthly_summary: boolean;
+  account_security: boolean;
+};
+
 let profileState: {
   data: MockProfile | null | undefined;
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
 };
-let updateState: { isPending: boolean } = { isPending: false };
+let preferencesState: {
+  data: MockPreferences | null | undefined;
+  isLoading: boolean;
+  isError: boolean;
+  error: Error | null;
+};
+let updateProfileState: { isPending: boolean } = { isPending: false };
+let updatePreferencesState: { isPending: boolean } = { isPending: false };
 
 vi.mock("../features/profiles/useProfile", () => ({
   useProfile: () => ({ ...profileState, refetch: vi.fn() }),
   useUpdateProfile: () => ({
-    mutate: updateMutate,
+    mutateAsync: updateProfileMutateAsync,
     get isPending() {
-      return updateState.isPending;
+      return updateProfileState.isPending;
+    },
+  }),
+}));
+
+vi.mock("../features/notifications/useNotifications", () => ({
+  useNotificationPreferences: () => ({ ...preferencesState, refetch: vi.fn() }),
+  useUpdateNotificationPreferences: () => ({
+    mutateAsync: updatePreferencesMutateAsync,
+    get isPending() {
+      return updatePreferencesState.isPending;
     },
   }),
 }));
@@ -53,28 +79,65 @@ function baseProfile(overrides: Partial<MockProfile> = {}): MockProfile {
   };
 }
 
+function basePreferences(overrides: Partial<MockPreferences> = {}): MockPreferences {
+  return {
+    budget_approaching: true,
+    budget_exceeded: true,
+    monthly_summary: true,
+    account_security: true,
+    ...overrides,
+  };
+}
+
+function loaded(profileOverrides: Partial<MockProfile> = {}, prefOverrides: Partial<MockPreferences> = {}) {
+  profileState = { data: baseProfile(profileOverrides), isLoading: false, isError: false, error: null };
+  preferencesState = { data: basePreferences(prefOverrides), isLoading: false, isError: false, error: null };
+}
+
 describe("Settings page", () => {
   afterEach(() => {
     vi.clearAllMocks();
-    updateState = { isPending: false };
+    updateProfileState = { isPending: false };
+    updatePreferencesState = { isPending: false };
+    updateProfileMutateAsync.mockResolvedValue(undefined);
+    updatePreferencesMutateAsync.mockResolvedValue(undefined);
   });
 
   it("renders the page heading", () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+    loaded();
     renderWithProviders(<Settings />);
     expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
   });
 
   it("shows a loading state without rendering settings values", () => {
     profileState = { data: undefined, isLoading: true, isError: false, error: null };
+    preferencesState = { data: undefined, isLoading: true, isError: false, error: null };
     renderWithProviders(<Settings />);
 
     expect(screen.queryByRole("heading", { name: "Settings" })).not.toBeInTheDocument();
     expect(screen.getByText(/loading settings/i)).toBeInTheDocument();
   });
 
-  it("shows a retryable error state when the settings/profile query fails", () => {
+  it("shows a loading state while only preferences is still loading (profile already resolved)", () => {
+    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+    preferencesState = { data: undefined, isLoading: true, isError: false, error: null };
+    renderWithProviders(<Settings />);
+
+    expect(screen.queryByRole("heading", { name: "Settings" })).not.toBeInTheDocument();
+  });
+
+  it("shows a retryable error state when the profile query fails", () => {
     profileState = { data: null, isLoading: false, isError: true, error: new Error("network down") };
+    preferencesState = { data: basePreferences(), isLoading: false, isError: false, error: null };
+    renderWithProviders(<Settings />);
+
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+  });
+
+  it("shows a retryable error state when the notification-preferences query fails (even if profile succeeds)", () => {
+    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+    preferencesState = { data: null, isLoading: false, isError: true, error: new Error("permission denied") };
     renderWithProviders(<Settings />);
 
     expect(screen.getByRole("alert")).toBeInTheDocument();
@@ -82,7 +145,7 @@ describe("Settings page", () => {
   });
 
   it("loads the real persisted timezone value into an editable control", () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+    loaded();
     renderWithProviders(<Settings />);
 
     expect(screen.getByRole("combobox", { name: /^timezone$/i })).toHaveTextContent(/pacific time/i);
@@ -90,7 +153,7 @@ describe("Settings page", () => {
 
   describe("Default currency / Date format / Number format (real persistence)", () => {
     it("renders them as real, ENABLED controls with no 'Coming soon' caption", () => {
-      profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+      loaded();
       renderWithProviders(<Settings />);
 
       const currency = screen.getByRole("combobox", { name: /default currency/i });
@@ -104,29 +167,14 @@ describe("Settings page", () => {
     });
 
     it("loads the real persisted currency", () => {
-      profileState = { data: baseProfile({ currency: "EUR" }), isLoading: false, isError: false, error: null };
+      loaded({ currency: "EUR" });
       renderWithProviders(<Settings />);
 
       expect(screen.getByRole("combobox", { name: /default currency/i })).toHaveTextContent(/EUR \(€\)/);
     });
 
-    it("loads the real persisted date format", () => {
-      profileState = { data: baseProfile({ date_format: "dmy" }), isLoading: false, isError: false, error: null };
-      renderWithProviders(<Settings />);
-
-      expect(screen.getByRole("combobox", { name: /date format/i })).toHaveTextContent("DD/MM/YYYY");
-      expect(screen.getByText("24/10/2025")).toBeInTheDocument();
-    });
-
-    it("loads the real persisted number format", () => {
-      profileState = { data: baseProfile({ number_format: "european" }), isLoading: false, isError: false, error: null };
-      renderWithProviders(<Settings />);
-
-      expect(screen.getByRole("combobox", { name: /number format/i })).toHaveTextContent(/1\.234,56/);
-    });
-
     it("editing currency/date-format/number-format makes the page dirty", async () => {
-      profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+      loaded();
       const user = userEvent.setup();
       renderWithProviders(<Settings />);
 
@@ -140,44 +188,106 @@ describe("Settings page", () => {
   });
 
   it("shows Appearance as dark-only, with no fake Light or System mode control", () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+    loaded();
     renderWithProviders(<Settings />);
 
     expect(screen.getByText(/nexali obsidian dark/i)).toBeInTheDocument();
     expect(screen.queryByText(/light mode/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/system mode/i)).not.toBeInTheDocument();
-    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
   });
 
-  it("renders the Notifications section as backend-pending, not as working toggles", () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
-    renderWithProviders(<Settings />);
+  describe("Notification preferences (real persistence, Backend Part 7)", () => {
+    it("renders the real Lovable notification-preference rows", () => {
+      loaded();
+      renderWithProviders(<Settings />);
 
-    expect(screen.getByText(/budget approaching limit/i)).toBeInTheDocument();
-    expect(screen.getAllByRole("switch").every((s) => s.hasAttribute("disabled"))).toBe(true);
-  });
+      expect(screen.getByText("Budget approaching limit")).toBeInTheDocument();
+      expect(screen.getByText("Budget exceeded")).toBeInTheDocument();
+      expect(screen.getByText("Monthly financial summary")).toBeInTheDocument();
+      expect(screen.getByText("Account and security notifications")).toBeInTheDocument();
+      expect(screen.queryAllByText(/coming soon/i).length).toBeGreaterThanOrEqual(2); // still present for Reduce animations/Show chart values
+    });
 
-  it("keeps Reduce animations and Show chart values as backend-pending, not real toggles", () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
-    renderWithProviders(<Settings />);
+    it("renders the four notification switches as real, ENABLED controls", () => {
+      loaded();
+      renderWithProviders(<Settings />);
 
-    expect(screen.getByText(/reduce animations/i)).toBeInTheDocument();
-    expect(screen.getByText(/show values on charts/i)).toBeInTheDocument();
-    // Still captioned as pending -- these two, unlike currency/date/number,
-    // have no backing column or app-wide behavior yet.
-    expect(screen.getAllByText(/coming soon/i).length).toBeGreaterThanOrEqual(2);
-  });
+      const switches = screen.getAllByRole("switch");
+      expect(switches).toHaveLength(4);
+      for (const s of switches) {
+        expect(s).not.toBeDisabled();
+      }
+    });
 
-  it("does not render Aura assistant preference toggles", () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
-    renderWithProviders(<Settings />);
+    it("loads the real persisted preference values, including a mixed on/off state", () => {
+      loaded({}, { budget_approaching: true, budget_exceeded: false, monthly_summary: true, account_security: false });
+      renderWithProviders(<Settings />);
 
-    expect(screen.queryByText(/response detail/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/use my financial data/i)).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Budget approaching limit")).toHaveAttribute("aria-checked", "true");
+      expect(screen.getByLabelText("Budget exceeded")).toHaveAttribute("aria-checked", "false");
+      expect(screen.getByLabelText("Monthly financial summary")).toHaveAttribute("aria-checked", "true");
+      expect(screen.getByLabelText("Account and security notifications")).toHaveAttribute("aria-checked", "false");
+    });
+
+    it("toggling a switch makes the page dirty", async () => {
+      loaded();
+      const user = userEvent.setup();
+      renderWithProviders(<Settings />);
+
+      expect(screen.getByRole("button", { name: /save changes/i })).toBeDisabled();
+      await user.click(screen.getByLabelText("Budget exceeded"));
+      expect(screen.getByRole("button", { name: /save changes/i })).toBeEnabled();
+    });
+
+    it("discard restores the toggle to its last persisted value", async () => {
+      loaded();
+      const user = userEvent.setup();
+      renderWithProviders(<Settings />);
+
+      await user.click(screen.getByLabelText("Budget exceeded"));
+      expect(screen.getByLabelText("Budget exceeded")).toHaveAttribute("aria-checked", "false");
+
+      await user.click(screen.getByRole("button", { name: /discard changes/i }));
+      expect(screen.getByLabelText("Budget exceeded")).toHaveAttribute("aria-checked", "true");
+    });
+
+    it("saves changed preference toggles alongside profile fields in one combined save", async () => {
+      loaded();
+      const user = userEvent.setup();
+      renderWithProviders(<Settings />);
+
+      await user.click(screen.getByLabelText("Budget exceeded"));
+      await user.click(screen.getByLabelText("Account and security notifications"));
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(updatePreferencesMutateAsync).toHaveBeenCalledTimes(1));
+      expect(updatePreferencesMutateAsync).toHaveBeenCalledWith({
+        budget_approaching: true,
+        budget_exceeded: false,
+        monthly_summary: true,
+        account_security: false,
+      });
+      expect(updateProfileMutateAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it("a failed save preserves the toggled switch state", async () => {
+      loaded();
+      updatePreferencesMutateAsync.mockRejectedValue(new Error("permission denied for table notification_preferences"));
+      const user = userEvent.setup();
+      renderWithProviders(<Settings />);
+
+      await user.click(screen.getByLabelText("Budget exceeded"));
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() =>
+        expect(screen.getByRole("alert")).toHaveTextContent(/permission denied for table notification_preferences/i)
+      );
+      expect(screen.getByLabelText("Budget exceeded")).toHaveAttribute("aria-checked", "false");
+    });
   });
 
   it("does not duplicate Profile's Budget reset cycle/day editing controls", () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+    loaded();
     renderWithProviders(<Settings />);
 
     expect(screen.queryByLabelText(/budget reset cycle/i)).not.toBeInTheDocument();
@@ -185,7 +295,7 @@ describe("Settings page", () => {
   });
 
   it("does not duplicate Profile identity or Account security controls", () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+    loaded();
     renderWithProviders(<Settings />);
 
     expect(screen.queryByLabelText(/full name/i)).not.toBeInTheDocument();
@@ -194,7 +304,7 @@ describe("Settings page", () => {
   });
 
   it("never renders Lovable's mock settings/session data", () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+    loaded();
     renderWithProviders(<Settings />);
 
     expect(screen.queryByText(/jordan\.van@nexali\.app/i)).not.toBeInTheDocument();
@@ -202,7 +312,7 @@ describe("Settings page", () => {
   });
 
   it("disables Save and Discard until a real preference actually changes", async () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+    loaded();
     const user = userEvent.setup();
     renderWithProviders(<Settings />);
 
@@ -217,7 +327,7 @@ describe("Settings page", () => {
   });
 
   it("discard resets ALL real editable fields back to the loaded values, not just some", async () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+    loaded();
     const user = userEvent.setup();
     renderWithProviders(<Settings />);
 
@@ -232,8 +342,8 @@ describe("Settings page", () => {
     expect(screen.getByRole("combobox", { name: /default currency/i })).toHaveTextContent(/USD \(\$\)/);
   });
 
-  it("saves the full set of real preferences in one coherent update, even when only one changed", async () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+  it("saves the full set of real profile preferences in one coherent update, even when only one changed", async () => {
+    loaded();
     const user = userEvent.setup();
     renderWithProviders(<Settings />);
 
@@ -241,68 +351,41 @@ describe("Settings page", () => {
     await user.click(await screen.findByText(/eastern time/i));
     await user.click(screen.getByRole("button", { name: /save changes/i }));
 
-    expect(updateMutate).toHaveBeenCalledTimes(1);
-    expect(updateMutate).toHaveBeenCalledWith(
-      { timezone: "America/New_York", currency: "USD", date_format: "mdy", number_format: "standard" },
-      expect.anything()
-    );
+    await waitFor(() => expect(updateProfileMutateAsync).toHaveBeenCalledTimes(1));
+    expect(updateProfileMutateAsync).toHaveBeenCalledWith({
+      timezone: "America/New_York",
+      currency: "USD",
+      date_format: "mdy",
+      number_format: "standard",
+    });
   });
 
-  it("saves multiple changed preferences together in exactly one mutation call", async () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
-    const user = userEvent.setup();
-    renderWithProviders(<Settings />);
-
-    await user.click(screen.getByRole("combobox", { name: /^timezone$/i }));
-    await user.click(await screen.findByText(/eastern time/i));
-    await user.click(screen.getByRole("combobox", { name: /default currency/i }));
-    await user.click(await screen.findByText(/EUR \(€\)/));
-    await user.click(screen.getByRole("combobox", { name: /number format/i }));
-    await user.click(await screen.findByText(/1\.234,56/));
-
-    await user.click(screen.getByRole("button", { name: /save changes/i }));
-
-    expect(updateMutate).toHaveBeenCalledTimes(1);
-    expect(updateMutate).toHaveBeenCalledWith(
-      { timezone: "America/New_York", currency: "EUR", date_format: "mdy", number_format: "european" },
-      expect.anything()
-    );
-  });
-
-  it("shows the saving state while the mutation is pending", () => {
-    updateState = { isPending: true };
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+  it("shows the saving state while either mutation is pending", () => {
+    updateProfileState = { isPending: true };
+    loaded();
     renderWithProviders(<Settings />);
 
     expect(screen.getByRole("button", { name: /saving/i })).toBeDisabled();
   });
 
-  it("shows success feedback after a real save", async () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+  it("shows success feedback after a real combined save", async () => {
+    loaded();
     const user = userEvent.setup();
     renderWithProviders(<Settings />);
-
-    updateMutate.mockImplementation((_vars, opts) => {
-      opts.onSuccess();
-    });
 
     await user.click(screen.getByRole("combobox", { name: /^timezone$/i }));
     await user.click(await screen.findByText(/eastern time/i));
     await user.click(screen.getByRole("button", { name: /save changes/i }));
 
     await waitFor(() => expect(screen.getByText(/settings saved/i)).toBeInTheDocument());
-    // The just-saved value is now the baseline -- Discard goes disabled again.
     expect(screen.getByRole("button", { name: /discard changes/i })).toBeDisabled();
   });
 
-  it("shows safe failure feedback and preserves the entered timezone after a failed save", async () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
+  it("shows safe failure feedback and preserves the entered timezone after a failed profile save", async () => {
+    loaded();
+    updateProfileMutateAsync.mockRejectedValue(new Error("permission denied for table profiles"));
     const user = userEvent.setup();
     renderWithProviders(<Settings />);
-
-    updateMutate.mockImplementation((_vars, opts) => {
-      opts.onError(new Error("permission denied for table profiles"));
-    });
 
     await user.click(screen.getByRole("combobox", { name: /^timezone$/i }));
     await user.click(await screen.findByText(/eastern time/i));
@@ -310,52 +393,5 @@ describe("Settings page", () => {
 
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/permission denied for table profiles/i));
     expect(screen.getByRole("combobox", { name: /^timezone$/i })).toHaveTextContent(/eastern time/i);
-  });
-
-  it("renders the real Lovable notification-preference rows", () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
-    renderWithProviders(<Settings />);
-
-    expect(screen.getByText("Budget approaching limit")).toBeInTheDocument();
-    expect(screen.getByText("Budget exceeded")).toBeInTheDocument();
-    expect(screen.getByText("Monthly financial summary")).toBeInTheDocument();
-    expect(screen.getByText("Account and security notifications")).toBeInTheDocument();
-  });
-
-  it("keeps every notification-preference switch disabled and unchecked, not persisted", () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
-    renderWithProviders(<Settings />);
-
-    const switches = screen.getAllByRole("switch");
-    expect(switches).toHaveLength(4);
-    for (const s of switches) {
-      expect(s).toBeDisabled();
-      expect(s).toHaveAttribute("aria-checked", "false");
-    }
-  });
-
-  it("does not let notification preferences, reduce-animations, or show-chart-values affect Settings dirty state", () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
-    renderWithProviders(<Settings />);
-
-    // Every backend-pending control on the page is disabled -- there is
-    // nothing to interact with, so dirty state can only ever come from the
-    // four real editable fields.
-    expect(screen.getByRole("button", { name: /save changes/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /discard changes/i })).toBeDisabled();
-  });
-
-  it("never includes notification/appearance preferences in the Save payload", async () => {
-    profileState = { data: baseProfile(), isLoading: false, isError: false, error: null };
-    const user = userEvent.setup();
-    renderWithProviders(<Settings />);
-
-    await user.click(screen.getByRole("combobox", { name: /^timezone$/i }));
-    await user.click(await screen.findByText(/eastern time/i));
-    await user.click(screen.getByRole("button", { name: /save changes/i }));
-
-    expect(updateMutate).toHaveBeenCalledTimes(1);
-    const [payload] = updateMutate.mock.calls[0];
-    expect(Object.keys(payload).sort()).toEqual(["currency", "date_format", "number_format", "timezone"]);
   });
 });

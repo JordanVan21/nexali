@@ -107,6 +107,14 @@ export const qk = {
     [...qk.activitySummaryRoot(userId), fromISO ?? null, toISO ?? null] as const,
 
   profile: (userId: string) => ["profile", userId] as const,
+
+  // Backend Part 7. notificationsRoot lets a mark-read/mark-all/dismiss
+  // mutation invalidate every cached filter tab in one call, the same
+  // *Root prefix-invalidation pattern used everywhere else in this file.
+  notificationsRoot: (userId: string) => ["notifications", userId] as const,
+  notifications: (userId: string, filter: string) => [...qk.notificationsRoot(userId), filter] as const,
+  notificationsUnreadCount: (userId: string) => ["notificationsUnreadCount", userId] as const,
+  notificationPreferences: (userId: string) => ["notificationPreferences", userId] as const,
   expenseCategories: (userId: string) => ["expenseCategories", userId] as const,
   avatar: (userId: string) => ["avatar", userId] as const,
 

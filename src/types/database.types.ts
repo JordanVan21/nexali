@@ -77,6 +77,84 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          action_href: string | null
+          action_label: string | null
+          created_at: string
+          dedupe_key: string | null
+          description: string
+          dismissed_at: string | null
+          id: string
+          read_at: string | null
+          secondary_action_href: string | null
+          secondary_action_label: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          action_href?: string | null
+          action_label?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          description: string
+          dismissed_at?: string | null
+          id?: string
+          read_at?: string | null
+          secondary_action_href?: string | null
+          secondary_action_label?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          action_href?: string | null
+          action_label?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          description?: string
+          dismissed_at?: string | null
+          id?: string
+          read_at?: string | null
+          secondary_action_href?: string | null
+          secondary_action_label?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notification_preferences: {
+        Row: {
+          account_security: boolean
+          budget_approaching: boolean
+          budget_exceeded: boolean
+          created_at: string
+          monthly_summary: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_security?: boolean
+          budget_approaching?: boolean
+          budget_exceeded?: boolean
+          created_at?: string
+          monthly_summary?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_security?: boolean
+          budget_approaching?: boolean
+          budget_exceeded?: boolean
+          created_at?: string
+          monthly_summary?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -220,6 +298,10 @@ export type Database = {
       transactions_activity_summary: {
         Args: { p_from?: string | null; p_to?: string | null }
         Returns: Json
+      }
+      evaluate_budget_notifications: {
+        Args: { p_user_id: string; p_category_id: number; p_year: number; p_month: number }
+        Returns: undefined
       }
     }
     Enums: {

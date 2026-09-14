@@ -1015,4 +1015,139 @@ New: `src/lib/dateFormat.test.ts`, `src/lib/preferenceOptions` covered indirectl
 
 `npm run test`: 55 files, 483 tests, all passing. `npm run lint`: 0 errors, 0 warnings. `npm run build`: succeeds (same pre-existing >500kB chunk-size warning, unrelated). `npx tsc -b --force`: 0 errors.
 
+---
+
+## 39. Backend Part 7 — Notifications Backend V1, Preferences, Real Feed, Budget Producer
+
+**Status at start of this Part:** confirmed via `npx supabase migration list` that all ten migrations through `20260917000000_profile_settings_preferences.sql` (Backend Part 6) showed matching local/remote timestamps — deployed. **Status at end of this Part: implemented in the repository, NOT yet applied to the live database.**
+
+### 39.1 Re-audit of the pre-existing frontend (Part A)
+
+Confirmed by direct re-read, not assumed from a prior session: `src/pages/Notifications.tsx` held a permanently-empty `useState<NotificationItemData[]>([])` (never Lovable mock data), real filter tabs (`all | unread | financial | security | system | assistant`), real day-grouping (`today`/`yesterday`/`earlier` via `notificationDay()`), and real (but permanently inert) `markRead`/`dismiss`/`markAllRead` handlers operating on local state. `src/lib/notifications.ts`'s `NotificationType` union (`"financial" | "security" | "system" | "assistant"`) is the exact type set now enforced by the new table's CHECK constraint — no type was added or removed. `src/components/notifications/NotificationItem.tsx`'s props contract (`{notification, onMarkRead, onDismiss}`) and visual structure were preserved byte-for-byte; only `Notifications.tsx`'s data source changed. `src/pages/Settings.tsx`'s four notification rows (`Budget approaching limit` / `Budget exceeded` / `Monthly financial summary` / `Account and security notifications`, exact labels/descriptions) were re-confirmed unchanged from Part 6.
+
+### 39.2 `notifications` schema (Part B/D/E)
+
+New migration `supabase/migrations/20260918000000_notifications_schema.sql`:
+
+| Column | Type | Nullable | Default | Constraint |
+|---|---|---|---|---|
+| `id` | `uuid` | NOT NULL | `gen_random_uuid()` | PK |
+| `user_id` | `uuid` | NOT NULL | none | `REFERENCES auth.users(id) ON DELETE CASCADE` |
+| `type` | `text` | NOT NULL | none | `IN ('financial','security','system','assistant')` |
+| `title` | `text` | NOT NULL | none | — |
+| `description` | `text` | NOT NULL | none | — |
+| `action_href` | `text` | NULL | none | must start with `/` and not `//` (no open redirects) |
+| `action_label` | `text` | NULL | none | present iff `action_href` present |
+| `secondary_action_href` | `text` | NULL | none | same safety constraint |
+| `secondary_action_label` | `text` | NULL | none | present iff `secondary_action_href` present |
+| `dedupe_key` | `text` | NULL | none | `UNIQUE(user_id, dedupe_key)` — NULL values don't collide |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — |
+| `read_at` | `timestamptz` | NULL | none | NULL = unread; `isRead` is derived, never a separate boolean |
+| `dismissed_at` | `timestamptz` | NULL | none | NULL = in the active feed; dismissal is durable, not a DELETE |
+
+No `metadata jsonb` column: nothing in the real frontend or the budget producer needs unstructured payload storage, so it was deliberately omitted rather than added speculatively (per the task's "inspect current frontend first, don't blindly add every example field" instruction).
+
+**Indexes:** `notifications_feed_idx (user_id, created_at DESC) WHERE dismissed_at IS NULL` (the feed's real query shape) and `notifications_unread_idx (user_id) WHERE dismissed_at IS NULL AND read_at IS NULL` (the unread-count query shape) — both partial indexes matching the exact predicates the real queries use, no speculative extra index added.
+
+**RLS:** `ENABLE ROW LEVEL SECURITY`; `SELECT`/`UPDATE` policies scoped to `auth.uid() = user_id`. **No INSERT or DELETE policy for authenticated users** — mark-read/mark-all-read/dismiss are all UPDATEs (`read_at`/`dismissed_at`), never INSERT/DELETE, so the UPDATE policy is sufficient for every real user-initiated mutation. All notification rows are written by SECURITY DEFINER producer functions (table owner, bypasses RLS by design — the same trusted-producer pattern as `handle_new_user()`) or `service_role`.
+
+**GRANTs:** surgical, not the baseline schema's blanket `GRANT ALL ... TO anon, authenticated` — mirrors the explicit REVOKE/GRANT discipline established in `20260913000000_secure_delete_user_rpc.sql`. `authenticated` gets exactly `SELECT, UPDATE`; no INSERT, no DELETE, no grant to `anon` at all. This is a deliberate defense-in-depth layer beyond RLS: a browser holding only the anon/authenticated key can never fabricate ("You exceeded your budget") or erase its own notification history, even if a future RLS policy were ever misconfigured.
+
+### 39.3 `notification_preferences` schema (Part C)
+
+Same migration. One row per user:
+
+| Column | Type | Default | Notes |
+|---|---|---|---|
+| `user_id` | `uuid` | none | PK, `REFERENCES auth.users(id) ON DELETE CASCADE` |
+| `budget_approaching` | `boolean` | `true` | backs "Budget approaching limit" |
+| `budget_exceeded` | `boolean` | `true` | backs "Budget exceeded" |
+| `monthly_summary` | `boolean` | `true` | backs "Monthly financial summary" |
+| `account_security` | `boolean` | `true` | backs "Account and security notifications" |
+| `created_at` / `updated_at` | `timestamptz` | `now()` | `updated_at` auto-touched on every UPDATE via a small `BEFORE UPDATE` trigger |
+
+**Default decision (all four ON):** the pre-Part-7 Settings switches rendered unchecked, but that reflected the *absence* of any real backing value (every row was hard `disabled`/`checked={false}` regardless of intent) — there was no real preference to preserve. Budget/security alerts are conventionally opt-out (default-on) product behavior; defaulting to ON also matches Notifications' own pre-existing empty-state copy ("Budget alerts, security events... will show up here as they happen"), which already implied these are active-by-default categories.
+
+A **separate table**, not more `profiles` columns, was used: these rows describe notification *delivery* behavior, not account identity, and don't need to be read by every page that shows a name/avatar the way `profiles` is.
+
+**RLS:** `SELECT`/`UPDATE` scoped to `auth.uid() = user_id`, plus (unlike `notifications`) an owner-scoped **INSERT** policy — a defensive fallback only, since normal operation never requires the client to create its own row (see auto-creation below), but an upsert that can only ever create the caller's *own* row is harmless. GRANTs: `SELECT, INSERT, UPDATE` to `authenticated` (no DELETE — not needed; cascade-deleted on account deletion).
+
+**Auto-creation (Part C "auto-creation" requirement):** `handle_new_user()` was extended (via `CREATE OR REPLACE`, a new migration — the historical migration that first defined it was not edited) to also `INSERT INTO notification_preferences (user_id)` alongside its existing `profiles` insert, so every new signup gets deterministic defaults for free. Existing users are backfilled once in the same migration via `INSERT ... SELECT ... LEFT JOIN ... WHERE preferences row IS NULL` — deterministic, no manual per-user step required, and safe to run even if some preference rows already existed (it only inserts missing ones).
+
+### 39.4 `delete_user_everything` follow-up (Part D, account-deletion cascade)
+
+New migration `supabase/migrations/20260918000050_delete_user_notifications_cleanup.sql`. Both new tables carry `ON DELETE CASCADE` to `auth.users`, so they would be cleaned up automatically once the delete-user Edge Function calls `admin.auth.admin.deleteUser()` — but that call happens *after* `delete_user_everything()` in the existing Edge Function (confirmed by reading `supabase/functions/delete-user/index.ts`), and `delete_user_everything()` explicitly deletes every other app table for `p_user_id` rather than depending on cascade timing. `notifications`/`notification_preferences` deletes were added to `delete_user_everything()` (via `CREATE OR REPLACE`, preserving the existing `service_role`-only guard and GRANT/REVOKE discipline unchanged) to match that same established, delete-order-independent discipline.
+
+### 39.5 Budget approaching/exceeded producer (Part K/L, the only implemented producer)
+
+New migration `supabase/migrations/20260918000100_budget_notification_producer.sql`.
+
+**Classification (Part K):**
+- **Budget approaching / Budget exceeded — (A) implemented now.** Nexali already has real `transactions`/`budgets`/`profiles.timezone` and timezone-aware period math (Backend Part 4's `budgets_progress()`); this is the one notification type genuinely buildable correctly today.
+- **Monthly summary — (B) deferred, needs infrastructure.** See §39.6.
+- **Account/security — (D) deferred, no reliable event source.** See §39.7.
+- **Assistant — not a producer target this Part.** Aura backend doesn't exist yet (§21); the table's `type` CHECK already allows `'assistant'` so the frontend filter tab stays valid, but nothing writes that type.
+
+**Threshold semantics — reconciled against the real, already-shipped `src/lib/budgetMath.ts` constants, not invented separately:** `BUDGET_WARNING_THRESHOLD = 0.75` and `isOverBudget = spent > amount` are the two lines the frontend already draws. The producer fires **"approaching"** on crossing into `ratio >= 0.75` and **"exceeded"** on crossing into `ratio > 1`. `BUDGET_CRITICAL_THRESHOLD = 0.95` has no corresponding notification type in the frontend's `NotificationType` union (only financial/security/system/assistant exist) and was correctly left unused by the producer. Approaching and exceeded are **independent** events, each separately preference-gated and separately dedupe-keyed — a budget that jumps from 50% to 120% spent in one transaction legitimately produces both notifications at once, since it crossed both lines.
+
+**Idempotency:** `UNIQUE(user_id, dedupe_key)` on `notifications` + `INSERT ... ON CONFLICT DO NOTHING`. `dedupe_key` format: `budget:<budget_id>:<year>-<month>:approaching|exceeded` — embeds both the budget and the period, so (a) repeated transaction edits within one period never produce duplicate rows, and (b) a new period always gets a fresh chance to notify (different key entirely). **v1 policy is strict-once-per-period:** once a `(budget, period, type)` notification exists, it is never produced again in that period even if the user deletes the triggering transaction and re-exceeds later — no event-state machinery was built to support a second notification, per the task's explicitly-acceptable v1 policy. This is a documented decision, not an oversight.
+
+**Trigger points:** `AFTER INSERT OR UPDATE` on `transactions` (re-evaluates the row's own category/period, timezone-converted via `profiles.timezone`) and `AFTER INSERT OR UPDATE` on `budgets` (a new budget, or a lowered amount, against a category that already has spend). **Deliberately no trigger on `transactions` DELETE:** removing/lowering spend can only ever decrease a budget's ratio, and notifications fire only on crossing *into* a threshold from below — a delete can never newly cross a threshold, so there is nothing for a delete trigger to detect (and the v1 dedupe policy above means it couldn't "un-notify" either way).
+
+**Preference gating:** `evaluate_budget_notifications()` reads the user's real `notification_preferences` row and skips the corresponding INSERT entirely when the matching switch is off; if no preferences row exists at all (should not happen post-backfill/`handle_new_user()`), it fails safe and does not notify rather than inventing a default.
+
+**Security:** `evaluate_budget_notifications(p_user_id, ...)` is `SECURITY DEFINER` and accepts `p_user_id` as a parameter — `EXECUTE` is revoked from `PUBLIC`/`anon`/`authenticated` and granted only to `service_role`, so a browser can never call it directly to force-generate notifications into another user's feed. It is invoked only via `PERFORM` from the two trigger functions, which run as their own owner (`postgres`) regardless of the triggering session's role, so the trigger chain itself needs no additional grant.
+
+### 39.6 Monthly summary — deferred (Part M)
+
+Confirmed via `supabase/config.toml` (grepped for `cron|schedule`, zero matches) and `supabase/functions/` (only `delete-user` exists) that **no durable scheduling infrastructure exists in this project** — no `pg_cron`, no Supabase Scheduled Functions. Per the task's explicit instruction, this was **not faked** with an in-browser "check if the month ended" hack. The `monthly_summary` preference column exists and is fully persisted/editable in Settings today, but **no producer writes a monthly-summary notification in this Part.** Recommended for a future part once real scheduling infrastructure is provisioned.
+
+### 39.7 Account/security notifications — deferred (Part N)
+
+No reliable, already-observable event source exists in the current Supabase architecture for "new device sign-in" or "suspicious login" — building a real producer would require auth-provider webhook/session-event plumbing that does not exist yet. Account **deletion** is the one account/security event Nexali can currently observe reliably (via the `delete-user` Edge Function), but by the time it fires the user's row (and their notification feed with it) is being deleted, so there is no meaningful "you'll receive a notification" moment to hook. The `account_security` preference column exists and is fully persisted/editable in Settings today, but **no producer writes a security notification in this Part** — consistent with the task's explicit prohibition on fabricating security events the app cannot actually detect.
+
+### 39.8 Real data-access layer (Part F)
+
+New `src/lib/notificationsData.ts`: `listNotifications(userId, filter)` (server-filtered by tab — `unread` via `read_at IS NULL`, a type tab via `eq("type", ...)`, `all` unfiltered — always excluding dismissed, ordered `created_at DESC`, bounded to a fixed `FEED_LIMIT = 50`), `getUnreadNotificationCount(userId)` (a real `head: true, count: "exact"` query, never fetch-all-then-count), `markNotificationRead`/`markAllNotificationsRead`/`dismissNotification` (owner-scoped UPDATEs, belt-and-suspenders `.eq("user_id", userId)` alongside RLS), `getNotificationPreferences`/`updateNotificationPreferences` (the latter an owner-scoped `upsert`, using the defensive INSERT policy from §39.3). New `src/features/notifications/useNotifications.ts`: TanStack Query hooks for all of the above, with mark-read/mark-all/dismiss each invalidating both the feed (`qk.notificationsRoot`, a prefix covering every cached filter tab) and the unread count together, so the two can never drift out of sync (Part Q).
+
+**Feed bounding (Part F "list query" requirement):** the real Notifications page has no pagination UI (no "load more", no page numbers), so a fixed "latest 50 non-dismissed" window is the correct match for what the frontend actually renders — documented in code as a deliberate v1 limitation, not a silent one: older notifications beyond the window remain in the database (never deleted) but aren't currently reachable from the UI; a future pagination affordance would be a frontend change, out of scope here.
+
+**Icon mapping (an open design question from investigation, now resolved):** `NotificationItemData.icon: LucideIcon` is a non-serializable React component reference that cannot be stored in the database. `src/lib/notifications.ts` gained `notificationTypeIcon: Record<NotificationType, LucideIcon>` (financial → `TrendingUp`, security → `ShieldAlert`, system → `Info`, assistant → `Sparkles`, the last matching Aura's existing icon elsewhere in the app), and `notificationsData.ts`'s row-mapping function applies it — `NotificationItem.tsx`'s props contract and its existing tests needed zero changes.
+
+### 39.9 Notifications page (Part G/H/I/R/S)
+
+`src/pages/Notifications.tsx` rewritten to consume the real hooks; **visual structure (heading, filter tabs, day-grouping, empty-state copy) is byte-for-byte unchanged** from the pre-backend version — only the data source and loading/error states are new. New `src/components/notifications/NotificationsSkeleton.tsx` (shaped like the real feed, matching the existing `BudgetsSkeleton`/`DashboardSkeleton` pattern). Real `ErrorState` + Retry wired to the feed query's own `refetch`. The header's unread count reads from the independent `useUnreadNotificationCount` query (a real server count), not derived from the currently-filtered/visible list, so switching tabs never changes the header count. Mark-read/dismiss/mark-all-read all call the real mutations by id; a real zero-notification feed shows the existing truthful empty state with no seeded/demo rows.
+
+### 39.10 Settings page (Part J)
+
+The four notification switches (`src/pages/Settings.tsx`) converted from `disabled checked={false}` with a "Coming soon" caption to real, enabled, two-way-bound `Switch` controls, loaded from `useNotificationPreferences` and folded into the page's existing single `FormState`/dirty-state/Save-Discard machinery (the same architecture Backend Part 6 used for currency/date/number-format) — **integrated into the existing one-Save flow**, not an auto-save-per-switch model, matching the page's pre-existing interaction model. `handleSave` now runs `updateProfile.mutateAsync(...)` and `updatePreferences.mutateAsync(...)` together via `Promise.all`, so a save always leaves both tables' real fields mutually consistent, and a failure on *either* side preserves every local edit (profile fields and notification toggles alike) rather than partially saving. Discard restores all eight real fields (four profile + four preference) together in one assignment. The "Coming soon" caption was removed from exactly these four rows; Reduce animations/Show chart values/Appearance theme keep their pending captions unchanged (still no backing implementation, confirmed by re-inspection).
+
+### 39.11 AppNav / mobile unread indicator (Part P)
+
+Direct inspection of `src/components/shell/AppNav.tsx`, `src/components/shell/MobileProfileMenu.tsx`, `MobileHeader.tsx`, and `MobileNav.tsx` confirmed **no existing badge/dot/count markup anywhere** in any of them — the desktop bell is a plain icon `<Link>`, the mobile Notifications entry is a plain `DropdownMenuItem` inside the avatar menu (no standalone mobile bell, consistent with the app's existing mobile-nav design). Per the task's explicit fallback instruction ("if there is no approved unread visual treatment, leave the bell visually unchanged"), **no badge was added to either** — inventing one would have been a nav redesign, out of scope. The Notifications page's own header subtitle still shows the real server-computed unread count (§39.9).
+
+### 39.12 Database types (Part T)
+
+`src/types/database.types.ts` gained `notifications` and `notification_preferences` Row/Insert/Update types (exact columns from §39.2/39.3, no `any`) and an `evaluate_budget_notifications` Functions entry (for schema completeness; it is not client-callable — see §39.5's GRANT discussion).
+
+### 39.13 Tests added/updated (Part U)
+
+New `src/lib/notificationsData.test.ts` (chained-builder-mocked `supabase.from`, covering: feed scoping/ordering/bounding/type-and-unread filtering, row→`NotificationItemData` mapping including icon derivation, empty-result and real-error handling for every function, unread-count query shape, mark-one/mark-all/dismiss owner-scoping, preferences read with a defense-in-depth default fallback, preferences upsert). Rewritten `src/pages/Notifications.test.tsx` (16 cases: loading skeleton, retryable error + real `refetch` wiring, truthful empty state, real server-sourced unread count independent of the visible list, real notification rendering, day-grouping, mark-read/dismiss/mark-all-read call the real mutations with the correct id, server-filtered tab switching, no Lovable mock content, real filter tabs, unread-tab empty-state copy). Rewritten `src/pages/Settings.test.tsx` (+ new "Notification preferences" describe block: real enabled switches, mixed on/off loading, toggling affects dirty state, discard restores prior value, combined save calls both mutations with the exact expected payloads, a failed preferences save preserves the toggle and shows real error feedback; existing profile-field tests updated for the `mutateAsync`-based combined-save architecture). `NotificationItem.test.tsx` required **zero changes** — its props contract was preserved exactly.
+
+### 39.14 Security summary (Part D, insert-security emphasis)
+
+No client-facing path can ever INSERT a `notifications` row (no INSERT grant/policy for `authenticated`) or fabricate another user's notification (the one parameterized producer function, `evaluate_budget_notifications`, has `EXECUTE` restricted to `service_role` only). Every real user-initiated mutation (mark-read, mark-all-read, dismiss) is an UPDATE scoped by both RLS (`auth.uid() = user_id`) and an explicit `.eq("user_id", userId)` in the query itself — belt-and-suspenders, matching the codebase's established pattern. `action_href`/`secondary_action_href` are CHECK-constrained to internal relative routes (`/...`, never `//...`), preventing any stored notification from becoming an open redirect. Anon has no grant on either new table at all.
+
+### 39.15 Confirmations
+
+Frontend visual design unchanged (Notifications gained real loading/error/data states using its existing visual language only; Settings' four switches became enabled with no layout change). No fake/seeded notifications were added anywhere, including in the migration itself — existing users begin with a real empty feed. No real financial records were manually changed. No historical migration file was edited — `delete_user_everything` and `handle_new_user` were both updated via `CREATE OR REPLACE` in new migrations, exactly matching the pattern already established in Backend Part 2. Migrations were **not** applied to the live database — `npx supabase db push` was not run.
+
+### 39.16 Quality gates (this Part)
+
+`npm run test`: 57 files, 513 tests, all passing (58 new/changed tests across the three files in §39.13). `npm run lint`: 0 errors, 0 warnings. `npm run build`: succeeds (same pre-existing >500kB chunk-size warning, unrelated to this Part). `npx tsc -b --force`: 0 errors.
+
+### 39.17 Recommended Backend Part 8
+
+Aura backend (the first real AI-assistant Edge Function/tool layer) is the natural next phase per the pre-existing sequence plan (§31) — **not started in this Part**, per explicit instruction.
+
 **Not run:** execution of the new migration against any real Postgres instance -- hand-reviewed only, consistent with every prior Part. See the final report for exact post-deployment verification SQL.

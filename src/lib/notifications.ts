@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import { Info, ShieldAlert, Sparkles, TrendingUp, type LucideIcon } from "lucide-react";
 
 export type NotificationType = "financial" | "security" | "system" | "assistant";
 
@@ -33,6 +33,20 @@ export const notificationTypeLabels: Record<NotificationType, string> = {
   security: "Security",
   system: "System",
   assistant: "Assistant",
+};
+
+/**
+ * The real `notifications` table (Backend Part 7) stores only a `type`
+ * string -- a LucideIcon component reference can't be persisted -- so the
+ * data-access layer maps a stored row's `type` through this table to
+ * satisfy NotificationItemData's `icon` field. `assistant` uses the same
+ * Sparkles icon already used for Aura elsewhere (see AuraEntryCard).
+ */
+export const notificationTypeIcon: Record<NotificationType, LucideIcon> = {
+  financial: TrendingUp,
+  security: ShieldAlert,
+  system: Info,
+  assistant: Sparkles,
 };
 
 function startOfDay(d: Date): number {

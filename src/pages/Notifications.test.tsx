@@ -1,26 +1,182 @@
-import { describe, it, expect } from "vitest";
-import { screen } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { TrendingUp } from "lucide-react";
 import { renderWithProviders } from "../test/renderWithProviders";
 import Notifications from "./Notifications";
+import type { NotificationItemData } from "../lib/notifications";
 
-describe("Notifications page", () => {
+type QueryState<T> = { data: T | undefined; isLoading: boolean; isError: boolean; error: Error | null };
+
+const markReadMutate = vi.fn();
+const dismissMutate = vi.fn();
+const markAllMutate = vi.fn();
+const feedRefetch = vi.fn();
+
+let feedByFilter: Record<string, QueryState<NotificationItemData[]>>;
+let unreadCountState: QueryState<number>;
+let markAllPending = false;
+
+function defaultFeedState(): QueryState<NotificationItemData[]> {
+  return { data: [], isLoading: false, isError: false, error: null };
+}
+
+vi.mock("../features/notifications/useNotifications", () => ({
+  useNotificationsFeed: (_userId: string | undefined, filter: string) => ({
+    ...(feedByFilter[filter] ?? defaultFeedState()),
+    refetch: feedRefetch,
+  }),
+  useUnreadNotificationCount: () => unreadCountState,
+  useMarkNotificationRead: () => ({ mutate: markReadMutate }),
+  useDismissNotification: () => ({ mutate: dismissMutate }),
+  useMarkAllNotificationsRead: () => ({
+    mutate: markAllMutate,
+    get isPending() {
+      return markAllPending;
+    },
+  }),
+}));
+
+function fixture(overrides: Partial<NotificationItemData> = {}): NotificationItemData {
+  return {
+    id: "n1",
+    type: "financial",
+    icon: TrendingUp,
+    title: "Budget approaching limit",
+    description: "You've used 80% of your Dining budget for September 2026.",
+    createdAt: new Date().toISOString(),
+    read: false,
+    ...overrides,
+  };
+}
+
+function loaded(items: NotificationItemData[], unread = items.filter((n) => !n.read).length) {
+  feedByFilter = { all: { data: items, isLoading: false, isError: false, error: null } };
+  unreadCountState = { data: unread, isLoading: false, isError: false, error: null };
+}
+
+describe("Notifications page (Backend Part 7: real data)", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+    markAllPending = false;
+  });
+
   it("renders the page heading", () => {
+    loaded([]);
     renderWithProviders(<Notifications />);
     expect(screen.getByRole("heading", { name: "Notifications" })).toBeInTheDocument();
   });
 
-  it("shows a real, non-fabricated unread count of 0 since no notification backend exists", () => {
+  it("shows a loading skeleton while the feed is loading, not an empty state", () => {
+    feedByFilter = { all: { data: undefined, isLoading: true, isError: false, error: null } };
+    unreadCountState = { data: undefined, isLoading: true, isError: false, error: null };
     renderWithProviders(<Notifications />);
-    expect(screen.getByText("0 unread notifications")).toBeInTheDocument();
+
+    expect(screen.getByLabelText(/loading notifications/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no notifications yet/i)).not.toBeInTheDocument();
   });
 
-  it("shows a truthful empty state instead of fake production notifications", () => {
+  it("shows a retryable error state when the feed query fails", () => {
+    feedByFilter = { all: { data: undefined, isLoading: false, isError: true, error: new Error("network down") } };
+    unreadCountState = { data: 0, isLoading: false, isError: false, error: null };
+    renderWithProviders(<Notifications />);
+
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+  });
+
+  it("retry calls the feed's real refetch", async () => {
+    feedByFilter = { all: { data: undefined, isLoading: false, isError: true, error: new Error("down") } };
+    unreadCountState = { data: 0, isLoading: false, isError: false, error: null };
+    const user = userEvent.setup();
+    renderWithProviders(<Notifications />);
+
+    await user.click(screen.getByRole("button", { name: /retry/i }));
+    expect(feedRefetch).toHaveBeenCalled();
+  });
+
+  it("shows a truthful empty state for a real zero-notification feed", () => {
+    loaded([]);
     renderWithProviders(<Notifications />);
     expect(screen.getByText(/no notifications yet/i)).toBeInTheDocument();
   });
 
+  it("renders the real unread count from the server, not derived from the visible/filtered list", () => {
+    loaded([fixture({ id: "n1", read: false })], 3);
+    renderWithProviders(<Notifications />);
+    expect(screen.getByText("3 unread notifications")).toBeInTheDocument();
+  });
+
+  it("renders a real notification and its title/description", () => {
+    loaded([fixture()]);
+    renderWithProviders(<Notifications />);
+
+    expect(screen.getByText("Budget approaching limit")).toBeInTheDocument();
+    expect(screen.getByText(/you've used 80% of your dining budget/i)).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+  });
+
+  it("groups notifications under Today when created_at is today", () => {
+    loaded([fixture({ createdAt: new Date().toISOString() })]);
+    renderWithProviders(<Notifications />);
+    expect(screen.getByText("Today")).toBeInTheDocument();
+  });
+
+  it("mark as read calls the real mutation with this notification's id", async () => {
+    loaded([fixture({ id: "n42", read: false })]);
+    const user = userEvent.setup();
+    renderWithProviders(<Notifications />);
+
+    await user.click(screen.getByRole("button", { name: /mark as read/i }));
+    expect(markReadMutate).toHaveBeenCalledWith("n42");
+  });
+
+  it("dismiss calls the real mutation with this notification's id", async () => {
+    loaded([fixture({ id: "n42", title: "Budget exceeded" })]);
+    const user = userEvent.setup();
+    renderWithProviders(<Notifications />);
+
+    await user.click(screen.getByRole("button", { name: /dismiss notification: budget exceeded/i }));
+    expect(dismissMutate).toHaveBeenCalledWith("n42");
+  });
+
+  it("mark all as read calls the real bulk mutation and is disabled when unread count is 0", async () => {
+    loaded([fixture({ read: false })], 0);
+    renderWithProviders(<Notifications />);
+
+    const button = screen.getByRole("button", { name: /mark all as read/i });
+    expect(button).toBeDisabled();
+  });
+
+  it("mark all as read is enabled and wired when there is a real unread count", async () => {
+    loaded([fixture({ read: false })], 2);
+    const user = userEvent.setup();
+    renderWithProviders(<Notifications />);
+
+    const button = screen.getByRole("button", { name: /mark all as read/i });
+    expect(button).toBeEnabled();
+    await user.click(button);
+    expect(markAllMutate).toHaveBeenCalled();
+  });
+
+  it("switching filter tabs requests the server-filtered feed for that tab", async () => {
+    feedByFilter = {
+      all: { data: [fixture({ id: "n1", type: "financial" })], isLoading: false, isError: false, error: null },
+      security: { data: [fixture({ id: "n2", type: "security", title: "New sign-in" })], isLoading: false, isError: false, error: null },
+    };
+    unreadCountState = { data: 1, isLoading: false, isError: false, error: null };
+    const user = userEvent.setup();
+    renderWithProviders(<Notifications />);
+
+    expect(screen.getByText("Budget approaching limit")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Security" }));
+    expect(screen.getByText("New sign-in")).toBeInTheDocument();
+    expect(screen.queryByText("Budget approaching limit")).not.toBeInTheDocument();
+  });
+
   it("never renders Lovable's mock notification content", () => {
+    loaded([]);
     renderWithProviders(<Notifications />);
 
     expect(screen.queryByText(/dining & takeout/i)).not.toBeInTheDocument();
@@ -30,32 +186,24 @@ describe("Notifications page", () => {
     expect(screen.queryByText(/aura found a savings opportunity/i)).not.toBeInTheDocument();
   });
 
-  it("disables Mark all as read since there are no real unread notifications", () => {
-    renderWithProviders(<Notifications />);
-    expect(screen.getByRole("button", { name: /mark all as read/i })).toBeDisabled();
-  });
-
-  it("renders the real All/Unread/category filter tabs operating on an empty array", async () => {
-    const user = userEvent.setup();
+  it("renders the real All/Unread/category filter tabs", () => {
+    loaded([]);
     renderWithProviders(<Notifications />);
 
     const tabs = screen.getAllByRole("tab");
     expect(tabs.map((t) => t.textContent)).toEqual(["All", "Unread", "Financial", "Security", "System", "Assistant"]);
+  });
+
+  it("shows the unread-specific empty-state copy on the Unread tab with zero results", async () => {
+    feedByFilter = {
+      all: { data: [], isLoading: false, isError: false, error: null },
+      unread: { data: [], isLoading: false, isError: false, error: null },
+    };
+    unreadCountState = { data: 0, isLoading: false, isError: false, error: null };
+    const user = userEvent.setup();
+    renderWithProviders(<Notifications />);
 
     await user.click(screen.getByRole("tab", { name: "Unread" }));
-    expect(screen.getByText(/you're all caught up/i)).toBeInTheDocument();
-    expect(screen.getByText(/no unread notifications right now/i)).toBeInTheDocument();
-  });
-
-  it("does not render any notification list items", () => {
-    renderWithProviders(<Notifications />);
-    expect(screen.queryAllByRole("listitem")).toHaveLength(0);
-  });
-
-  it("does not render day-grouping headings when there are no notifications", () => {
-    renderWithProviders(<Notifications />);
-    expect(screen.queryByText("Today")).not.toBeInTheDocument();
-    expect(screen.queryByText("Yesterday")).not.toBeInTheDocument();
-    expect(screen.queryByText("Earlier")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/you're all caught up/i)).toBeInTheDocument());
   });
 });
