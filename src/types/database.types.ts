@@ -303,6 +303,19 @@ export type Database = {
         Args: { p_user_id: string; p_category_id: number; p_year: number; p_month: number }
         Returns: undefined
       }
+      update_user_settings: {
+        Args: {
+          p_timezone: string
+          p_currency: string
+          p_date_format: string
+          p_number_format: string
+          p_budget_approaching: boolean
+          p_budget_exceeded: boolean
+          p_monthly_summary: boolean
+          p_account_security: boolean
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

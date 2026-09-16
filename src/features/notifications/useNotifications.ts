@@ -7,9 +7,7 @@ import {
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
-  updateNotificationPreferences,
   type NotificationFilter,
-  type NotificationPreferences,
 } from "../../lib/notificationsData";
 
 export function useNotificationsFeed(userId: string | undefined, filter: NotificationFilter) {
@@ -75,13 +73,12 @@ export function useNotificationPreferences(userId: string | undefined) {
   });
 }
 
-export function useUpdateNotificationPreferences(userId: string | undefined) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (patch: Partial<NotificationPreferences>) => updateNotificationPreferences(userId!, patch),
-    onSuccess: async () => {
-      if (!userId) return;
-      await qc.invalidateQueries({ queryKey: qk.notificationPreferences(userId) });
-    },
-  });
-}
+/**
+ * There is deliberately no useUpdateNotificationPreferences hook here --
+ * Settings (the only page that edits preferences) persists them through
+ * the atomic update_user_settings RPC (src/features/settings/useUpdateUserSettings.ts)
+ * alongside profiles' timezone/currency/date_format/number_format, in one
+ * PostgreSQL transaction. A separate, independent notification_preferences
+ * mutation would reintroduce the exact non-atomic partial-save bug that
+ * RPC was built to fix.
+ */

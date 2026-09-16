@@ -4,8 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../test/renderWithProviders";
 import Settings from "./Settings";
 
-const updateProfileMutateAsync = vi.fn();
-const updatePreferencesMutateAsync = vi.fn();
+const updateSettingsMutateAsync = vi.fn();
 
 type MockProfile = {
   full_name: string | null;
@@ -39,25 +38,21 @@ let preferencesState: {
   isError: boolean;
   error: Error | null;
 };
-let updateProfileState: { isPending: boolean } = { isPending: false };
-let updatePreferencesState: { isPending: boolean } = { isPending: false };
+let updateSettingsState: { isPending: boolean } = { isPending: false };
 
 vi.mock("../features/profiles/useProfile", () => ({
   useProfile: () => ({ ...profileState, refetch: vi.fn() }),
-  useUpdateProfile: () => ({
-    mutateAsync: updateProfileMutateAsync,
-    get isPending() {
-      return updateProfileState.isPending;
-    },
-  }),
 }));
 
 vi.mock("../features/notifications/useNotifications", () => ({
   useNotificationPreferences: () => ({ ...preferencesState, refetch: vi.fn() }),
-  useUpdateNotificationPreferences: () => ({
-    mutateAsync: updatePreferencesMutateAsync,
+}));
+
+vi.mock("../features/settings/useUpdateUserSettings", () => ({
+  useUpdateUserSettings: () => ({
+    mutateAsync: updateSettingsMutateAsync,
     get isPending() {
-      return updatePreferencesState.isPending;
+      return updateSettingsState.isPending;
     },
   }),
 }));
@@ -97,10 +92,8 @@ function loaded(profileOverrides: Partial<MockProfile> = {}, prefOverrides: Part
 describe("Settings page", () => {
   afterEach(() => {
     vi.clearAllMocks();
-    updateProfileState = { isPending: false };
-    updatePreferencesState = { isPending: false };
-    updateProfileMutateAsync.mockResolvedValue(undefined);
-    updatePreferencesMutateAsync.mockResolvedValue(undefined);
+    updateSettingsState = { isPending: false };
+    updateSettingsMutateAsync.mockResolvedValue(undefined);
   });
 
   it("renders the page heading", () => {
@@ -251,28 +244,9 @@ describe("Settings page", () => {
       expect(screen.getByLabelText("Budget exceeded")).toHaveAttribute("aria-checked", "true");
     });
 
-    it("saves changed preference toggles alongside profile fields in one combined save", async () => {
-      loaded();
-      const user = userEvent.setup();
-      renderWithProviders(<Settings />);
-
-      await user.click(screen.getByLabelText("Budget exceeded"));
-      await user.click(screen.getByLabelText("Account and security notifications"));
-      await user.click(screen.getByRole("button", { name: /save changes/i }));
-
-      await waitFor(() => expect(updatePreferencesMutateAsync).toHaveBeenCalledTimes(1));
-      expect(updatePreferencesMutateAsync).toHaveBeenCalledWith({
-        budget_approaching: true,
-        budget_exceeded: false,
-        monthly_summary: true,
-        account_security: false,
-      });
-      expect(updateProfileMutateAsync).toHaveBeenCalledTimes(1);
-    });
-
     it("a failed save preserves the toggled switch state", async () => {
       loaded();
-      updatePreferencesMutateAsync.mockRejectedValue(new Error("permission denied for table notification_preferences"));
+      updateSettingsMutateAsync.mockRejectedValue(new Error("permission denied for table notification_preferences"));
       const user = userEvent.setup();
       renderWithProviders(<Settings />);
 
@@ -283,6 +257,77 @@ describe("Settings page", () => {
         expect(screen.getByRole("alert")).toHaveTextContent(/permission denied for table notification_preferences/i)
       );
       expect(screen.getByLabelText("Budget exceeded")).toHaveAttribute("aria-checked", "false");
+    });
+  });
+
+  describe("Atomic save via update_user_settings RPC (Backend Part 7 fix)", () => {
+    it("performs exactly ONE mutation call for a save, not two independent writes", async () => {
+      loaded();
+      const user = userEvent.setup();
+      renderWithProviders(<Settings />);
+
+      await user.click(screen.getByRole("combobox", { name: /^timezone$/i }));
+      await user.click(await screen.findByText(/eastern time/i));
+      await user.click(screen.getByLabelText("Budget exceeded"));
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(updateSettingsMutateAsync).toHaveBeenCalledTimes(1));
+    });
+
+    it("the single RPC payload includes all eight real Settings values", async () => {
+      loaded();
+      const user = userEvent.setup();
+      renderWithProviders(<Settings />);
+
+      await user.click(screen.getByRole("combobox", { name: /default currency/i }));
+      await user.click(await screen.findByText(/EUR \(€\)/));
+      await user.click(screen.getByLabelText("Budget exceeded"));
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(updateSettingsMutateAsync).toHaveBeenCalledTimes(1));
+      const [payload] = updateSettingsMutateAsync.mock.calls[0];
+      expect(payload).toEqual({
+        timezone: "America/Los_Angeles",
+        currency: "EUR",
+        dateFormat: "mdy",
+        numberFormat: "standard",
+        notifyApproaching: true,
+        notifyExceeded: false,
+        notifySummary: true,
+        notifySecurity: true,
+        previousTimezone: "America/Los_Angeles",
+      });
+    });
+
+    it("never sends an arbitrary/client-supplied user id in the RPC payload", async () => {
+      loaded();
+      const user = userEvent.setup();
+      renderWithProviders(<Settings />);
+
+      await user.click(screen.getByRole("combobox", { name: /^timezone$/i }));
+      await user.click(await screen.findByText(/eastern time/i));
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(updateSettingsMutateAsync).toHaveBeenCalledTimes(1));
+      const [payload] = updateSettingsMutateAsync.mock.calls[0];
+      expect(Object.keys(payload)).not.toContain("user_id");
+      expect(Object.keys(payload)).not.toContain("userId");
+      expect(Object.keys(payload)).not.toContain("p_user_id");
+    });
+
+    it("includes previousTimezone so the mutation hook can tell whether timezone actually changed", async () => {
+      loaded({ timezone: "America/Chicago" });
+      const user = userEvent.setup();
+      renderWithProviders(<Settings />);
+
+      await user.click(screen.getByRole("combobox", { name: /default currency/i }));
+      await user.click(await screen.findByText(/EUR \(€\)/));
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(updateSettingsMutateAsync).toHaveBeenCalledTimes(1));
+      const [payload] = updateSettingsMutateAsync.mock.calls[0];
+      expect(payload.timezone).toBe("America/Chicago");
+      expect(payload.previousTimezone).toBe("America/Chicago");
     });
   });
 
@@ -342,33 +387,15 @@ describe("Settings page", () => {
     expect(screen.getByRole("combobox", { name: /default currency/i })).toHaveTextContent(/USD \(\$\)/);
   });
 
-  it("saves the full set of real profile preferences in one coherent update, even when only one changed", async () => {
-    loaded();
-    const user = userEvent.setup();
-    renderWithProviders(<Settings />);
-
-    await user.click(screen.getByRole("combobox", { name: /^timezone$/i }));
-    await user.click(await screen.findByText(/eastern time/i));
-    await user.click(screen.getByRole("button", { name: /save changes/i }));
-
-    await waitFor(() => expect(updateProfileMutateAsync).toHaveBeenCalledTimes(1));
-    expect(updateProfileMutateAsync).toHaveBeenCalledWith({
-      timezone: "America/New_York",
-      currency: "USD",
-      date_format: "mdy",
-      number_format: "standard",
-    });
-  });
-
-  it("shows the saving state while either mutation is pending", () => {
-    updateProfileState = { isPending: true };
+  it("shows the saving state while the atomic mutation is pending", () => {
+    updateSettingsState = { isPending: true };
     loaded();
     renderWithProviders(<Settings />);
 
     expect(screen.getByRole("button", { name: /saving/i })).toBeDisabled();
   });
 
-  it("shows success feedback after a real combined save", async () => {
+  it("shows success feedback after a real atomic save", async () => {
     loaded();
     const user = userEvent.setup();
     renderWithProviders(<Settings />);
@@ -381,17 +408,23 @@ describe("Settings page", () => {
     expect(screen.getByRole("button", { name: /discard changes/i })).toBeDisabled();
   });
 
-  it("shows safe failure feedback and preserves the entered timezone after a failed profile save", async () => {
+  it("shows safe failure feedback and preserves every local edit (not just timezone) after a failed atomic save", async () => {
     loaded();
-    updateProfileMutateAsync.mockRejectedValue(new Error("permission denied for table profiles"));
+    updateSettingsMutateAsync.mockRejectedValue(new Error("permission denied for table profiles"));
     const user = userEvent.setup();
     renderWithProviders(<Settings />);
 
     await user.click(screen.getByRole("combobox", { name: /^timezone$/i }));
     await user.click(await screen.findByText(/eastern time/i));
+    await user.click(screen.getByRole("combobox", { name: /default currency/i }));
+    await user.click(await screen.findByText(/EUR \(€\)/));
     await user.click(screen.getByRole("button", { name: /save changes/i }));
 
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/permission denied for table profiles/i));
     expect(screen.getByRole("combobox", { name: /^timezone$/i })).toHaveTextContent(/eastern time/i);
+    expect(screen.getByRole("combobox", { name: /default currency/i })).toHaveTextContent(/EUR \(€\)/);
+    // Failure never reports success and never advances the saved baseline.
+    expect(screen.queryByText(/settings saved/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /discard changes/i })).toBeEnabled();
   });
 });

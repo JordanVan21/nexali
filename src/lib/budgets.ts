@@ -22,6 +22,7 @@ export const getBudgets = async (userId: string): Promise<Budget[]> => {
         amount,
         month,
         year,
+        category_id,
         categories:categories!budgets_category_id_fkey ( id, name )
       `)
       .eq("user_id", userId)
