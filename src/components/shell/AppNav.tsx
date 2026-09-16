@@ -1,10 +1,15 @@
 import { Link, useLocation } from "react-router-dom";
-import { Bell, Settings } from "lucide-react";
+import { Bell, Settings, UsersRound } from "lucide-react";
 import { desktopPrimaryRoutes, isRouteActive } from "../../lib/routes";
 import { ProfileMenu } from "./ProfileMenu";
 import { BrandMark } from "../BrandMark";
 import { cn } from "../../lib/utils";
 import { CONTENT_MAX_WIDTH_CLASS, CONTENT_PADDING_CLASS } from "./containerWidth";
+import { NavIconBadge } from "./NavIconBadge";
+import { friendsAriaLabel, notificationsAriaLabel } from "./navBadge";
+import { useUnreadNotificationCount } from "../../features/notifications/useNotifications";
+import { useFriends } from "../../features/friends/useFriends";
+import { useUserInfo } from "../../shared/useUserId";
 
 const iconLinkClass =
   "flex h-9 w-9 lg:h-10 lg:w-10 xl:h-11 xl:w-11 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
@@ -21,9 +26,29 @@ const iconLinkClass =
  */
 export function AppNav() {
   const location = useLocation();
+  const { userId } = useUserInfo();
 
   const notificationsActive = isRouteActive(location.pathname, "/notifications");
+  const friendsActive = isRouteActive(location.pathname, "/friends");
   const settingsActive = isRouteActive(location.pathname, "/settings");
+
+  // Real, existing Backend Part 7 unread count (features/notifications/useNotifications.ts)
+  // -- no new count implementation. While loading or on a query error, fall
+  // back to 0 rather than showing a fake number: NavIconBadge already
+  // renders nothing for 0, and notificationsAriaLabel omits the count too,
+  // so "not yet known" and "genuinely zero" look identical (never wrong,
+  // just not yet confirmed) instead of a misleading placeholder value.
+  const unreadQuery = useUnreadNotificationCount(userId);
+  const unreadCount = unreadQuery.isLoading || unreadQuery.isError ? 0 : (unreadQuery.data ?? 0);
+
+  // Frontend-only Friends state, shared with the Friends page via
+  // FriendsProvider (see AppLayout.tsx) -- FUTURE REPLACEMENT POINT: once a
+  // real backend exists, swap useFriendsState()'s internals for a real
+  // incoming-request count query; this line (and MobileHeader's identical
+  // one) never needs to change, since both already just read
+  // `incomingRequests.length` off the shared context.
+  const { incomingRequests } = useFriends();
+  const pendingRequestCount = incomingRequests.length;
 
   return (
     <nav
@@ -86,17 +111,35 @@ export function AppNav() {
         <div className="flex shrink-0 items-center gap-1">
           <Link
             to="/notifications"
-            aria-label="Notifications"
+            aria-label={notificationsAriaLabel(unreadCount)}
             aria-current={notificationsActive ? "page" : undefined}
             title="Notifications"
             className={cn(
               iconLinkClass,
+              "relative",
               notificationsActive
                 ? "bg-surface-high text-primary"
                 : "text-foreground/80 hover:bg-surface-high hover:text-foreground"
             )}
           >
             <Bell className="h-[18px] w-[18px] lg:h-5 lg:w-5 xl:h-[22px] xl:w-[22px] 2xl:h-6 2xl:w-6" aria-hidden="true" />
+            <NavIconBadge count={unreadCount} />
+          </Link>
+          <Link
+            to="/friends"
+            aria-label={friendsAriaLabel(pendingRequestCount)}
+            aria-current={friendsActive ? "page" : undefined}
+            title="Friends"
+            className={cn(
+              iconLinkClass,
+              "relative",
+              friendsActive
+                ? "bg-surface-high text-primary"
+                : "text-foreground/80 hover:bg-surface-high hover:text-foreground"
+            )}
+          >
+            <UsersRound className="h-[18px] w-[18px] lg:h-5 lg:w-5 xl:h-[22px] xl:w-[22px] 2xl:h-6 2xl:w-6" aria-hidden="true" />
+            <NavIconBadge count={pendingRequestCount} />
           </Link>
           <Link
             to="/settings"

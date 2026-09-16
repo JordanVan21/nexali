@@ -18,16 +18,24 @@ describe("MobileProfileMenu", () => {
     signOutMock.mockClear();
   });
 
-  it("opens on click and lists exactly Profile, Account, Notifications, Settings, and Sign out", async () => {
+  it("opens on click and lists exactly Profile, Account, Notifications, Settings, Split Expenses, and Sign out", async () => {
     const user = userEvent.setup();
     renderWithProviders(<MobileProfileMenu />);
 
     await user.click(screen.getByRole("button", { name: "Account menu" }));
 
-    for (const label of ["Profile", "Account", "Notifications", "Settings"]) {
+    for (const label of ["Profile", "Account", "Notifications", "Settings", "Split Expenses"]) {
       expect(await screen.findByRole("menuitem", { name: label })).toBeInTheDocument();
     }
     expect(screen.getByRole("menuitem", { name: /sign out/i })).toBeInTheDocument();
+  });
+
+  it("links Split Expenses to /split", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<MobileProfileMenu />);
+
+    await user.click(screen.getByRole("button", { name: "Account menu" }));
+    expect(await screen.findByRole("menuitem", { name: "Split Expenses" })).toHaveAttribute("href", "/split");
   });
 
   it("signs out using the real sign-out flow when Sign out is activated", async () => {

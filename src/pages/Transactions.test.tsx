@@ -103,6 +103,11 @@ describe("Transactions page", () => {
     expect(exportButton.getAttribute("title")).not.toMatch(/50/);
   });
 
+  it("links Split a Receipt to the Split Expenses page as a contextual entry point", () => {
+    renderWithProviders(<Transactions />);
+    expect(screen.getByRole("link", { name: /split a receipt/i })).toHaveAttribute("href", "/split");
+  });
+
   it("opens the Add Transaction dialog from the page header action", async () => {
     const user = userEvent.setup();
     renderWithProviders(<Transactions />);

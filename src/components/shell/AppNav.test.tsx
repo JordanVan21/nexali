@@ -1,13 +1,37 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { screen, within } from "@testing-library/react";
 import { renderWithProviders } from "../../test/renderWithProviders";
 import { AppNav } from "./AppNav";
+import type { NexaliUserPreview } from "../../lib/friends";
 
 vi.mock("../../features/profiles/useAvatar", () => ({
   useAvatar: () => ({ data: null }),
 }));
 
+let unreadState: { data: number | undefined; isLoading: boolean; isError: boolean } = {
+  data: 0,
+  isLoading: false,
+  isError: false,
+};
+vi.mock("../../features/notifications/useNotifications", () => ({
+  useUnreadNotificationCount: () => unreadState,
+}));
+
+let incomingRequests: NexaliUserPreview[] = [];
+vi.mock("../../features/friends/useFriends", () => ({
+  useFriends: () => ({ incomingRequests }),
+}));
+
+function pendingUser(id: string): NexaliUserPreview {
+  return { id, fullName: "Someone", email: "someone@example.com", avatarUrl: null, status: "incoming_pending" };
+}
+
 describe("AppNav", () => {
+  afterEach(() => {
+    unreadState = { data: 0, isLoading: false, isError: false };
+    incomingRequests = [];
+  });
+
   it("renders the primary destinations in order, with no Account and no search", () => {
     renderWithProviders(<AppNav />, { route: "/dashboard" });
 
@@ -19,7 +43,7 @@ describe("AppNav", () => {
       .filter((el) => el.hasAttribute("aria-label"))
       .map((el) => el.getAttribute("aria-label"));
 
-    // Dashboard, Transactions, Budgets, Reports, Aura, Notifications, Settings, in that order.
+    // Dashboard, Transactions, Budgets, Reports, Aura, Notifications, Friends, Settings, in that order.
     expect(links).toEqual([
       "Dashboard",
       "Transactions",
@@ -27,6 +51,7 @@ describe("AppNav", () => {
       "Reports",
       "Aura",
       "Notifications",
+      "Friends",
       "Settings",
     ]);
     expect(links).not.toContain("Account");
@@ -85,5 +110,130 @@ describe("AppNav", () => {
       "aria-current",
       "page"
     );
+  });
+
+  it("places Friends to the right of Notifications and to the left of Settings, with an accessible label and correct href", () => {
+    renderWithProviders(<AppNav />, { route: "/dashboard" });
+
+    const primaryNav = screen.getByRole("navigation", { name: "Primary" });
+    const links = within(primaryNav)
+      .getAllByRole("link")
+      .filter((el) => el.hasAttribute("aria-label"));
+    const labels = links.map((el) => el.getAttribute("aria-label"));
+
+    expect(labels.indexOf("Notifications")).toBeLessThan(labels.indexOf("Friends"));
+    expect(labels.indexOf("Friends")).toBeLessThan(labels.indexOf("Settings"));
+    expect(within(primaryNav).getByRole("link", { name: "Friends" })).toHaveAttribute("href", "/friends");
+  });
+
+  it("marks the Friends control active on the Friends page", () => {
+    renderWithProviders(<AppNav />, { route: "/friends" });
+
+    const primaryNav = screen.getByRole("navigation", { name: "Primary" });
+    expect(within(primaryNav).getByRole("link", { name: "Friends" })).toHaveAttribute("aria-current", "page");
+  });
+
+  describe("Notifications badge (real unread count, no new count implementation)", () => {
+    it("shows no badge when unread count is 0", () => {
+      unreadState = { data: 0, isLoading: false, isError: false };
+      renderWithProviders(<AppNav />, { route: "/dashboard" });
+
+      expect(screen.getByRole("link", { name: "Notifications" })).toBeInTheDocument();
+      expect(screen.queryByText("1")).not.toBeInTheDocument();
+    });
+
+    it("shows '1' for a single unread notification", () => {
+      unreadState = { data: 1, isLoading: false, isError: false };
+      renderWithProviders(<AppNav />, { route: "/dashboard" });
+
+      expect(screen.getByText("1")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Notifications, 1 unread" })).toBeInTheDocument();
+    });
+
+    it("shows the exact count for 12", () => {
+      unreadState = { data: 12, isLoading: false, isError: false };
+      renderWithProviders(<AppNav />, { route: "/dashboard" });
+
+      expect(screen.getByText("12")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Notifications, 12 unread" })).toBeInTheDocument();
+    });
+
+    it("shows the exact count for 99", () => {
+      unreadState = { data: 99, isLoading: false, isError: false };
+      renderWithProviders(<AppNav />, { route: "/dashboard" });
+
+      expect(screen.getByText("99")).toBeInTheDocument();
+    });
+
+    it("caps at '99+' for 100 or more", () => {
+      unreadState = { data: 100, isLoading: false, isError: false };
+      renderWithProviders(<AppNav />, { route: "/dashboard" });
+
+      expect(screen.getByText("99+")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Notifications, 99+ unread" })).toBeInTheDocument();
+    });
+
+    it("shows no fake badge while the count is loading", () => {
+      unreadState = { data: undefined, isLoading: true, isError: false };
+      renderWithProviders(<AppNav />, { route: "/dashboard" });
+
+      expect(screen.getByRole("link", { name: "Notifications" })).toBeInTheDocument();
+      expect(screen.queryByText("0")).not.toBeInTheDocument();
+    });
+
+    it("keeps the icon functional and omits the badge when the count query errors", () => {
+      unreadState = { data: undefined, isLoading: false, isError: true };
+      renderWithProviders(<AppNav />, { route: "/dashboard" });
+
+      const link = screen.getByRole("link", { name: "Notifications" });
+      expect(link).toBeInTheDocument();
+      expect(link).toHaveAttribute("href", "/notifications");
+    });
+  });
+
+  describe("Friends badge (frontend-only incoming-request count)", () => {
+    it("shows no badge with zero incoming requests", () => {
+      incomingRequests = [];
+      renderWithProviders(<AppNav />, { route: "/dashboard" });
+
+      expect(screen.getByRole("link", { name: "Friends" })).toBeInTheDocument();
+    });
+
+    it("shows '1' for one incoming request", () => {
+      incomingRequests = [pendingUser("a")];
+      renderWithProviders(<AppNav />, { route: "/dashboard" });
+
+      expect(screen.getByText("1")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Friends, 1 pending request" })).toBeInTheDocument();
+    });
+
+    it("shows the correct count for multiple incoming requests, with correct plural label", () => {
+      incomingRequests = [pendingUser("a"), pendingUser("b"), pendingUser("c")];
+      renderWithProviders(<AppNav />, { route: "/dashboard" });
+
+      expect(screen.getByText("3")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Friends, 3 pending requests" })).toBeInTheDocument();
+    });
+
+    it("caps at '99+' for 100 or more incoming requests", () => {
+      incomingRequests = Array.from({ length: 100 }, (_, i) => pendingUser(String(i)));
+      renderWithProviders(<AppNav />, { route: "/dashboard" });
+
+      expect(screen.getByText("99+")).toBeInTheDocument();
+    });
+  });
+
+  it("does not shift Notifications/Friends/Settings/Profile when a badge appears (relative positioning only)", () => {
+    unreadState = { data: 3, isLoading: false, isError: false };
+    incomingRequests = [pendingUser("a")];
+    renderWithProviders(<AppNav />, { route: "/dashboard" });
+
+    const notifLink = screen.getByRole("link", { name: /notifications/i });
+    const friendsLink = screen.getByRole("link", { name: /friends/i });
+    // Both icon links keep their own layout class (fixed size, no margin
+    // change) -- the badge is `absolute`, so it never participates in
+    // normal flow layout of the surrounding icons.
+    expect(notifLink.className).toMatch(/relative/);
+    expect(friendsLink.className).toMatch(/relative/);
   });
 });

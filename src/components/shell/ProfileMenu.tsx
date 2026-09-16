@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ChevronDown, CircleUser, ShieldCheck, LogOut } from "lucide-react";
+import { ChevronDown, CircleUser, ShieldCheck, LogOut, Receipt } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,6 +63,13 @@ export function ProfileMenu() {
           <Link to="/account" className="flex items-center gap-2 cursor-pointer">
             <ShieldCheck className="h-4 w-4" aria-hidden="true" />
             Account
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link to="/split" className="flex items-center gap-2 cursor-pointer">
+            <Receipt className="h-4 w-4" aria-hidden="true" />
+            Split Expenses
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

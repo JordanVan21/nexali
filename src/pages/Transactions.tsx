@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Download, Plus } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Download, Plus, Receipt } from "lucide-react";
 import { PageContainer } from "../components/shell/PageContainer";
 import { Button } from "../components/ui/button";
 import { TransactionFilterBar } from "../components/TransactionFilterBar";
@@ -70,6 +71,12 @@ export default function Transactions() {
           >
             <Download className="h-4 w-4" aria-hidden="true" />
             Export
+          </Button>
+          <Button variant="surface" size="control" className="max-sm:hidden" asChild>
+            <Link to="/split">
+              <Receipt className="h-4 w-4" aria-hidden="true" />
+              Split a Receipt
+            </Link>
           </Button>
           <Button variant="hero" size="control" className="max-sm:flex-1" onClick={() => setDialogTarget("add")}>
             <Plus className="h-4 w-4" aria-hidden="true" />

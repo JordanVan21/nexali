@@ -4,6 +4,8 @@ import {
   mobileBottomNavRoutes,
   isRouteActive,
   getSafeRedirectPath,
+  findRouteByPath,
+  NAV_ROUTES,
 } from "./routes";
 
 describe("routes", () => {
@@ -33,10 +35,33 @@ describe("routes", () => {
     );
   });
 
-  it("does not include Notifications, Profile, Account, or Settings in the bottom nav", () => {
+  it("does not include Notifications, Profile, Account, Settings, Split Expenses, or Friends in the bottom nav", () => {
     const labels = mobileBottomNavRoutes.map((r) => r.label);
-    for (const excluded of ["Notifications", "Profile", "Account", "Settings"]) {
+    for (const excluded of ["Notifications", "Profile", "Account", "Settings", "Split Expenses", "Friends"]) {
       expect(labels).not.toContain(excluded);
+    }
+  });
+
+  it("registers Split Expenses and Friends as real, non-primary routes (deliberately not crowding the five-item primary nav)", () => {
+    const split = findRouteByPath("/split");
+    const friends = findRouteByPath("/friends");
+
+    expect(split?.label).toBe("Split Expenses");
+    expect(split?.desktopPrimary).toBe(false);
+    expect(split?.mobileBottomNav).toBe(false);
+
+    expect(friends?.label).toBe("Friends");
+    expect(friends?.desktopPrimary).toBe(false);
+    expect(friends?.mobileBottomNav).toBe(false);
+
+    expect(desktopPrimaryRoutes.map((r) => r.label)).not.toContain("Split Expenses");
+    expect(desktopPrimaryRoutes.map((r) => r.label)).not.toContain("Friends");
+  });
+
+  it("keeps every existing route present in NAV_ROUTES (nothing renamed or removed)", () => {
+    const labels = NAV_ROUTES.map((r) => r.label);
+    for (const existing of ["Dashboard", "Transactions", "Budgets", "Reports", "Aura", "Notifications", "Profile", "Account", "Settings"]) {
+      expect(labels).toContain(existing);
     }
   });
 

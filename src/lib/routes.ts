@@ -8,6 +8,8 @@ import {
   User,
   ShieldCheck,
   Settings as SettingsIcon,
+  Receipt,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -71,6 +73,31 @@ export const NAV_ROUTES: NavRoute[] = [
     label: "Notifications",
     path: "/notifications",
     icon: Bell,
+    desktopPrimary: false,
+    mobileBottomNav: false,
+  },
+  {
+    // Frontend-only Split Expenses workflow -- see
+    // docs/BACKEND_AUDIT_REPORT.md's Split Expenses entry for why this is
+    // NOT a primary desktop/mobile-bottom-nav destination (avoiding
+    // crowding the existing five-item primary nav): it's reached instead
+    // via the account menu (ProfileMenu/MobileProfileMenu) and a
+    // Transactions-page contextual CTA.
+    label: "Split Expenses",
+    shortLabel: "Split",
+    path: "/split",
+    icon: Receipt,
+    desktopPrimary: false,
+    mobileBottomNav: false,
+  },
+  {
+    // Frontend placeholder only -- the real Friends feature (and its own
+    // primary-nav case, if any) is a future backend phase. Given its own
+    // dedicated icon in AppNav/MobileHeader per that Part's explicit
+    // requirement, distinct from the account-menu utility routes below.
+    label: "Friends",
+    path: "/friends",
+    icon: UsersRound,
     desktopPrimary: false,
     mobileBottomNav: false,
   },

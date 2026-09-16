@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { CircleUser, ShieldCheck, Bell, Settings as SettingsIcon, LogOut } from "lucide-react";
+import { CircleUser, ShieldCheck, Bell, Settings as SettingsIcon, LogOut, Receipt } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -73,6 +73,13 @@ export function MobileProfileMenu() {
           <Link to="/settings">
             <SettingsIcon aria-hidden="true" />
             Settings
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild className={itemClass}>
+          <Link to="/split">
+            <Receipt aria-hidden="true" />
+            Split Expenses
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

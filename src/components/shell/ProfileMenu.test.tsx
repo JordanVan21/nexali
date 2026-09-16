@@ -18,7 +18,7 @@ describe("ProfileMenu", () => {
     signOutMock.mockClear();
   });
 
-  it("opens on click and lists Profile, Account, and Sign out, with no duplicate Settings", async () => {
+  it("opens on click and lists Profile, Account, Split Expenses, and Sign out, with no duplicate Settings", async () => {
     const user = userEvent.setup();
     renderWithProviders(<ProfileMenu />);
 
@@ -26,8 +26,17 @@ describe("ProfileMenu", () => {
 
     expect(await screen.findByRole("menuitem", { name: /profile/i })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /account/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /split expenses/i })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /sign out/i })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: /settings/i })).not.toBeInTheDocument();
+  });
+
+  it("links Split Expenses to /split", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ProfileMenu />);
+
+    await user.click(screen.getByRole("button", { name: "Account menu" }));
+    expect(await screen.findByRole("menuitem", { name: /split expenses/i })).toHaveAttribute("href", "/split");
   });
 
   it("opens with keyboard activation (Enter) on the trigger", async () => {

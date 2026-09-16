@@ -19,6 +19,8 @@ import Profile from "./pages/Profile";
 import Account from "./pages/Account";
 import Settings from "./pages/Settings";
 import Notifications from "./pages/Notifications";
+import SplitExpenses from "./pages/SplitExpenses";
+import Friends from "./pages/Friends";
 
 import AppLayout from "./AppLayout";
 import { AuthGate } from "./AuthGate";
@@ -51,6 +53,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="/account" element={<Account />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/notifications" element={<Notifications />} />
+            <Route path="/split" element={<SplitExpenses />} />
+            <Route path="/friends" element={<Friends />} />
           </Route>
         </Routes>
       </BrowserRouter>

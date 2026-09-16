@@ -4,6 +4,7 @@ import { MobileHeader } from "./components/shell/MobileHeader";
 import { MobileNav } from "./components/shell/MobileNav";
 import { WithErrorBoundary } from "./ErrorBoundary";
 import { FormatPreferencesProvider } from "./features/profiles/FormatPreferencesContext";
+import { FriendsProvider } from "./features/friends/FriendsProvider";
 
 /**
  * Authenticated application shell. Renders the desktop/tablet nav and the
@@ -17,20 +18,28 @@ import { FormatPreferencesProvider } from "./features/profiles/FormatPreferences
  * real persisted currency/number/date-format/timezone preferences via
  * useFormatPreferences()/useFormatCurrency()/useFormatDate() without each
  * one subscribing to its own useProfile() call -- see Backend Part 6.
+ *
+ * FriendsProvider is likewise mounted once here so AppNav/MobileHeader's
+ * Friends badge and the Friends page itself share one live, frontend-only
+ * state instance (see features/friends/FriendsProvider.tsx) -- accepting a
+ * request on the Friends page updates the nav badge immediately, without
+ * either needing to poll or re-fetch the other.
  */
 export default function AppLayout() {
   return (
     <FormatPreferencesProvider>
-      <div className="flex min-h-screen flex-col bg-background">
-        <AppNav />
-        <MobileHeader />
-        <main className="flex-1 pb-[calc(var(--mobile-nav-height)+env(safe-area-inset-bottom))] md:pb-0">
-          <WithErrorBoundary>
-            <Outlet />
-          </WithErrorBoundary>
-        </main>
-        <MobileNav />
-      </div>
+      <FriendsProvider>
+        <div className="flex min-h-screen flex-col bg-background">
+          <AppNav />
+          <MobileHeader />
+          <main className="flex-1 pb-[calc(var(--mobile-nav-height)+env(safe-area-inset-bottom))] md:pb-0">
+            <WithErrorBoundary>
+              <Outlet />
+            </WithErrorBoundary>
+          </main>
+          <MobileNav />
+        </div>
+      </FriendsProvider>
     </FormatPreferencesProvider>
   );
 }
