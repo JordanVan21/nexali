@@ -8,7 +8,7 @@ import { CONTENT_MAX_WIDTH_CLASS, CONTENT_PADDING_CLASS } from "./containerWidth
 import { NavIconBadge } from "./NavIconBadge";
 import { friendsAriaLabel, notificationsAriaLabel } from "./navBadge";
 import { useUnreadNotificationCount } from "../../features/notifications/useNotifications";
-import { useFriends } from "../../features/friends/useFriends";
+import { useIncomingFriendRequestCount } from "../../features/friends/useFriendsQueries";
 import { useUserInfo } from "../../shared/useUserId";
 
 const iconLinkClass =
@@ -41,14 +41,13 @@ export function AppNav() {
   const unreadQuery = useUnreadNotificationCount(userId);
   const unreadCount = unreadQuery.isLoading || unreadQuery.isError ? 0 : (unreadQuery.data ?? 0);
 
-  // Frontend-only Friends state, shared with the Friends page via
-  // FriendsProvider (see AppLayout.tsx) -- FUTURE REPLACEMENT POINT: once a
-  // real backend exists, swap useFriendsState()'s internals for a real
-  // incoming-request count query; this line (and MobileHeader's identical
-  // one) never needs to change, since both already just read
-  // `incomingRequests.length` off the shared context.
-  const { incomingRequests } = useFriends();
-  const pendingRequestCount = incomingRequests.length;
+  // Real Backend Part 8 incoming-request count (independent of the
+  // Notifications unread count above -- see docs/BACKEND_AUDIT_REPORT.md's
+  // Friends entry for why the two can legitimately disagree, e.g. a
+  // manually-dismissed friend-request notification vs. the request itself
+  // still being pending). Same loading/error-safe fallback as Notifications.
+  const incomingCountQuery = useIncomingFriendRequestCount(userId);
+  const pendingRequestCount = incomingCountQuery.isLoading || incomingCountQuery.isError ? 0 : (incomingCountQuery.data ?? 0);
 
   return (
     <nav

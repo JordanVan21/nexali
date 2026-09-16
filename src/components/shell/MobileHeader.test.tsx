@@ -2,24 +2,23 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { screen } from "@testing-library/react";
 import { renderWithProviders } from "../../test/renderWithProviders";
 import { MobileHeader } from "./MobileHeader";
-import type { NexaliUserPreview } from "../../lib/friends";
 
 vi.mock("../../features/profiles/useAvatar", () => ({
   useAvatar: () => ({ data: null }),
 }));
 
-let incomingRequests: NexaliUserPreview[] = [];
-vi.mock("../../features/friends/useFriends", () => ({
-  useFriends: () => ({ incomingRequests }),
+let incomingCountState: { data: number | undefined; isLoading: boolean; isError: boolean } = {
+  data: 0,
+  isLoading: false,
+  isError: false,
+};
+vi.mock("../../features/friends/useFriendsQueries", () => ({
+  useIncomingFriendRequestCount: () => incomingCountState,
 }));
-
-function pendingUser(id: string): NexaliUserPreview {
-  return { id, fullName: "Someone", email: "someone@example.com", avatarUrl: null, status: "incoming_pending" };
-}
 
 describe("MobileHeader", () => {
   afterEach(() => {
-    incomingRequests = [];
+    incomingCountState = { data: 0, isLoading: false, isError: false };
   });
 
   it("renders the Nexali brand link on the left", () => {
@@ -60,16 +59,16 @@ describe("MobileHeader", () => {
     expect(screen.queryByRole("button", { name: /open menu/i })).not.toBeInTheDocument();
   });
 
-  describe("Friends badge", () => {
+  describe("Friends badge (real Backend Part 8 incoming-request count)", () => {
     it("shows no badge with zero incoming requests", () => {
-      incomingRequests = [];
+      incomingCountState = { data: 0, isLoading: false, isError: false };
       renderWithProviders(<MobileHeader />);
 
       expect(screen.getByRole("link", { name: "Friends" })).toBeInTheDocument();
     });
 
     it("shows the pending-request count and matching accessible label", () => {
-      incomingRequests = [pendingUser("a"), pendingUser("b")];
+      incomingCountState = { data: 2, isLoading: false, isError: false };
       renderWithProviders(<MobileHeader />);
 
       expect(screen.getByText("2")).toBeInTheDocument();
@@ -77,14 +76,28 @@ describe("MobileHeader", () => {
     });
 
     it("caps at '99+'", () => {
-      incomingRequests = Array.from({ length: 150 }, (_, i) => pendingUser(String(i)));
+      incomingCountState = { data: 150, isLoading: false, isError: false };
       renderWithProviders(<MobileHeader />);
 
       expect(screen.getByText("99+")).toBeInTheDocument();
     });
 
+    it("shows no fake badge while the count is loading", () => {
+      incomingCountState = { data: undefined, isLoading: true, isError: false };
+      renderWithProviders(<MobileHeader />);
+
+      expect(screen.getByRole("link", { name: "Friends" })).toBeInTheDocument();
+    });
+
+    it("keeps the icon functional and omits the badge when the count query errors", () => {
+      incomingCountState = { data: undefined, isLoading: false, isError: true };
+      renderWithProviders(<MobileHeader />);
+
+      expect(screen.getByRole("link", { name: "Friends" })).toHaveAttribute("href", "/friends");
+    });
+
     it("does not obscure or reposition the profile avatar trigger", () => {
-      incomingRequests = [pendingUser("a")];
+      incomingCountState = { data: 1, isLoading: false, isError: false };
       renderWithProviders(<MobileHeader />);
 
       const friendsLink = screen.getByRole("link", { name: /friends/i });

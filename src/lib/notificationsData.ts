@@ -34,6 +34,10 @@ function toItemData(row: NotificationRow): NotificationItemData {
       row.secondary_action_href && row.secondary_action_label
         ? { href: row.secondary_action_href, label: row.secondary_action_label }
         : undefined,
+    // Backend Part 8. inlineActions (real Accept/Decline handlers) are
+    // wired up by the Notifications page itself, not here -- this
+    // data-access layer only carries the raw reference id through.
+    friendRequestId: row.friend_request_id,
   };
 }
 
@@ -54,6 +58,12 @@ export async function listNotifications(userId: string, filter: NotificationFilt
 
   if (filter === "unread") {
     query = query.is("read_at", null);
+  } else if (filter === "system") {
+    // Backend Part 8: friend_request notifications fold into the existing
+    // "System" tab rather than getting their own new tab (no visual
+    // redesign of the filter row) -- see
+    // docs/BACKEND_AUDIT_REPORT.md's Friends entry for the exact rationale.
+    query = query.in("type", ["system", "friend_request"]);
   } else if (filter !== "all") {
     query = query.eq("type", filter);
   }

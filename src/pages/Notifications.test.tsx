@@ -37,6 +37,36 @@ vi.mock("../features/notifications/useNotifications", () => ({
   }),
 }));
 
+type IncomingFixture = { requestId: string; senderId: string; senderFullName: string; senderAvatarUrl: string | null; createdAt: string };
+
+const acceptRequestMutate = vi.fn();
+const declineRequestMutate = vi.fn();
+let incomingRequestsState: QueryState<IncomingFixture[]> = { data: [], isLoading: false, isError: false, error: null };
+let acceptPendingId: string | null = null;
+let declinePendingId: string | null = null;
+
+vi.mock("../features/friends/useFriendsQueries", () => ({
+  useListIncomingFriendRequests: () => incomingRequestsState,
+  useAcceptFriendRequest: () => ({
+    mutate: acceptRequestMutate,
+    get isPending() {
+      return acceptPendingId !== null;
+    },
+    get variables() {
+      return acceptPendingId;
+    },
+  }),
+  useDeclineFriendRequest: () => ({
+    mutate: declineRequestMutate,
+    get isPending() {
+      return declinePendingId !== null;
+    },
+    get variables() {
+      return declinePendingId;
+    },
+  }),
+}));
+
 function fixture(overrides: Partial<NotificationItemData> = {}): NotificationItemData {
   return {
     id: "n1",
@@ -59,6 +89,9 @@ describe("Notifications page (Backend Part 7: real data)", () => {
   afterEach(() => {
     vi.clearAllMocks();
     markAllPending = false;
+    incomingRequestsState = { data: [], isLoading: false, isError: false, error: null };
+    acceptPendingId = null;
+    declinePendingId = null;
   });
 
   it("renders the page heading", () => {
@@ -205,5 +238,98 @@ describe("Notifications page (Backend Part 7: real data)", () => {
 
     await user.click(screen.getByRole("tab", { name: "Unread" }));
     await waitFor(() => expect(screen.getByText(/you're all caught up/i)).toBeInTheDocument());
+  });
+
+  describe("friend_request notifications (Backend Part 8 integration)", () => {
+    function friendRequestNotification(overrides: Partial<NotificationItemData> = {}): NotificationItemData {
+      return fixture({
+        id: "n-fr1",
+        type: "friend_request",
+        title: "New friend request",
+        description: "Marcus Chen sent you a friend request.",
+        friendRequestId: "req-marcus",
+        ...overrides,
+      });
+    }
+
+    function marcus(): IncomingFixture {
+      return { requestId: "req-marcus", senderId: "u-marcus", senderFullName: "Marcus Chen", senderAvatarUrl: null, createdAt: new Date().toISOString() };
+    }
+
+    it("renders a friend_request notification as an actionable FriendRequestNotificationCard with the sender's name, never their email", () => {
+      loaded([friendRequestNotification()]);
+      incomingRequestsState = { data: [marcus()], isLoading: false, isError: false, error: null };
+      renderWithProviders(<Notifications />);
+
+      expect(screen.getByText("Marcus Chen")).toBeInTheDocument();
+      expect(screen.getByText("sent you a friend request.")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Accept friend request from Marcus Chen" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Decline friend request from Marcus Chen" })).toBeInTheDocument();
+      expect(screen.queryByText(/@/)).not.toBeInTheDocument();
+    });
+
+    it("Accept calls the real accept mutation with this request's id", async () => {
+      loaded([friendRequestNotification()]);
+      incomingRequestsState = { data: [marcus()], isLoading: false, isError: false, error: null };
+      const user = userEvent.setup();
+      renderWithProviders(<Notifications />);
+
+      await user.click(screen.getByRole("button", { name: "Accept friend request from Marcus Chen" }));
+      expect(acceptRequestMutate).toHaveBeenCalledWith("req-marcus");
+    });
+
+    it("Decline calls the real decline mutation with this request's id", async () => {
+      loaded([friendRequestNotification()]);
+      incomingRequestsState = { data: [marcus()], isLoading: false, isError: false, error: null };
+      const user = userEvent.setup();
+      renderWithProviders(<Notifications />);
+
+      await user.click(screen.getByRole("button", { name: "Decline friend request from Marcus Chen" }));
+      expect(declineRequestMutate).toHaveBeenCalledWith("req-marcus");
+    });
+
+    it("disables Accept and Decline while this specific request's mutation is pending", () => {
+      loaded([friendRequestNotification()]);
+      incomingRequestsState = { data: [marcus()], isLoading: false, isError: false, error: null };
+      acceptPendingId = "req-marcus";
+      renderWithProviders(<Notifications />);
+
+      expect(screen.getByRole("button", { name: "Accept friend request from Marcus Chen" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Decline friend request from Marcus Chen" })).toBeDisabled();
+    });
+
+    it("falls back to the plain NotificationItem when no matching incoming request is found (safe edge case, no crash)", () => {
+      loaded([friendRequestNotification({ friendRequestId: "req-orphaned" })]);
+      incomingRequestsState = { data: [], isLoading: false, isError: false, error: null };
+      renderWithProviders(<Notifications />);
+
+      expect(screen.getByText("New friend request")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /accept friend request/i })).not.toBeInTheDocument();
+    });
+
+    it("the System tab includes friend_request notifications (no separate tab was added)", async () => {
+      feedByFilter = {
+        all: { data: [], isLoading: false, isError: false, error: null },
+        system: { data: [friendRequestNotification()], isLoading: false, isError: false, error: null },
+      };
+      unreadCountState = { data: 1, isLoading: false, isError: false, error: null };
+      incomingRequestsState = { data: [marcus()], isLoading: false, isError: false, error: null };
+      const user = userEvent.setup();
+      renderWithProviders(<Notifications />);
+
+      const tabs = screen.getAllByRole("tab");
+      expect(tabs.map((t) => t.textContent)).toEqual(["All", "Unread", "Financial", "Security", "System", "Assistant"]);
+
+      await user.click(screen.getByRole("tab", { name: "System" }));
+      expect(screen.getByText("Marcus Chen")).toBeInTheDocument();
+    });
+
+    it("the unread count reflects a new friend_request notification like any other type", () => {
+      loaded([friendRequestNotification({ read: false })], 1);
+      incomingRequestsState = { data: [marcus()], isLoading: false, isError: false, error: null };
+      renderWithProviders(<Notifications />);
+
+      expect(screen.getByText("1 unread notification")).toBeInTheDocument();
+    });
   });
 });

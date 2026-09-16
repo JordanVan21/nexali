@@ -85,6 +85,7 @@ export type Database = {
           dedupe_key: string | null
           description: string
           dismissed_at: string | null
+          friend_request_id: string | null
           id: string
           read_at: string | null
           secondary_action_href: string | null
@@ -100,6 +101,7 @@ export type Database = {
           dedupe_key?: string | null
           description: string
           dismissed_at?: string | null
+          friend_request_id?: string | null
           id?: string
           read_at?: string | null
           secondary_action_href?: string | null
@@ -115,6 +117,7 @@ export type Database = {
           dedupe_key?: string | null
           description?: string
           dismissed_at?: string | null
+          friend_request_id?: string | null
           id?: string
           read_at?: string | null
           secondary_action_href?: string | null
@@ -122,6 +125,62 @@ export type Database = {
           title?: string
           type?: string
           user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_friend_request_id_fkey"
+            columns: ["friend_request_id"]
+            isOneToOne: false
+            referencedRelation: "friend_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      friend_requests: {
+        Row: {
+          created_at: string
+          id: string
+          recipient_id: string
+          responded_at: string | null
+          sender_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          recipient_id: string
+          responded_at?: string | null
+          sender_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          recipient_id?: string
+          responded_at?: string | null
+          sender_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      friendships: {
+        Row: {
+          created_at: string
+          id: string
+          user_one_id: string
+          user_two_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_one_id: string
+          user_two_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_one_id?: string
+          user_two_id?: string
         }
         Relationships: []
       }
@@ -314,6 +373,57 @@ export type Database = {
           p_monthly_summary: boolean
           p_account_security: boolean
         }
+        Returns: undefined
+      }
+      search_nexali_users: {
+        Args: { p_query: string }
+        Returns: {
+          user_id: string
+          full_name: string | null
+          avatar_url: string | null
+          email: string | null
+          relationship_status: string
+        }[]
+      }
+      list_friends: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          user_id: string
+          full_name: string | null
+          avatar_url: string | null
+          email: string
+          friendship_id: string
+          friends_since: string
+        }[]
+      }
+      list_incoming_friend_requests: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          request_id: string
+          sender_user_id: string
+          sender_full_name: string | null
+          sender_avatar_url: string | null
+          created_at: string
+        }[]
+      }
+      get_incoming_friend_request_count: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      send_friend_request: {
+        Args: { p_recipient_id: string }
+        Returns: string
+      }
+      accept_friend_request: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
+      decline_friend_request: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
+      remove_friend: {
+        Args: { p_friend_user_id: string }
         Returns: undefined
       }
     }

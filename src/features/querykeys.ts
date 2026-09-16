@@ -115,6 +115,20 @@ export const qk = {
   notifications: (userId: string, filter: string) => [...qk.notificationsRoot(userId), filter] as const,
   notificationsUnreadCount: (userId: string) => ["notificationsUnreadCount", userId] as const,
   notificationPreferences: (userId: string) => ["notificationPreferences", userId] as const,
+
+  // Backend Part 8 (Friends). friendsSearchRoot lets a send-request
+  // mutation invalidate every cached search query string in one call (the
+  // same *Root prefix-invalidation pattern used everywhere else in this
+  // file) without touching friendsList/friendsIncoming/friendsIncomingCount,
+  // which a send doesn't affect. `userId` on every key is only a
+  // per-session cache namespace -- every Friends RPC derives the real
+  // caller from auth.uid() server-side and accepts no user id argument.
+  friendsRoot: (userId: string) => ["friends", userId] as const,
+  friendsList: (userId: string) => [...qk.friendsRoot(userId), "list"] as const,
+  friendsIncoming: (userId: string) => [...qk.friendsRoot(userId), "incoming"] as const,
+  friendsIncomingCount: (userId: string) => [...qk.friendsRoot(userId), "incomingCount"] as const,
+  friendsSearchRoot: (userId: string) => [...qk.friendsRoot(userId), "search"] as const,
+  friendsSearch: (userId: string, query: string) => [...qk.friendsSearchRoot(userId), query] as const,
   expenseCategories: (userId: string) => ["expenseCategories", userId] as const,
   avatar: (userId: string) => ["avatar", userId] as const,
 

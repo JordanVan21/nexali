@@ -16,6 +16,7 @@ interface SupabaseChainMock extends PromiseLike<ChainResult> {
   select: (...args: unknown[]) => SupabaseChainMock;
   eq: (...args: unknown[]) => SupabaseChainMock;
   is: (...args: unknown[]) => SupabaseChainMock;
+  in: (...args: unknown[]) => SupabaseChainMock;
   order: (...args: unknown[]) => SupabaseChainMock;
   limit: (...args: unknown[]) => SupabaseChainMock;
   update: (...args: unknown[]) => SupabaseChainMock;
@@ -28,6 +29,7 @@ function makeChainable(result: ChainResult): SupabaseChainMock {
     select: vi.fn(() => chain),
     eq: vi.fn(() => chain),
     is: vi.fn(() => chain),
+    in: vi.fn(() => chain),
     order: vi.fn(() => chain),
     limit: vi.fn(() => chain),
     update: vi.fn(() => chain),
@@ -65,6 +67,7 @@ function row(overrides: Record<string, unknown> = {}) {
     created_at: "2026-09-13T00:00:00.000Z",
     read_at: null,
     dismissed_at: null,
+    friend_request_id: null,
     ...overrides,
   };
 }
@@ -93,6 +96,25 @@ describe("listNotifications", () => {
     const chain = mockFrom({ data: [], error: null });
     await listNotifications("u1", "security");
     expect(chain.eq).toHaveBeenCalledWith("type", "security");
+  });
+
+  it("Backend Part 8: the 'system' tab folds in friend_request rows rather than getting a separate filter value", async () => {
+    const chain = mockFrom({ data: [], error: null });
+    await listNotifications("u1", "system");
+    expect(chain.in).toHaveBeenCalledWith("type", ["system", "friend_request"]);
+    expect(chain.eq).not.toHaveBeenCalledWith("type", "system");
+  });
+
+  it("maps friend_request_id through onto NotificationItemData", async () => {
+    mockFrom({ data: [row({ type: "friend_request", friend_request_id: "req-1" })], error: null });
+    const [item] = await listNotifications("u1", "all");
+    expect(item.friendRequestId).toBe("req-1");
+  });
+
+  it("maps a null friend_request_id through as null (not undefined, not fabricated)", async () => {
+    mockFrom({ data: [row()], error: null });
+    const [item] = await listNotifications("u1", "all");
+    expect(item.friendRequestId).toBeNull();
   });
 
   it("maps a DB row to NotificationItemData, deriving read from read_at and an icon from type", async () => {

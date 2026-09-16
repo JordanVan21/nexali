@@ -6,6 +6,7 @@ import { EmptyState } from "../components/states/EmptyState";
 import { ErrorState } from "../components/states/ErrorState";
 import { NotificationItem } from "../components/notifications/NotificationItem";
 import { NotificationsSkeleton } from "../components/notifications/NotificationsSkeleton";
+import { FriendRequestNotificationCard } from "../components/friends/FriendRequestNotificationCard";
 import { cn, getErrorMessage } from "../lib/utils";
 import { notificationDay, notificationTypeLabels, type NotificationDay, type NotificationItemData } from "../lib/notifications";
 import type { NotificationFilter } from "../lib/notificationsData";
@@ -17,6 +18,7 @@ import {
   useNotificationsFeed,
   useUnreadNotificationCount,
 } from "../features/notifications/useNotifications";
+import { useAcceptFriendRequest, useDeclineFriendRequest, useListIncomingFriendRequests } from "../features/friends/useFriendsQueries";
 
 type FilterKey = NotificationFilter;
 
@@ -53,6 +55,23 @@ export default function Notifications() {
   const markReadMutation = useMarkNotificationRead(userId);
   const dismissMutation = useDismissNotification(userId);
   const markAllMutation = useMarkAllNotificationsRead(userId);
+
+  // Backend Part 8: cross-referenced against friend_request-typed
+  // notification rows below to render them as an actionable
+  // FriendRequestNotificationCard (sender full name + Accept/Decline) --
+  // never the sender's email, matching the same rule everywhere else in
+  // Friends. Reused rather than duplicated: any visible (non-dismissed)
+  // friend_request notification is, by construction, still pending (both
+  // accept_friend_request()/decline_friend_request() dismiss their
+  // notification atomically), so this list always has a matching entry
+  // for it.
+  const incomingRequestsQuery = useListIncomingFriendRequests(userId);
+  const acceptRequest = useAcceptFriendRequest(userId);
+  const declineRequest = useDeclineFriendRequest(userId);
+  const incomingRequestsById = useMemo(
+    () => new Map((incomingRequestsQuery.data ?? []).map((r) => [r.requestId, r])),
+    [incomingRequestsQuery.data]
+  );
 
   const unreadCount = unreadCountQuery.data ?? 0;
 
@@ -148,9 +167,24 @@ export default function Notifications() {
                     {DAY_LABELS[day]}
                   </h2>
                   <ul className="flex flex-col gap-2">
-                    {grouped[day].map((n) => (
-                      <NotificationItem key={n.id} notification={n} onMarkRead={markRead} onDismiss={dismiss} />
-                    ))}
+                    {grouped[day].map((n) => {
+                      const request = n.type === "friend_request" && n.friendRequestId ? incomingRequestsById.get(n.friendRequestId) : undefined;
+                      if (request) {
+                        return (
+                          <FriendRequestNotificationCard
+                            key={n.id}
+                            user={{ id: request.senderId, fullName: request.senderFullName, email: null, avatarUrl: request.senderAvatarUrl, status: "incoming_pending" }}
+                            isPending={
+                              (acceptRequest.isPending && acceptRequest.variables === request.requestId) ||
+                              (declineRequest.isPending && declineRequest.variables === request.requestId)
+                            }
+                            onAccept={() => void acceptRequest.mutate(request.requestId)}
+                            onDecline={() => void declineRequest.mutate(request.requestId)}
+                          />
+                        );
+                      }
+                      return <NotificationItem key={n.id} notification={n} onMarkRead={markRead} onDismiss={dismiss} />;
+                    })}
                   </ul>
                 </section>
               ) : null

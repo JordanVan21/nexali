@@ -105,6 +105,73 @@ describe("NotificationItem", () => {
     expect(screen.queryAllByRole("link")).toHaveLength(0);
   });
 
+  it("renders inlineActions (Backend Part 8: non-navigation actions like Accept/Decline) as real buttons, not links", () => {
+    const onAccept = vi.fn();
+    renderWithProviders(
+      <ul>
+        <NotificationItem
+          notification={fixture({ inlineActions: [{ label: "Accept", onClick: onAccept, variant: "hero" }] })}
+          onMarkRead={vi.fn()}
+          onDismiss={vi.fn()}
+        />
+      </ul>
+    );
+
+    const button = screen.getByRole("button", { name: "Accept" });
+    expect(button).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Accept" })).not.toBeInTheDocument();
+  });
+
+  it("calls an inline action's own onClick, independent of onMarkRead/onDismiss", async () => {
+    const onAccept = vi.fn();
+    const onMarkRead = vi.fn();
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ul>
+        <NotificationItem
+          notification={fixture({ inlineActions: [{ label: "Accept", onClick: onAccept }] })}
+          onMarkRead={onMarkRead}
+          onDismiss={vi.fn()}
+        />
+      </ul>
+    );
+
+    await user.click(screen.getByRole("button", { name: "Accept" }));
+    expect(onAccept).toHaveBeenCalledTimes(1);
+    expect(onMarkRead).not.toHaveBeenCalled();
+  });
+
+  it("renders multiple inline actions and respects each one's own disabled state", () => {
+    renderWithProviders(
+      <ul>
+        <NotificationItem
+          notification={fixture({
+            inlineActions: [
+              { label: "Decline", onClick: vi.fn(), disabled: true },
+              { label: "Accept", onClick: vi.fn(), disabled: false },
+            ],
+          })}
+          onMarkRead={vi.fn()}
+          onDismiss={vi.fn()}
+        />
+      </ul>
+    );
+
+    expect(screen.getByRole("button", { name: "Decline" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Accept" })).toBeEnabled();
+  });
+
+  it("renders no inline actions when the notification has none (existing action-less notifications unaffected)", () => {
+    renderWithProviders(
+      <ul>
+        <NotificationItem notification={fixture()} onMarkRead={vi.fn()} onDismiss={vi.fn()} />
+      </ul>
+    );
+
+    expect(screen.queryByRole("button", { name: "Accept" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Decline" })).not.toBeInTheDocument();
+  });
+
   it("formats a real recent createdAt timestamp instead of a fabricated string", () => {
     const createdAt = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     renderWithProviders(

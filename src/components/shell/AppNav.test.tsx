@@ -2,7 +2,6 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { screen, within } from "@testing-library/react";
 import { renderWithProviders } from "../../test/renderWithProviders";
 import { AppNav } from "./AppNav";
-import type { NexaliUserPreview } from "../../lib/friends";
 
 vi.mock("../../features/profiles/useAvatar", () => ({
   useAvatar: () => ({ data: null }),
@@ -17,19 +16,19 @@ vi.mock("../../features/notifications/useNotifications", () => ({
   useUnreadNotificationCount: () => unreadState,
 }));
 
-let incomingRequests: NexaliUserPreview[] = [];
-vi.mock("../../features/friends/useFriends", () => ({
-  useFriends: () => ({ incomingRequests }),
+let incomingCountState: { data: number | undefined; isLoading: boolean; isError: boolean } = {
+  data: 0,
+  isLoading: false,
+  isError: false,
+};
+vi.mock("../../features/friends/useFriendsQueries", () => ({
+  useIncomingFriendRequestCount: () => incomingCountState,
 }));
-
-function pendingUser(id: string): NexaliUserPreview {
-  return { id, fullName: "Someone", email: "someone@example.com", avatarUrl: null, status: "incoming_pending" };
-}
 
 describe("AppNav", () => {
   afterEach(() => {
     unreadState = { data: 0, isLoading: false, isError: false };
-    incomingRequests = [];
+    incomingCountState = { data: 0, isLoading: false, isError: false };
   });
 
   it("renders the primary destinations in order, with no Account and no search", () => {
@@ -191,16 +190,16 @@ describe("AppNav", () => {
     });
   });
 
-  describe("Friends badge (frontend-only incoming-request count)", () => {
+  describe("Friends badge (real Backend Part 8 incoming-request count)", () => {
     it("shows no badge with zero incoming requests", () => {
-      incomingRequests = [];
+      incomingCountState = { data: 0, isLoading: false, isError: false };
       renderWithProviders(<AppNav />, { route: "/dashboard" });
 
       expect(screen.getByRole("link", { name: "Friends" })).toBeInTheDocument();
     });
 
     it("shows '1' for one incoming request", () => {
-      incomingRequests = [pendingUser("a")];
+      incomingCountState = { data: 1, isLoading: false, isError: false };
       renderWithProviders(<AppNav />, { route: "/dashboard" });
 
       expect(screen.getByText("1")).toBeInTheDocument();
@@ -208,7 +207,7 @@ describe("AppNav", () => {
     });
 
     it("shows the correct count for multiple incoming requests, with correct plural label", () => {
-      incomingRequests = [pendingUser("a"), pendingUser("b"), pendingUser("c")];
+      incomingCountState = { data: 3, isLoading: false, isError: false };
       renderWithProviders(<AppNav />, { route: "/dashboard" });
 
       expect(screen.getByText("3")).toBeInTheDocument();
@@ -216,16 +215,30 @@ describe("AppNav", () => {
     });
 
     it("caps at '99+' for 100 or more incoming requests", () => {
-      incomingRequests = Array.from({ length: 100 }, (_, i) => pendingUser(String(i)));
+      incomingCountState = { data: 100, isLoading: false, isError: false };
       renderWithProviders(<AppNav />, { route: "/dashboard" });
 
       expect(screen.getByText("99+")).toBeInTheDocument();
+    });
+
+    it("shows no fake badge while the count is loading", () => {
+      incomingCountState = { data: undefined, isLoading: true, isError: false };
+      renderWithProviders(<AppNav />, { route: "/dashboard" });
+
+      expect(screen.getByRole("link", { name: "Friends" })).toBeInTheDocument();
+    });
+
+    it("keeps the icon functional and omits the badge when the count query errors", () => {
+      incomingCountState = { data: undefined, isLoading: false, isError: true };
+      renderWithProviders(<AppNav />, { route: "/dashboard" });
+
+      expect(screen.getByRole("link", { name: "Friends" })).toHaveAttribute("href", "/friends");
     });
   });
 
   it("does not shift Notifications/Friends/Settings/Profile when a badge appears (relative positioning only)", () => {
     unreadState = { data: 3, isLoading: false, isError: false };
-    incomingRequests = [pendingUser("a")];
+    incomingCountState = { data: 1, isLoading: false, isError: false };
     renderWithProviders(<AppNav />, { route: "/dashboard" });
 
     const notifLink = screen.getByRole("link", { name: /notifications/i });

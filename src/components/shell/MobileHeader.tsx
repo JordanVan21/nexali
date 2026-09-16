@@ -6,7 +6,8 @@ import { isRouteActive } from "../../lib/routes";
 import { cn } from "../../lib/utils";
 import { NavIconBadge } from "./NavIconBadge";
 import { friendsAriaLabel } from "./navBadge";
-import { useFriends } from "../../features/friends/useFriends";
+import { useIncomingFriendRequestCount } from "../../features/friends/useFriendsQueries";
+import { useUserInfo } from "../../shared/useUserId";
 
 /**
  * Compact app-style top bar shown on every authenticated mobile page (below
@@ -21,13 +22,14 @@ import { useFriends } from "../../features/friends/useFriends";
 export function MobileHeader() {
   const location = useLocation();
   const friendsActive = isRouteActive(location.pathname, "/friends");
+  const { userId } = useUserInfo();
 
-  // Shared with the Friends page and AppNav's own badge via FriendsProvider
-  // (see AppLayout.tsx) -- FUTURE REPLACEMENT POINT: once a real backend
-  // incoming-request count exists, only useFriendsState()'s internals need
-  // to change; this line stays the same.
-  const { incomingRequests } = useFriends();
-  const pendingRequestCount = incomingRequests.length;
+  // Real Backend Part 8 incoming-request count -- shares the same
+  // TanStack Query cache entry as AppNav's badge and the Friends page
+  // itself (qk.friendsIncomingCount), so all three stay in sync with no
+  // extra plumbing.
+  const incomingCountQuery = useIncomingFriendRequestCount(userId);
+  const pendingRequestCount = incomingCountQuery.isLoading || incomingCountQuery.isError ? 0 : (incomingCountQuery.data ?? 0);
 
   return (
     <header className="sticky top-0 z-40 flex h-[var(--mobile-header-height)] items-center justify-between border-b border-outline-variant/40 bg-background/95 px-3 backdrop-blur-md pt-safe md:hidden">

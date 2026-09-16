@@ -1192,8 +1192,175 @@ Frontend visual design unchanged (Notifications gained real loading/error/data s
 
 **Quality gates:** `npm run test` — 548 tests passing. `npm run lint` — clean. `npm run build` — successful. `npx tsc -b --force` — clean.
 
-## 41. Recommended Backend Part 8
+## 41. Recommended Backend Part 8 (superseded — see §42)
 
-Aura backend (the first real AI-assistant Edge Function/tool layer) is the natural next phase per the pre-existing sequence plan (§31) — **not started**, per explicit instruction.
+§41 recommended Aura backend as the natural next phase per the pre-existing sequence plan (§31). Instead, per explicit instruction, the **real Friends backend** was built next (§42) — Aura remains on hold, not started.
 
-**Not run:** execution of the new migration against any real Postgres instance -- hand-reviewed only, consistent with every prior Part. See the final report for exact post-deployment verification SQL.
+## 42. Backend Part 8 — Friends Backend (Real Schema, RPCs, Notifications Integration)
+
+**Status at start of this Part:** confirmed via `npx supabase migration list` that all 14 migrations through `20260918000200_atomic_settings_update.sql` (Backend Part 7's atomic Settings fix) showed matching local/remote timestamps — deployed, nothing unexpectedly missing. `git status` was clean (the prior Friends-frontend-refinement work had already been committed). **Status at end of this Part: implemented in the repository, NOT yet applied to the live database.**
+
+The Friends **frontend** (search, send/accept/decline, friends list, nav badges) had already been built and approved in a prior, frontend-only phase against `MOCK_USERS` and local component state. This Part replaces that mock layer with a real, secure Supabase-backed data model and connects the already-approved UI to it — no redesign of the Friends page, Notifications page, or navigation.
+
+### 42.1 Data model — `friend_requests` and `friendships`
+
+New migration `supabase/migrations/20260919000000_friends_schema.sql`. No duplicate user-profile table — identity comes entirely from `auth.users`/`public.profiles`.
+
+`public.friend_requests`:
+
+| Column | Type | Nullable | Default | Constraint |
+|---|---|---|---|---|
+| `id` | `uuid` | NOT NULL | `gen_random_uuid()` | PK |
+| `sender_id` | `uuid` | NOT NULL | none | `REFERENCES auth.users(id) ON DELETE CASCADE` |
+| `recipient_id` | `uuid` | NOT NULL | none | `REFERENCES auth.users(id) ON DELETE CASCADE` |
+| `status` | `text` | NOT NULL | `'pending'` | `IN ('pending','accepted','declined')` — no cancelled/blocking states |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — |
+| `responded_at` | `timestamptz` | NULL | none | set the instant the recipient accepts/declines |
+
+Plus `CHECK (sender_id <> recipient_id)` — self-requests are rejected at the database level, not only by the RPC's own pre-check.
+
+`public.friendships`:
+
+| Column | Type | Nullable | Default | Constraint |
+|---|---|---|---|---|
+| `id` | `uuid` | NOT NULL | `gen_random_uuid()` | PK |
+| `user_one_id` | `uuid` | NOT NULL | none | `REFERENCES auth.users(id) ON DELETE CASCADE` |
+| `user_two_id` | `uuid` | NOT NULL | none | `REFERENCES auth.users(id) ON DELETE CASCADE` |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — |
+
+Plus `CHECK (user_one_id <> user_two_id)`, `CHECK (user_one_id < user_two_id)` (canonical ordering), and `UNIQUE (user_one_id, user_two_id)` — one canonical row per accepted pair, never two mirrored rows.
+
+### 42.2 Canonical-pair strategy and race-condition-proof uniqueness
+
+Every writer (search/send/accept/remove) computes `LEAST(a, b)`/`GREATEST(a, b)` before touching `friendships`, rather than trusting caller-supplied ordering; the `friendships_canonical_order` CHECK (`user_one_id < user_two_id`) is the real backstop — an insert with the pair "backwards" fails the CHECK instead of silently creating a duplicate mirrored row.
+
+Symmetric pending-request uniqueness (A→B pending and B→A pending must never coexist) is enforced by a **partial unique index**, not application logic alone:
+
+```sql
+CREATE UNIQUE INDEX "friend_requests_pending_pair_uidx"
+    ON "public"."friend_requests" (LEAST("sender_id", "recipient_id"), GREATEST("sender_id", "recipient_id"))
+    WHERE ("status" = 'pending');
+```
+
+This is the actual race-condition-proof enforcement: two concurrent `send_friend_request` calls for the same pair (double-click, two tabs, a genuine simultaneous mutual request) both attempt an insert, and the second fails atomically at the database level on `unique_violation` — `send_friend_request()` catches this specific exception and converts it to a friendly, safe error message (§42.5) rather than exposing a raw constraint-violation string. `send_friend_request()` also runs an explicit pre-check for the ordinary, non-racing case, so the common path gets an exact, specific error ("already pending" vs. "they already sent you one") — but the pre-check is a UX nicety; the unique index is what actually prevents the duplicate.
+
+### 42.3 Indexes
+
+Only for real access patterns, no speculative extra indexing: `friend_requests_pending_recipient_idx (recipient_id, created_at DESC) WHERE status='pending'` (incoming list/count), `friend_requests_pending_sender_idx (sender_id) WHERE status='pending'` (send's own pending-outgoing pre-check), `friendships_user_one_idx`/`friendships_user_two_idx` (list_friends/remove_friend/search's "friendships containing current user" lookup, since the user can be in either column), plus the two uniqueness indexes from §42.1/42.2.
+
+### 42.4 RLS and grants — RPC-only surface
+
+Both tables have `ENABLE ROW LEVEL SECURITY` and a defensive-in-depth SELECT-own-involved-rows policy — but **no direct table grant to `authenticated` at all**. `REVOKE ALL ... FROM PUBLIC`; `GRANT ALL ... TO service_role` only. Every real read (search, list friends, list/count incoming requests) and every mutation (send/accept/decline/remove) goes through a `SECURITY DEFINER` RPC, which bypasses RLS as the table owner regardless of the caller's own (nonexistent) table grants — so the closed surface never blocks a legitimate RPC call. This was chosen explicitly over granting `SELECT` on `friend_requests` to enable a PostgREST nested embed for the Notifications page's sender lookup: PostgREST cannot auto-embed `friend_requests → profiles` (no direct FK between them — both instead reference `auth.users`), so that alternative wouldn't have worked cleanly anyway; the Notifications-page sender lookup is solved by cross-referencing against the already-fetched `list_incoming_friend_requests()` result instead (§42.8).
+
+profiles' live SELECT policy was re-confirmed via read-only introspection to be strictly `auth.uid() = id` — no broader read policy exists — which is *why* a SECURITY DEFINER function is required for any cross-user profile read here, not merely a stylistic choice.
+
+### 42.5 RPC architecture (8 functions)
+
+New migration `supabase/migrations/20260919000200_friends_rpcs.sql`. Every function: identity derived only from `auth.uid()` (no function accepts a caller-id parameter), rejects `auth.uid() IS NULL` with a real `RAISE EXCEPTION`, `SET search_path TO 'public', 'pg_temp'`, every table reference schema-qualified, `REVOKE ALL ... FROM PUBLIC` + `GRANT EXECUTE ... TO authenticated` only (no `anon` grant on any of the 8).
+
+- **`search_nexali_users(p_query text)`** — bounded, privacy-safe search. Returns `user_id, full_name, avatar_url, email, relationship_status`. **Email privacy is proven in SQL, not merely hidden by React**: `email` is a `CASE WHEN lower(trim(email)) = lower(trim(p_query)) THEN email ELSE NULL END` expression — a non-exact-match row's email is genuinely absent from the PostgREST response, not a value the client chooses not to render. Name matching uses `strpos(lower(full_name), lower(query)) > 0` (a literal substring check), never `ILIKE`/`LIKE` with the raw query interpolated — this is what makes `%`/`_` in the query inert (no pattern-matching semantics at all), so a full-directory dump via wildcard injection is structurally impossible. Below the 2-character minimum, returns zero rows rather than raising (a still-typing user isn't an error). `LIMIT 20`. Self-excluded via `WHERE p.id <> auth.uid()` — never a client-supplied id to omit. `relationship_status` is one of `none | outgoing_pending | incoming_pending | friends`, computed via `LEFT JOIN`s against both tables.
+- **`list_friends()`** — accepted friends only, includes email (allowed — the relationship is mutually accepted), ordered by full name ascending for a stable, predictable list.
+- **`list_incoming_friend_requests()`** — pending requests where `recipient_id = auth.uid()`. Deliberately never selects the sender's email anywhere in the function, matching the "incoming request shows full name + avatar only" rule at the server.
+- **`get_incoming_friend_request_count()`** — a real `count(*)` query (backed by `friend_requests_pending_recipient_idx`), never a fetch-all-then-count. This is the Friends badge's real data source (§42.9).
+- **`send_friend_request(p_recipient_id uuid)`** — atomically creates the `friend_requests` row AND the recipient's real Notifications-backend notification, inside one function call's implicit transaction. Pre-checks (in order): self-request, missing/nonexistent recipient, already-friends, existing pending in either direction. **Reverse-pending (B already asked A) does not auto-create or auto-accept** — it raises a distinct, safe error ("This user already sent you a friend request — check your incoming requests") so the frontend can reflect `incoming_pending` and point the user at Accept/Decline instead. A `unique_violation` exception handler is the real race-condition backstop (§42.2). Returns the new request's `uuid`.
+- **`accept_friend_request(p_request_id uuid)`** — `SELECT ... FOR UPDATE` row-locks the target request (so a concurrent accept/decline on the same request serializes instead of racing), validates the caller is the recipient, is **idempotent** on an already-accepted request (safe no-op, not an error, never a duplicate friendship), creates the canonical friendship via `INSERT ... ON CONFLICT (user_one_id, user_two_id) DO NOTHING`, marks the request `accepted` + `responded_at`, and resolves (marks read + dismissed) the recipient's own associated notification — all in one transaction.
+- **`decline_friend_request(p_request_id uuid)`** — mirrors accept exactly, minus friendship creation; never creates a friendship.
+- **`remove_friend(p_friend_user_id uuid)`** — deletes exactly the one canonical friendship row (via `LEAST`/`GREATEST`), raises if nothing was deleted (`GET DIAGNOSTICS ... ROW_COUNT`). Never deletes profiles, accounts, or `friend_requests` history — declined/accepted requests are kept permanently as real history.
+
+### 42.6 Notifications integration — reused, not duplicated
+
+New migration `supabase/migrations/20260919000100_friends_notification_integration.sql`. This is a NEW forward migration — none of the deployed Part 7 migrations were edited.
+
+- `notifications.type`'s CHECK constraint was **widened** (dropped and recreated) to add `'friend_request'` alongside the four existing values — a superset of the old constraint, so no existing row is affected.
+- A new nullable `friend_request_id uuid REFERENCES public.friend_requests(id) ON DELETE SET NULL` column identifies which request a `friend_request`-typed notification is about — preferred over encoding the id in `description` or a jsonb blob (no `metadata` column exists on `notifications` at all, confirmed in Part 7). **`ON DELETE SET NULL`, not `CASCADE`**: a sender's account deletion cascades their own `friend_requests` rows, but the notification this column points to belongs to the *recipient* — a different, still-existing user — so the notification itself must survive; only the now-dangling reference is nulled.
+- A supporting partial index, `notifications_friend_request_id_idx ... WHERE friend_request_id IS NOT NULL`.
+- `send_friend_request()` reuses the established per-producer `dedupe_key` convention (`'friend-request:' || v_request_id::text`) for consistency, though the real duplicate-prevention backstop is the partial unique index on `friend_requests` (§42.2), not this key — `v_request_id` is freshly generated per call and can never collide across two different requests.
+- **No new `notification_preferences` toggle was added** — friend-request notifications are always delivered in v1, a deliberate scope decision (documented here, not silently decided).
+- **Filtering:** no new filter tab was added (`FILTER_TABS` in `Notifications.tsx` is a hand-written literal array, confirmed by direct inspection — extending the `NotificationType` union does not auto-create a tab). The existing **"System" tab's query was widened** to `type IN ('system', 'friend_request')` — the chosen v1 fold-in behavior, rather than a new, larger tab row.
+
+### 42.7 Frontend data layer replacement
+
+`MOCK_USERS`/frontend-only relationship persistence removed. `src/lib/friends.ts` trimmed to pure types (`FriendStatus`, `NexaliUserPreview` with `email: string | null` now documented as server-enforced-null, new `IncomingFriendRequest` type with no email field at all, `MIN_SEARCH_QUERY_LENGTH = 2`, `toSplitParticipant()` preserved unchanged for Split Expenses compatibility — see §42.11). The now-redundant client-side `isExactEmailMatch()` helper was removed along with its tests, since email privacy is now enforced server-side (§42.5).
+
+New `src/lib/friendsData.ts` — thin, typed `supabase.rpc(...)` wrappers for all 8 RPCs, throwing the real Postgres error rather than swallowing it. New `src/features/friends/useFriendsQueries.ts` — TanStack Query hooks: `useSearchNexaliUsers` (debounced ~300ms via a new generic `src/shared/useDebouncedValue.ts` hook, `enabled` gated on a trimmed length ≥ 2), `useListFriends`, `useListIncomingFriendRequests`, `useIncomingFriendRequestCount`, and mutations `useSendFriendRequest`/`useAcceptFriendRequest`/`useDeclineFriendRequest`/`useRemoveFriend`.
+
+New query keys in `src/features/querykeys.ts`: `friendsRoot(userId)`, `friendsList`, `friendsIncoming`, `friendsIncomingCount`, `friendsSearchRoot`, `friendsSearch(userId, query)`.
+
+**Cache invalidation, exactly per mutation:**
+
+| Mutation | Invalidates |
+|---|---|
+| `sendFriendRequest` | `friendsSearchRoot` only |
+| `acceptFriendRequest` | `friendsList`, `friendsIncoming`, `friendsIncomingCount`, `friendsSearchRoot`, `notificationsRoot`, `notificationsUnreadCount` |
+| `declineFriendRequest` | same as accept, minus `friendsList` (a decline never creates a friendship) |
+| `removeFriend` | `friendsList`, `friendsSearchRoot` only |
+
+None of the four ever invalidates Dashboard/Reports/Budgets/Transactions caches.
+
+**Architectural simplification — the prior frontend-only phase's custom `FriendsProvider`/`friendsStore.ts`/`useFriends()` React Context was deleted.** It existed solely to share mock relationship state between the nav badges and the Friends page; now that the backend is real, TanStack Query's own cache (keyed by `qk.friendsIncomingCount(userId)`, etc.) already provides that same cross-component sharing with zero custom plumbing — exactly how the Notifications unread badge has always worked. `AppLayout.tsx`, `renderWithProviders.tsx`, `AppNav.tsx`, and `MobileHeader.tsx` were updated accordingly.
+
+### 42.8 Friends page and Notifications page rewiring
+
+`src/pages/Friends.tsx` rewritten to call the 4 query hooks + 4 mutation hooks directly (no context): Friend Requests section (hidden when empty), Find People search (`role="region" aria-label="Search results"`, loading/error+retry/no-results/results states, `showEmail={user.email != null}` now a pure server-truth check), Your Friends (loading/error+retry/empty/list with a Remove-Friend confirm dialog).
+
+`src/pages/Notifications.tsx`: for each rendered notification, if `type === "friend_request"` and its `friendRequestId` matches an entry in the already-fetched `useListIncomingFriendRequests()` result, it renders the existing `FriendRequestNotificationCard` (wired to the real accept/decline mutations, per-request pending state) instead of the plain `NotificationItem`. This reuses rather than duplicates: any *visible* (non-dismissed) `friend_request` notification is, by construction, still pending — both `accept_friend_request()`/`decline_friend_request()` dismiss their notification atomically (§42.5) — so a matching entry exists in the normal case; if not (an edge case), the page falls back to the plain `NotificationItem` rather than crashing.
+
+`src/lib/notifications.ts`'s `NotificationItemData` gained an additive `inlineActions?: NotificationInlineAction[]` field (`{label, onClick, variant?, disabled?}`), separate from the existing Link-based `primaryAction`/`secondaryAction` — Accept/Decline are real mutations, not navigation. `NotificationItem.tsx` renders these as real `<Button onClick>` elements. This extends the component architecture additively, in a typed way, without touching the real DB-bound `type`/action-href CHECK constraints.
+
+### 42.9 Friends badge vs. Notifications badge — deliberately independent
+
+The Friends nav badge (`AppNav.tsx`/`MobileHeader.tsx`) is sourced from `get_incoming_friend_request_count()` (§42.5) via `qk.friendsIncomingCount`, not from the Notifications unread count. This is intentional: a manually-dismissed `friend_request` notification decreases the Notifications unread badge, but the underlying friend request is still pending, so the Friends badge must not decrease with it. The two badges can legitimately disagree, and that disagreement is correct, not a bug.
+
+### 42.10 Account deletion cleanup
+
+New migration `supabase/migrations/20260919000300_delete_user_everything_friends_cleanup.sql` extends `delete_user_everything()` (via `CREATE OR REPLACE`, preserving the existing `service_role`-only guard/REVOKE/GRANT discipline unchanged) with explicit deletes for `friend_requests` (either `sender_id` or `recipient_id`) and `friendships` (either column) — matching the same delete-order-independent discipline already established for `notifications`/`notification_preferences` in Part 7, even though both new tables already carry `ON DELETE CASCADE` to `auth.users` and would be cleaned up by cascade alone once the Edge Function's `auth.admin.deleteUser()` call runs.
+
+### 42.11 Split Expenses compatibility
+
+Not wired into Friends yet, per instruction. `toSplitParticipant(user: NexaliUserPreview): Participant` was preserved unchanged in `src/lib/friends.ts` — no type adjustment was needed; `NexaliUserPreview`'s shape (`id/fullName/email/avatarUrl/status`) did not change in a way that affects this conversion.
+
+### 42.12 Database types
+
+`src/types/database.types.ts`: `notifications` Row/Insert/Update gained `friend_request_id: string | null` plus a `Relationships` entry to `friend_requests`; new full `friend_requests`/`friendships` table type blocks; 8 new `Functions` entries with exact Args/Returns shapes matching the SQL. No `any` used. Verified clean via `npx tsc -b --force` after each edit.
+
+### 42.13 Race conditions — handled and tested
+
+- **Simultaneous mutual requests (A→B and B→A at once):** the partial unique index (§42.2) allows only the first to commit; the second fails `unique_violation`, caught and converted to a safe error.
+- **Double-click send:** same backstop — a duplicate insert for the same pending pair cannot commit.
+- **Double-click accept / concurrent accept+decline in two tabs:** `SELECT ... FOR UPDATE` in both `accept_friend_request()`/`decline_friend_request()` serializes the two calls; the second sees the already-updated status and either idempotently no-ops (double-accept) or raises "no longer pending" (accept racing a decline, or vice versa) — never a duplicate friendship or a corrupted status.
+- **Remove-while-stale-tab:** `remove_friend()` raises "You are not friends with this user" if the row is already gone (e.g. already removed from another tab) rather than silently succeeding on nothing.
+
+Static verification of all of the above (the exact SQL shape of the row-lock, the idempotency branch, the unique-violation handler, the canonical-pair constraints) lives in `src/features/friends/friendsMigrations.test.ts` (§42.14) — real concurrent-session integration testing is not available in this repository's test environment (no local/CI Postgres wired to Vitest), the same documented limitation as Part 7's atomic-settings fix.
+
+### 42.14 Tests added/updated
+
+- `src/lib/friends.test.ts` — rewritten, now covers only `toSplitParticipant` (the search/exact-email logic moved server-side).
+- `src/lib/friendsData.test.ts` (new) — every RPC wrapper's call shape, row mapping (including a real null email passed through untouched, never invented client-side), and real-error propagation.
+- `src/features/friends/useFriendsQueries.test.tsx` (new) — debounce timing and the 2-character minimum gate (via fake timers against a real `QueryClient`), and each mutation's exact invalidation set (send/accept/decline/remove) against a real, spied `QueryClient.invalidateQueries`, mirroring `useUpdateUserSettings.test.tsx`'s established pattern.
+- `src/features/friends/friendsMigrations.test.ts` (new) — static verification of all 4 migrations: self-request/self-friendship CHECKs, canonical-pair ordering/uniqueness, the partial unique pending-pair index, every RPC's `auth.uid()`-only identity/null-rejection/`SECURITY DEFINER`/search_path/REVOKE-GRANT shape, the email-privacy `CASE` expression, `strpos`-not-`ILIKE` name matching, the 2-character minimum and `LIMIT 20`, the reverse-pending no-auto-accept behavior, the `FOR UPDATE`/idempotency/canonical-insert shape of accept, decline's no-friendship-creation, remove's single-row delete, and the account-deletion migration's new deletes plus unchanged guard.
+- `src/shared/useDebouncedValue.test.ts` (new) — immediate initial value, no update before the delay, update after the delay, and rapid-change collapsing into one final update.
+- `src/components/shell/AppNav.test.tsx` / `MobileHeader.test.tsx` — rewritten to mock `useIncomingFriendRequestCount` (a count-query shape) instead of the deleted `useFriends`; badge loading/error tests added, mirroring the Notifications-badge test shape.
+- `src/AppLayout.test.tsx` — rewritten to mock `src/lib/friendsData.ts` at the lowest layer (stateful mock implementations for accept/decline) and let the real hooks/`Friends` page run unmocked, proving genuine TanStack-Query-cache-based sharing between `AppNav`'s badge and the Friends page — no custom context.
+- `src/pages/Friends.test.tsx` — fully rewritten (24 tests) against the real query/mutation hooks: friends-list/search loading and error+retry, the 2-character minimum gate, name-search hides email / exact-search shows email, send/accept/decline/remove each call the real mutation with the correct id, per-request pending-disable, status labels for outgoing/incoming/already-friends, the remove confirm-dialog flow including its error state.
+- `src/pages/Notifications.test.tsx` — new "friend_request notifications" describe block: the actionable card renders with the sender's name and never their email, Accept/Decline call the real mutations with the request id, per-request pending-disable, a safe fallback when no matching incoming request is found, the System tab includes `friend_request` rows, and the unread count reflects a new `friend_request` notification like any other type.
+- `src/components/notifications/NotificationItem.test.tsx` — new tests for the additive `inlineActions` rendering path: renders as real buttons (not links), each action's own `onClick`/`disabled` is independent of `onMarkRead`, multiple inline actions render correctly, and existing action-less notifications are unaffected.
+- `src/lib/notificationsData.test.ts` — new tests: the System tab's query uses `.in("type", ["system","friend_request"])` (not `.eq("type","system")`), and `friend_request_id` maps through onto `NotificationItemData` (including the null case).
+
+### 42.15 Security summary
+
+`auth.users` is never exposed directly to the browser — no public view of all emails exists, and the one place `auth.users.email` is read (`search_nexali_users`/`list_friends`) is a narrowly-scoped `SECURITY DEFINER` function returning only the specific columns the frontend needs, with `email` itself null-gated by an exact-match `CASE` expression (§42.5). No service-role key is ever used in frontend code — `friendsData.ts` calls only `supabase.rpc(...)` through the normal anon/authenticated client, same as every other data-access module in this codebase. Both new tables have no direct `authenticated` grant at all (§42.4). Every RPC rejects a null `auth.uid()`, derives the caller exclusively from it, and has no `anon` grant.
+
+### 42.16 Confirmations
+
+Friends page, Notifications page, and navigation were not visually redesigned — only their data sources changed (loading/error states use each page's existing visual language). Split Expenses was not modified (§42.11). Aura was not started. No historical migration file was edited — `delete_user_everything` was updated via `CREATE OR REPLACE` in a new migration, matching the established pattern. Migrations were **not** applied to the live database — `npx supabase db push` was not run. No commit or push occurred.
+
+### 42.17 Quality gates (this Part)
+
+`npx tsc -b --force`: 0 errors. `npm run lint`: 0 errors, 0 warnings. `npm run build`: succeeds (same pre-existing >500kB chunk-size warning, unrelated to this Part). `npm run test` (`npx vitest run --maxWorkers=2`): 71 test files, 773 tests, all passing.
+
+### 42.18 Known limitations (v1, documented)
+
+- No realtime subscription: an incoming friend request from another user does not appear until the next refetch/navigation (the same polling-via-cache-invalidation model already used everywhere else in this codebase — no `supabase.channel()` realtime listener exists anywhere in the app yet).
+- Friend request history (`friend_requests` rows) is retained forever; there is no UI to view past declined/expired requests — only the currently-pending incoming list is surfaced.
+- No pagination on `list_friends()`/`search_nexali_users()` beyond the fixed `LIMIT 20` search bound; a user with a very large friends list has no "load more" affordance today (matches the same documented v1 limitation as the Part 7 Notifications feed's fixed 50-row window).
+- Friend requests cannot be cancelled by the sender once sent (only accepted/declined by the recipient) — no "cancel" state exists in the status model, per the task's explicit instruction.

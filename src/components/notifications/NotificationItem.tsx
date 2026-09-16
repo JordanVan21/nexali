@@ -9,6 +9,7 @@ const TYPE_ACCENT: Record<NotificationItemData["type"], string> = {
   security: "bg-destructive/15 text-destructive",
   system: "bg-primary/15 text-primary",
   assistant: "bg-success/15 text-success",
+  friend_request: "bg-primary/15 text-primary",
 };
 
 /**
@@ -26,7 +27,7 @@ export function NotificationItem({
   onMarkRead: (id: string) => void;
   onDismiss: (id: string) => void;
 }) {
-  const { id, type, icon: Icon, title, description, createdAt, read, primaryAction, secondaryAction } = notification;
+  const { id, type, icon: Icon, title, description, createdAt, read, primaryAction, secondaryAction, inlineActions } = notification;
 
   return (
     <li
@@ -67,6 +68,18 @@ export function NotificationItem({
               <Link to={secondaryAction.href}>{secondaryAction.label}</Link>
             </Button>
           )}
+          {inlineActions?.map((action) => (
+            <Button
+              key={action.label}
+              type="button"
+              variant={action.variant ?? "surface"}
+              size="sm"
+              onClick={action.onClick}
+              disabled={action.disabled}
+            >
+              {action.label}
+            </Button>
+          ))}
           {!read && (
             <button
               type="button"
