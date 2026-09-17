@@ -28,6 +28,27 @@ export async function getExpenseCategories(userId: string): Promise<
   return (data ?? []) as Array<Pick<CategoryRow, "id" | "name">>;
 }
 
+/**
+ * GLOBAL (user_id IS NULL) expense categories only -- no per-user
+ * filtering, since a global category is by definition visible to every
+ * Nexali account. Used exclusively by Split Expenses: submit_split_expense()
+ * rejects any user-owned category (a category private to one participant
+ * cannot safely represent every other participant's own generated
+ * transaction -- see docs/BACKEND_AUDIT_REPORT.md's Split Expenses entry),
+ * so the Split receipt category picker only ever offers categories the
+ * backend will actually accept.
+ */
+export async function getGlobalExpenseCategories(): Promise<Array<Pick<CategoryRow, "id" | "name">>> {
+  const { data, error } = await supabase
+    .from("categories")
+    .select("id, name")
+    .eq("type", "expense")
+    .is("user_id", null)
+    .order("name");
+  if (error) throw error;
+  return (data ?? []) as Array<Pick<CategoryRow, "id" | "name">>;
+}
+
 export async function listCategoriesAll(
   userId: string,
   type?: "income" | "expense"

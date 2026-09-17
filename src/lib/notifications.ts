@@ -1,16 +1,19 @@
-import { Info, ShieldAlert, Sparkles, TrendingUp, UserPlus, type LucideIcon } from "lucide-react";
+import { Info, Receipt, ShieldAlert, Sparkles, TrendingUp, UserPlus, type LucideIcon } from "lucide-react";
 
 /**
  * 'friend_request' added in Backend Part 8 -- see
  * 20260919000100_friends_notification_integration.sql, which widens the
- * real `notifications.type` CHECK constraint to match. Deliberately NOT
- * added as its own entry in Notifications.tsx's FILTER_TABS (that array is
- * hand-written, not derived from this union, specifically so adding a type
- * here never silently adds a new tab) -- see
- * docs/BACKEND_AUDIT_REPORT.md's Friends entry for the exact filter
- * behavior chosen instead (folded into "System").
+ * real `notifications.type` CHECK constraint to match. 'split_expense'
+ * added in the Split Expenses backend Part -- see
+ * 20260921000100_split_expenses_notifications_integration.sql, same
+ * pattern. Deliberately NOT added as its own entry in Notifications.tsx's
+ * FILTER_TABS (that array is hand-written, not derived from this union,
+ * specifically so adding a type here never silently adds a new tab) --
+ * both fold into the existing "System" tab, see
+ * docs/BACKEND_AUDIT_REPORT.md's Friends/Split Expenses entries for the
+ * exact filter behavior chosen instead.
  */
-export type NotificationType = "financial" | "security" | "system" | "assistant" | "friend_request";
+export type NotificationType = "financial" | "security" | "system" | "assistant" | "friend_request" | "split_expense";
 
 export type NotificationAction = {
   label: string;
@@ -55,6 +58,8 @@ export type NotificationItemData = {
   inlineActions?: NotificationInlineAction[];
   /** For type="friend_request": the real friend_requests row this notification is about (see notifications.friend_request_id). Null/undefined for every other type. */
   friendRequestId?: string | null;
+  /** For type="split_expense": the real split_expenses row this notification is about (see notifications.split_expense_id) -- the id accept_split_expense()/decline_split_expense() take directly. Null/undefined for every other type. */
+  splitExpenseId?: string | null;
 };
 
 export const notificationTypeLabels: Record<NotificationType, string> = {
@@ -63,6 +68,7 @@ export const notificationTypeLabels: Record<NotificationType, string> = {
   system: "System",
   assistant: "Assistant",
   friend_request: "Friends",
+  split_expense: "Split Expense",
 };
 
 /**
@@ -81,6 +87,7 @@ export const notificationTypeIcon: Record<NotificationType, LucideIcon> = {
   system: Info,
   assistant: Sparkles,
   friend_request: UserPlus,
+  split_expense: Receipt,
 };
 
 function startOfDay(d: Date): number {

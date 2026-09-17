@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
-import { AuthError } from "@supabase/supabase-js";
+import { AuthApiError, AuthError } from "@supabase/supabase-js";
 import VerifyEmail from "./VerifyEmail";
 
 vi.mock("../supabaseClient", () => ({
@@ -109,7 +109,11 @@ describe("VerifyEmail", () => {
 
     await user.click(await screen.findByRole("button", { name: /resend verification email/i }));
 
-    expect(supabase.auth.resend).toHaveBeenCalledWith({ type: "signup", email: "jane@example.com" });
+    expect(supabase.auth.resend).toHaveBeenCalledWith({
+      type: "signup",
+      email: "jane@example.com",
+      options: { emailRedirectTo: `${window.location.origin}/verify-email` },
+    });
     expect(await screen.findByText(/verification email sent/i)).toBeInTheDocument();
   });
 
@@ -153,6 +157,145 @@ describe("VerifyEmail", () => {
     await user.click(await screen.findByRole("button", { name: /resend verification email/i }));
 
     expect(await screen.findByText(/too many attempts/i)).toBeInTheDocument();
+  });
+
+  /**
+   * Regression coverage for the 2026-09-16 auth/email-verification
+   * investigation. Root cause was NOT a swallowed-error bug (resendVerificationEmail
+   * already checked `error` and threw correctly) -- but two real, separate
+   * defects were found and fixed alongside it: the frontend's resend
+   * cooldown (30s) was shorter than the linked Supabase project's real
+   * `auth.email.max_frequency` (60s, confirmed via `npx supabase config
+   * diff`), and `resendVerificationEmail()` omitted `emailRedirectTo`
+   * entirely, disagreeing with `signUp()`'s.
+   */
+  describe("auth/email-verification investigation regression coverage (2026-09-16)", () => {
+    it("starts a 60-second cooldown after a real successful resend, matching the linked project's confirmed 60s auth.email.max_frequency (not the old 30s value)", async () => {
+      vi.mocked(supabase.auth.getSession).mockResolvedValue({
+        data: { session: null },
+      } as unknown as GetSessionResult);
+      vi.mocked(supabase.auth.resend).mockResolvedValue({
+        data: {},
+        error: null,
+      } as unknown as ResendResult);
+      mockAuthStateChange();
+
+      const user = userEvent.setup();
+      renderVerifyEmail({ email: "jane@example.com" });
+
+      await user.click(await screen.findByRole("button", { name: /resend verification email/i }));
+
+      expect(await screen.findByRole("button", { name: "Resend available in 60s" })).toBeInTheDocument();
+    });
+
+    it("resend always uses the real emailRedirectTo option, agreeing with signUp()'s redirect target", async () => {
+      vi.mocked(supabase.auth.getSession).mockResolvedValue({
+        data: { session: null },
+      } as unknown as GetSessionResult);
+      vi.mocked(supabase.auth.resend).mockResolvedValue({
+        data: {},
+        error: null,
+      } as unknown as ResendResult);
+      mockAuthStateChange();
+
+      const user = userEvent.setup();
+      renderVerifyEmail({ email: "jane@example.com" });
+
+      await user.click(await screen.findByRole("button", { name: /resend verification email/i }));
+
+      const [call] = vi.mocked(supabase.auth.resend).mock.calls;
+      expect(call[0]).toMatchObject({ options: { emailRedirectTo: `${window.location.origin}/verify-email` } });
+    });
+
+    it("a real Supabase rate-limit error (over_email_send_rate_limit code) shows a safe message, never a false success", async () => {
+      vi.mocked(supabase.auth.getSession).mockResolvedValue({
+        data: { session: null },
+      } as unknown as GetSessionResult);
+      vi.mocked(supabase.auth.resend).mockResolvedValue({
+        data: {},
+        error: new AuthApiError(
+          "For security purposes, you can only request this after 46 seconds.",
+          429,
+          "over_email_send_rate_limit"
+        ),
+      } as unknown as ResendResult);
+      mockAuthStateChange();
+
+      const user = userEvent.setup();
+      renderVerifyEmail({ email: "jane@example.com" });
+
+      await user.click(await screen.findByRole("button", { name: /resend verification email/i }));
+
+      expect(await screen.findByText(/too many attempts/i)).toBeInTheDocument();
+      expect(screen.queryByText(/verification email sent/i)).not.toBeInTheDocument();
+      // The raw GoTrue message text must never reach the user directly.
+      expect(screen.queryByText(/46 seconds/i)).not.toBeInTheDocument();
+    });
+
+    it("a network failure (resend rejects instead of resolving) shows a safe error, never a raw exception or a false success", async () => {
+      vi.mocked(supabase.auth.getSession).mockResolvedValue({
+        data: { session: null },
+      } as unknown as GetSessionResult);
+      vi.mocked(supabase.auth.resend).mockRejectedValue(new TypeError("Failed to fetch"));
+      mockAuthStateChange();
+
+      const user = userEvent.setup();
+      renderVerifyEmail({ email: "jane@example.com" });
+
+      await user.click(await screen.findByRole("button", { name: /resend verification email/i }));
+
+      expect(screen.queryByText(/verification email sent/i)).not.toBeInTheDocument();
+      expect(await screen.findByRole("button", { name: /resend verification email/i })).toBeInTheDocument();
+    });
+
+    it("resend targets whatever email is currently displayed in the field, not a stale value from signup state", async () => {
+      vi.mocked(supabase.auth.getSession).mockResolvedValue({
+        data: { session: null },
+      } as unknown as GetSessionResult);
+      vi.mocked(supabase.auth.resend).mockResolvedValue({
+        data: {},
+        error: null,
+      } as unknown as ResendResult);
+      mockAuthStateChange();
+
+      const user = userEvent.setup();
+      renderVerifyEmail({ email: "old-signup-email@example.com" });
+
+      const emailField = await screen.findByLabelText(/email address/i);
+      await user.clear(emailField);
+      await user.type(emailField, "corrected@example.com");
+      await user.click(screen.getByRole("button", { name: /resend verification email/i }));
+
+      expect(supabase.auth.resend).toHaveBeenCalledWith(
+        expect.objectContaining({ email: "corrected@example.com" })
+      );
+    });
+
+    it("prevents a second resend while the first is still in flight, before any cooldown state applies", async () => {
+      vi.mocked(supabase.auth.getSession).mockResolvedValue({
+        data: { session: null },
+      } as unknown as GetSessionResult);
+      let resolveResend!: (value: ResendResult) => void;
+      vi.mocked(supabase.auth.resend).mockReturnValue(
+        new Promise((resolve) => {
+          resolveResend = resolve;
+        }) as unknown as ReturnType<typeof supabase.auth.resend>
+      );
+      mockAuthStateChange();
+
+      const user = userEvent.setup();
+      renderVerifyEmail({ email: "jane@example.com" });
+
+      const resendButton = await screen.findByRole("button", { name: /resend verification email/i });
+      await user.click(resendButton);
+      expect(await screen.findByRole("button", { name: "Sending…" })).toBeDisabled();
+
+      await user.click(screen.getByRole("button", { name: "Sending…" }));
+      expect(supabase.auth.resend).toHaveBeenCalledTimes(1);
+
+      resolveResend({ data: {}, error: null } as unknown as ResendResult);
+      expect(await screen.findByText(/verification email sent/i)).toBeInTheDocument();
+    });
   });
 
   it("uses the real link-based verification flow, never a fake 6-digit code UI", async () => {

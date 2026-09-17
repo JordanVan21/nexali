@@ -9,20 +9,29 @@ import { SplitSummaryCard } from "../components/splitExpenses/SplitSummaryCard";
 import { SplitStepIndicator, type SplitStep } from "../components/splitExpenses/SplitStepIndicator";
 import { SplitPreview } from "../components/splitExpenses/SplitPreview";
 import { useSplitExpensesState } from "../features/splitExpenses/useSplitExpensesState";
+import { useListFriends } from "../features/friends/useFriendsQueries";
 import { useUserInfo } from "../shared/useUserId";
 
 /**
- * Split Expenses -- FRONTEND ONLY (see docs/BACKEND_AUDIT_REPORT.md's Split
- * Expenses entry). Nothing on this page writes to Supabase: receipts,
- * participants, assignments, and the Preview transaction previews all live
- * in useSplitExpensesState()'s in-memory React state, cleared on navigating
- * away. "Process Split" only switches this page into a read-only preview
- * mode; "Submit" is an intentionally disabled placeholder until a future
- * backend phase.
+ * Split Expenses. Receipts/participants/assignments/the local settlement
+ * preview all live in useSplitExpensesState()'s in-memory React state
+ * (cleared on navigating away, or via resetSplit() after a successful
+ * submission) -- nothing is written to Supabase until the user reaches
+ * Preview and clicks the real Submit button (see SplitPreview.tsx and
+ * docs/BACKEND_AUDIT_REPORT.md's Split Expenses entry for the full
+ * submit_split_expense() backend writeup). "Process Split" only switches
+ * this page into the read-only Preview mode -- Submit is the one real
+ * write.
  */
 export default function SplitExpenses() {
   const { userId } = useUserInfo();
   const state = useSplitExpensesState();
+  // Reuses the SAME cached list_friends() query the /friends page uses (see
+  // features/friends/useFriendsQueries.ts) -- no second Friends fetch
+  // implementation. Started here (page-level, not deferred to when the
+  // picker opens) so opening FriendAutocomplete is instant whenever this
+  // data is already warm in the TanStack Query cache.
+  const friendsQuery = useListFriends(userId);
 
   const step: SplitStep = state.mode === "preview" ? "Preview" : state.receipts.length === 0 ? "Receipts" : "Assign";
 
@@ -42,7 +51,14 @@ export default function SplitExpenses() {
 
       <div className="mx-auto mt-6 max-w-[900px] space-y-6 md:mt-8 md:space-y-8">
         {state.mode === "preview" ? (
-          <SplitPreview receipts={state.receipts} participants={state.participants} onEdit={state.editSplit} />
+          <SplitPreview
+            receipts={state.receipts}
+            participants={state.participants}
+            onEdit={state.editSplit}
+            onStartNewSplit={state.resetSplit}
+            userId={userId}
+            idempotencyKey={state.idempotencyKey}
+          />
         ) : (
           <>
             <ReceiptUploadArea onFilesSelected={state.addReceipts} />
@@ -66,12 +82,24 @@ export default function SplitExpenses() {
                     onCategoryChange={(categoryId, categoryName) => state.setReceiptCategory(receipt.id, categoryId, categoryName)}
                     onItemAssignmentChange={(itemId, assignment) => state.setItemAssignment(receipt.id, itemId, assignment)}
                     onSetAllMine={() => state.setAllItemsMine(receipt.id)}
+                    onPayerChange={(participantId) => state.setReceiptPayer(receipt.id, participantId)}
                   />
                 ))}
               </div>
             )}
 
-            <ParticipantsBar participants={state.participants} onAddPerson={state.addParticipant} />
+            <ParticipantsBar
+              participants={state.participants}
+              receipts={state.receipts}
+              friends={friendsQuery.data}
+              friendsLoading={friendsQuery.isLoading}
+              friendsError={friendsQuery.isError}
+              friendsErrorValue={friendsQuery.error}
+              onRetryFriends={() => friendsQuery.refetch()}
+              onAddFriend={state.addFriendParticipant}
+              onAddManualPerson={state.addParticipant}
+              onRemoveParticipant={state.removeParticipant}
+            />
 
             {state.receipts.length > 0 && <SplitSummaryCard receipts={state.receipts} participants={state.participants} />}
 

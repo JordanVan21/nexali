@@ -49,6 +49,7 @@ vi.mock("../features/categories/useCategories", () => ({
     error: null,
   }),
   useCreateCategory: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useListGlobalExpenseCategories: () => ({ data: [], isLoading: false, isFetching: false, isError: false, error: null }),
 }));
 
 function resetToDefaults() {

@@ -44,8 +44,22 @@ export async function updatePassword(newPassword: string) {
   if (error) throw error;
 }
 
-/** Re-sends the signup confirmation email through Supabase's own resend API. */
+/**
+ * Re-sends the signup confirmation email through Supabase's own resend API.
+ * Must pass the same `emailRedirectTo` as `signUp()` above -- omitting it
+ * (the pre-fix behavior) makes Supabase fall back to the project's Site URL
+ * for any link this call actually sends, instead of routing back through
+ * `/verify-email`'s own implicit-flow session pickup, exactly the
+ * redirect-configuration mismatch the auth/email-verification investigation
+ * (2026-09-16) flagged as a real, confirmed inconsistency.
+ */
 export async function resendVerificationEmail(email: string) {
-  const { error } = await supabase.auth.resend({ type: "signup", email });
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: {
+      emailRedirectTo: `${window.location.origin}/verify-email`,
+    },
+  });
   if (error) throw error;
 }

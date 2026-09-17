@@ -3,7 +3,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Check, Plus, ChevronDown } from "lucide-react";
 import { cn, getErrorMessage } from "../lib/utils";
-import { useListCategories, useCreateCategory } from "../features/categories/useCategories";
+import { useListCategories, useCreateCategory, useListGlobalExpenseCategories } from "../features/categories/useCategories";
 
 type CatItem = { id: number | string; name: string };
 
@@ -14,6 +14,16 @@ type Props = {
   onChange: (cat: CatItem) => void;
   placeholder?: string;
   enabled?: boolean;
+  /**
+   * Restricts the list to GLOBAL expense categories only, and disables the
+   * "create new" affordance -- there is no safe, RLS-respecting way for an
+   * ordinary user to create a new GLOBAL category from the client (the
+   * categories INSERT policy only allows `user_id = auth.uid()`, never
+   * NULL), and a Split Expenses receipt requires a category every
+   * participant can safely use (see submit_split_expense()'s category
+   * validation, docs/BACKEND_AUDIT_REPORT.md's Split Expenses entry).
+   */
+  globalOnly?: boolean;
 };
 
 // Same normalization function as backend
@@ -29,6 +39,7 @@ export function CategoryPicker({
   onChange,
   placeholder = "Select a category",
   enabled = true,
+  globalOnly = false,
 }: Props) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -36,13 +47,15 @@ export function CategoryPicker({
   const dropdownRef = React.useRef<HTMLDivElement>(null);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
 
+  const scopedCategories = useListCategories(userId, type, { enabled: !globalOnly && enabled && !!userId && !!type });
+  const globalCategories = useListGlobalExpenseCategories();
   const {
     data: items = [],
     isLoading,
     isFetching,
     isError,
     error: listError,
-  } = useListCategories(userId, type, { enabled: enabled && !!userId && !!type });
+  } = globalOnly ? { ...globalCategories, isFetching: globalCategories.isLoading } : scopedCategories;
 
   const create = useCreateCategory(userId);
 
@@ -54,6 +67,7 @@ export function CategoryPicker({
   const normalizedQuery = toTitle(query);
 
   const showCreate =
+    !globalOnly &&
     query.trim().length > 0 &&
     !filtered.some((i) => i.name === normalizedQuery); // Exact match after normalization
 
@@ -124,8 +138,8 @@ export function CategoryPicker({
           <div className="p-2">
             <Input
               autoFocus
-              aria-label="Search or create a category"
-              placeholder="Search or type to create…"
+              aria-label={globalOnly ? "Search categories" : "Search or create a category"}
+              placeholder={globalOnly ? "Search categories…" : "Search or type to create…"}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="mb-2 text-foreground"

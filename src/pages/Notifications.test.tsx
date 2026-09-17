@@ -67,6 +67,32 @@ vi.mock("../features/friends/useFriendsQueries", () => ({
   }),
 }));
 
+const acceptSplitMutate = vi.fn();
+const declineSplitMutate = vi.fn();
+let acceptSplitPendingId: string | null = null;
+let declineSplitPendingId: string | null = null;
+
+vi.mock("../features/splitExpenses/useSubmitSplitExpense", () => ({
+  useAcceptSplitExpense: () => ({
+    mutate: acceptSplitMutate,
+    get isPending() {
+      return acceptSplitPendingId !== null;
+    },
+    get variables() {
+      return acceptSplitPendingId;
+    },
+  }),
+  useDeclineSplitExpense: () => ({
+    mutate: declineSplitMutate,
+    get isPending() {
+      return declineSplitPendingId !== null;
+    },
+    get variables() {
+      return declineSplitPendingId;
+    },
+  }),
+}));
+
 function fixture(overrides: Partial<NotificationItemData> = {}): NotificationItemData {
   return {
     id: "n1",
@@ -92,6 +118,8 @@ describe("Notifications page (Backend Part 7: real data)", () => {
     incomingRequestsState = { data: [], isLoading: false, isError: false, error: null };
     acceptPendingId = null;
     declinePendingId = null;
+    acceptSplitPendingId = null;
+    declineSplitPendingId = null;
   });
 
   it("renders the page heading", () => {
@@ -327,6 +355,101 @@ describe("Notifications page (Backend Part 7: real data)", () => {
     it("the unread count reflects a new friend_request notification like any other type", () => {
       loaded([friendRequestNotification({ read: false })], 1);
       incomingRequestsState = { data: [marcus()], isLoading: false, isError: false, error: null };
+      renderWithProviders(<Notifications />);
+
+      expect(screen.getByText("1 unread notification")).toBeInTheDocument();
+    });
+  });
+
+  describe("split_expense notifications (Split Expenses backend integration)", () => {
+    function splitExpenseNotification(overrides: Partial<NotificationItemData> = {}): NotificationItemData {
+      return fixture({
+        id: "n-split1",
+        type: "split_expense",
+        title: "New split expense",
+        description: "Sarah Tran added you to a split expense. Your share is $12.50.",
+        splitExpenseId: "split-abc",
+        ...overrides,
+      });
+    }
+
+    it("renders a split_expense notification through the generic NotificationItem with real Accept/Decline inline actions, no unrelated details", () => {
+      loaded([splitExpenseNotification()]);
+      renderWithProviders(<Notifications />);
+
+      expect(screen.getByText("New split expense")).toBeInTheDocument();
+      expect(screen.getByText("Sarah Tran added you to a split expense. Your share is $12.50.")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Accept" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Decline" })).toBeInTheDocument();
+    });
+
+    it("Accept calls the real accept_split_expense mutation with this notification's split id", async () => {
+      loaded([splitExpenseNotification()]);
+      const user = userEvent.setup();
+      renderWithProviders(<Notifications />);
+
+      await user.click(screen.getByRole("button", { name: "Accept" }));
+      expect(acceptSplitMutate).toHaveBeenCalledWith("split-abc");
+      expect(declineSplitMutate).not.toHaveBeenCalled();
+    });
+
+    it("Decline calls the real decline_split_expense mutation with this notification's split id", async () => {
+      loaded([splitExpenseNotification()]);
+      const user = userEvent.setup();
+      renderWithProviders(<Notifications />);
+
+      await user.click(screen.getByRole("button", { name: "Decline" }));
+      expect(declineSplitMutate).toHaveBeenCalledWith("split-abc");
+      expect(acceptSplitMutate).not.toHaveBeenCalled();
+    });
+
+    it("disables Accept and Decline while this specific split's mutation is pending", () => {
+      loaded([splitExpenseNotification()]);
+      acceptSplitPendingId = "split-abc";
+      renderWithProviders(<Notifications />);
+
+      expect(screen.getByRole("button", { name: "Accept" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Decline" })).toBeDisabled();
+    });
+
+    it("falls back to no inline actions when the notification has no splitExpenseId (safe edge case, no crash)", () => {
+      loaded([splitExpenseNotification({ splitExpenseId: null })]);
+      renderWithProviders(<Notifications />);
+
+      expect(screen.getByText("New split expense")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Accept" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Decline" })).not.toBeInTheDocument();
+    });
+
+    it("manual dismiss calls only the generic dismiss mutation -- never interpreted as accept or decline", async () => {
+      loaded([splitExpenseNotification({ title: "Split expense pending" })]);
+      const user = userEvent.setup();
+      renderWithProviders(<Notifications />);
+
+      await user.click(screen.getByRole("button", { name: "Dismiss notification: Split expense pending" }));
+      expect(dismissMutate).toHaveBeenCalledWith("n-split1");
+      expect(acceptSplitMutate).not.toHaveBeenCalled();
+      expect(declineSplitMutate).not.toHaveBeenCalled();
+    });
+
+    it("the System tab includes split_expense notifications (no separate tab was added)", async () => {
+      feedByFilter = {
+        all: { data: [], isLoading: false, isError: false, error: null },
+        system: { data: [splitExpenseNotification()], isLoading: false, isError: false, error: null },
+      };
+      unreadCountState = { data: 1, isLoading: false, isError: false, error: null };
+      const user = userEvent.setup();
+      renderWithProviders(<Notifications />);
+
+      const tabs = screen.getAllByRole("tab");
+      expect(tabs.map((t) => t.textContent)).toEqual(["All", "Unread", "Financial", "Security", "System", "Assistant"]);
+
+      await user.click(screen.getByRole("tab", { name: "System" }));
+      expect(screen.getByText("New split expense")).toBeInTheDocument();
+    });
+
+    it("the unread count reflects a new split_expense notification like any other type", () => {
+      loaded([splitExpenseNotification({ read: false })], 1);
       renderWithProviders(<Notifications />);
 
       expect(screen.getByText("1 unread notification")).toBeInTheDocument();

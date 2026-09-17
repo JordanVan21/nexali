@@ -141,4 +141,17 @@ export const qk = {
   categoriesRoot: (userId: string) => ["categories", userId] as const,
   categories: (userId: string, type?: "income" | "expense") =>
     [...qk.categoriesRoot(userId), type ?? "all"] as const,
+
+  // Split Expenses backend. No list/detail query exists yet (no Split
+  // history page in this Part -- see docs/BACKEND_AUDIT_REPORT.md's Split
+  // Expenses entry) -- splitRoot exists as the namespace every future
+  // Split query would live under, kept minimal per the task's own
+  // "do not add unrelated invalidations" instruction.
+  splitRoot: (userId: string) => ["splitExpenses", userId] as const,
+
+  // Only global expense categories are safe for a cross-user Split
+  // Expenses receipt (see lib/categories.ts's getGlobalExpenseCategories())
+  // -- a separate cache key from qk.categories, which also includes
+  // user-owned categories.
+  globalExpenseCategories: () => ["globalExpenseCategories"] as const,
 };

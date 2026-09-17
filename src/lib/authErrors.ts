@@ -20,6 +20,21 @@ export function normalizeAuthError(error: unknown, fallback: string = FALLBACK_M
   const message = error instanceof Error ? error.message : String(error);
   const lower = message.toLowerCase();
 
+  // Real Supabase Auth error codes (from @supabase/auth-js's own
+  // error-codes.d.ts) checked before any message-text matching below --
+  // GoTrue's actual rate-limit message text ("For security purposes, you
+  // can only request this after N seconds") does not contain the words
+  // "rate limit" or "too many requests" that the substring checks further
+  // down look for, so this code-based check is what actually catches a
+  // real resend/signup/reset rate-limit response reliably (confirmed via
+  // the 2026-09-16 auth/email-verification investigation).
+  const code = typeof error === "object" && error !== null && "code" in error
+    ? (error as { code?: unknown }).code
+    : undefined;
+  if (code === "over_email_send_rate_limit" || code === "over_sms_send_rate_limit" || code === "over_request_rate_limit") {
+    return "Too many attempts. Please wait about a minute and try again.";
+  }
+
   if (typeof navigator !== "undefined" && navigator.onLine === false) {
     return "You appear to be offline. Check your connection and try again.";
   }

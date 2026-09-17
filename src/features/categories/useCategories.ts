@@ -1,16 +1,25 @@
 import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { listCategoriesAll, upsertCategory } from "../../lib/categories";
+import { getGlobalExpenseCategories, listCategoriesAll, upsertCategory } from "../../lib/categories";
 import { qk } from "../querykeys";
 
 export function useListCategories(
-  userId: string, 
-  type?: "income" | "expense", 
+  userId: string,
+  type?: "income" | "expense",
   opts?: { enabled?: boolean }
 ) {
   return useQuery({
     queryKey: qk.categories(userId, type),
     queryFn: () => listCategoriesAll(userId, type),
     enabled: opts?.enabled !== false && !!userId, // Remove !!type check
+    staleTime: 60_000,
+  });
+}
+
+/** Global-only expense categories -- see getGlobalExpenseCategories()'s doc comment. Used by Split Expenses' receipt category picker. */
+export function useListGlobalExpenseCategories() {
+  return useQuery({
+    queryKey: qk.globalExpenseCategories(),
+    queryFn: () => getGlobalExpenseCategories(),
     staleTime: 60_000,
   });
 }

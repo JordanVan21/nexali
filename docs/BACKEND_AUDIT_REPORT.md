@@ -1364,3 +1364,255 @@ Friends page, Notifications page, and navigation were not visually redesigned �
 - Friend request history (`friend_requests` rows) is retained forever; there is no UI to view past declined/expired requests — only the currently-pending incoming list is surfaced.
 - No pagination on `list_friends()`/`search_nexali_users()` beyond the fixed `LIMIT 20` search bound; a user with a very large friends list has no "load more" affordance today (matches the same documented v1 limitation as the Part 7 Notifications feed's fixed 50-row window).
 - Friend requests cannot be cancelled by the sender once sent (only accepted/declined by the recipient) — no "cancel" state exists in the status model, per the task's explicit instruction.
+
+## 43. Post-Backend-Part-8 Connectivity Fix — `list_friends()`/`search_nexali_users()` Failing on Every Call
+
+**Symptom:** `/friends` initially rendered, then "Your Friends" changed to "Couldn't load your friends" after a few seconds; searching for a real, existing account ("Jordan Van") showed "Couldn't search Nexali users." — not merely zero results.
+
+**Root cause:** `auth.users.email` is declared `character varying(255)` (confirmed via `information_schema.columns`), but both `list_friends()` and `search_nexali_users()`'s `RETURNS TABLE` declares that column `email text`. PL/pgSQL's `RETURN QUERY` type-checks the query's output tuple descriptor against the declared return type before producing any rows, so both functions raised `ERROR 42804: structure of query does not match function result type` on every call — including for a user with zero friendships and zero search matches (not row-count-dependent). Reproduced live for both functions (see the dedicated Friends-connectivity-bug final report for the exact sanitized error text and reproduction method — a `SELECT ... FOR UPDATE`-free direct RPC call inside a rolled-back transaction, impersonating a real test user via `set_config('request.jwt.claim.sub', ...)`, never a real browser session).
+
+**Ruled out (each independently verified against the live project):** migration deployment state (all 4 Friends migrations were deployed), RPC existence (all 8 present), function signatures (exact match to the frontend's `supabase.rpc(...)` argument names), `SECURITY DEFINER`/owner (`postgres`, matching the established pattern), `EXECUTE` grants to `authenticated` (present on all 8), `search_path` (pinned, all objects already schema-qualified), RLS (both tables have RLS enabled, irrelevant here since `SECURITY DEFINER` functions bypass it as the table owner), account state (test account B has both an `auth.users` row and a matching `public.profiles` row with `full_name = 'Jordan Van'` exactly), `friend_requests`/`friendships` table existence (both present, 0 rows — a valid state), and the Part 8 Notifications integration (type CHECK and `friend_request_id` column both correctly deployed). None of these contributed.
+
+**Fix:** new migration `supabase/migrations/20260920000000_fix_friends_email_type_cast.sql` — `CREATE OR REPLACE` for both functions, reproduced byte-for-byte from their live `pg_get_functiondef()` output with a single addition: `u.email` → `u.email::text` at the two sites feeding the `email text` output column (the `CASE WHEN ... THEN u.email::text ELSE NULL END` privacy expression in `search_nexali_users()` is otherwise untouched — the exact-match condition, `strpos`-based name matching, 2-character minimum, `LIMIT 20`, self-exclusion, `SECURITY DEFINER`/`search_path`/grant discipline are all byte-identical to the deployed migration). The already-deployed `20260919000200_friends_rpcs.sql` was **not edited**.
+
+**Verified before reporting as fixed:** the corrected function bodies were executed inside a `BEGIN ... ROLLBACK` transaction against the linked project (impersonating a real test user via `set_config`), proving `search_nexali_users('Jordan Van')` now succeeds and correctly returns the real B account (`email` correctly `NULL` for this non-exact-match name search — the privacy rule held) — then rolled back, so nothing was actually deployed.
+
+**Retry-delay finding (separate, not itself a bug in this fix):** `src/main.tsx`'s real `QueryClient` uses zero custom `defaultOptions`, so it inherits TanStack Query v5's default `retry: 3` with exponential backoff (~1s/2s/4s, ~7s total) — applied even to a deterministic, non-transient PostgREST/Postgres error that will fail identically on every retry. This is why the error took several seconds to appear. **Not changed in this fix** (the task explicitly required the underlying error be fixed first); recommended as a follow-up once this migration is deployed — e.g. `retry: (failureCount, error) => ...only retry network-class failures...` for the Friends queries (and potentially app-wide).
+
+**Migration status:** written to the repo, **not deployed** (`npx supabase migration list` confirms `20260920000000` shows local-only). Waiting for explicit approval before `npx supabase db push`.
+
+**Regression coverage:** new `src/features/friends/friendsEmailTypeCastFix.test.ts` — static verification that both `::text` casts are present, the privacy `CASE` condition and every other column/behavior/security/grant is otherwise byte-identical to the deployed migration, and that the deployed `20260919000200_friends_rpcs.sql` itself remains untouched (still lacks the cast, proving this is a new forward-only file, not an edit).
+
+**Quality gates:** `npm run test` — see the dedicated Friends-connectivity-bug final report for the exact count. `npm run lint` — clean. `npm run build` — successful. `npx tsc -b --force` — clean.
+
+## 44. Split Expenses Backend
+
+**Status at start of this Part:** confirmed via `npx supabase migration list` that all migrations through `20260920000000_fix_friends_email_type_cast.sql` showed matching local/remote timestamps — deployed, nothing unexpectedly missing; `git status` clean. **Status at end of this Part: implemented in the repository, NOT yet applied to the live database.**
+
+The Split Expenses **frontend** (receipt cards, item assignment, Friend Autocomplete participant picker, settlement preview) had already been built and approved in prior, frontend-only phases against local component state only — no real backend existed, and Submit was a no-op placeholder. This Part adds the real backend and wires the already-approved Submit button to it; no visual redesign.
+
+### 44.1 Scope boundary — no OCR/CSV/image work
+
+Per explicit instruction, this Part does not implement receipt OCR, image processing, or CSV parsing of any kind — `SplitReceipt`/`SplitReceiptItem` (already defined in `src/lib/splitExpenses.ts` from the frontend-only phase) are treated as already-structured data. The expected normalized import shape is documented here as a TypeScript interface only, independent of whatever OCR/Excel/CSV provider eventually produces it:
+
+```ts
+interface NormalizedReceiptImport {
+  merchant: string | null;
+  purchaseDate: string;       // ISO yyyy-mm-dd
+  items: { description: string; quantity: number; totalCents: number }[];
+  extraRows?: { label: string; amountCents: number }[]; // tax/tip/fees/discounts — NOT split, see §44.10
+  parsedTotalCents?: number;  // full receipt total, informational only
+}
+```
+
+No file in this Part reads image bytes, calls an OCR API, or parses CSV text.
+
+### 44.2 Data model — 7 tables
+
+New migration `supabase/migrations/20260921000000_split_expenses_schema.sql`. Money is integer **cents** (`bigint`) in every Split-specific column — converted to `transactions.amount numeric(10,2)` only at the single point a real transaction row is created.
+
+**`split_expenses`** — the parent submitted-split record.
+
+| Column | Type | Constraint |
+|---|---|---|
+| `id` | uuid | PK |
+| `created_by` | uuid | `REFERENCES auth.users(id) ON DELETE CASCADE` |
+| `currency` | text | `IN ('USD','EUR','GBP','CAD','AUD','JPY')` |
+| `status` | text | `IN ('submitted','accepted','needs_attention')` |
+| `idempotency_key` | uuid | NOT NULL |
+| `created_at`, `submitted_at` | timestamptz | |
+
+`UNIQUE(created_by, idempotency_key)` — the real, DB-level idempotency backstop (§44.11). Status is deliberately a 3-state model, not the 4-state model the task suggested (`submitted`/`partially_accepted`/`accepted`/`needs_attention`): no frontend surface distinguishes "nobody responded yet" from "some accepted, some pending" — both are just "not fully resolved", and the precise per-participant state is always separately available on `split_participants.response_status`.
+
+**`split_participants`** — every Nexali user in the split, including the creator (an ordinary row, `response_status='accepted'` immediately — the creator never approves their own submission).
+
+| Column | Type | Constraint |
+|---|---|---|
+| `split_id` | uuid | `REFERENCES split_expenses(id) ON DELETE CASCADE` |
+| `user_id` | uuid | `REFERENCES auth.users(id) ON DELETE CASCADE` |
+| `position` | int | submission-order, reused for deterministic settlement ordering |
+| `response_status` | text | `IN ('pending','accepted','declined')` |
+| `responded_at` | timestamptz | nullable |
+| `allocated_total_cents`, `paid_total_cents` | bigint | `>= 0` |
+
+`UNIQUE(split_id, user_id)` — the real identity used everywhere. "Payer belongs to this split" / "allocation belongs to this split" are validated **inside the RPCs**, not via a composite FK from `split_receipts`/`split_item_allocations` — see §44.3's payer-FK rationale.
+
+**`split_receipts`** — one row per receipt (not embedded jsonb — item allocations need real per-row FKs).
+
+| Column | Type | Constraint |
+|---|---|---|
+| `split_id` | uuid | CASCADE |
+| `merchant` | text | nullable |
+| `receipt_date` | date | NOT NULL |
+| `category_id` | integer | `REFERENCES categories(id)` — no cascade/RESTRICT (categories are effectively immutable, no delete UI exists) |
+| `receipt_total_cents` | bigint | `> 0` — SUM of item line totals; tax/tip/fee/discount are **not** split in v1 (§44.10) |
+| `payer_user_id` | uuid | `REFERENCES auth.users(id) ON DELETE CASCADE` — plain FK, see §44.3 |
+| `position` | int | |
+
+**`split_receipt_items`** — normalized item lines. `assignment_type IN ('mine','someone_else','shared')` is descriptive/audit only — `split_item_allocations` is the authoritative per-participant share.
+
+**`split_item_allocations`** — the AUTHORITATIVE, server-recomputed per-participant share of one item (never trusted from the client). `UNIQUE(item_id, user_id)`, `share_cents > 0`. "No participant outside the split may receive an allocation" is enforced by `submit_split_expense()`'s own validation (every id it allocates to comes from the already-validated participant set), not an extra DB constraint.
+
+**`split_settlements`** — the authoritative, server-computed net settlement (documentation only — no external payment processing). `CHECK (from_user_id <> to_user_id)`, `amount_cents > 0`, `UNIQUE(split_id, from_user_id, to_user_id)`. `settled_at` is a nullable column reserved for a future "mark paid back" affordance — nothing in this Part sets it (no such workflow exists in the approved frontend).
+
+**`split_generated_transactions`** — explicit provenance linking one real `transactions` row to the split/receipt/participant it was generated from. `UNIQUE(receipt_id, user_id)` — the real idempotency/duplicate-transaction backstop, never inferred from note text alone. `transaction_id integer REFERENCES transactions(id) ON DELETE CASCADE`.
+
+Every table: RLS enabled, `REVOKE ALL FROM PUBLIC`, `GRANT ALL TO service_role` only — an RPC-only surface, matching the Friends backend's established architecture (§42.4). A defensive-in-depth SELECT policy exists on each table (§44.4) but is inert today since `authenticated` has no direct table grant at all.
+
+### 44.3 The payer-FK design decision (composite FK rejected)
+
+An earlier draft of the schema used a composite FK, `split_receipts.payer_user_id → split_participants(split_id, user_id)`, for a DB-level "payer must be a participant of this split" guarantee. This was rejected: a composite FK defaults to `NO ACTION` on delete, which would **block account deletion** (or any cleanup) for any user who was ever a receipt's payer — deleting their `split_participants` row would fail with a foreign-key violation while the receipt still referenced it. The final schema uses a plain `payer_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE` instead, with "payer belongs to this split" validated explicitly inside `submit_split_expense()` before any row is written — the same RPC-only-validation choice already made for `split_item_allocations.user_id`, for the identical reason. Documented as a v1 limitation in §44.16: if a payer's account is later deleted, that receipt (and its items/allocations) cascades away with it, even if other participants had already accepted and have real, untouched transactions for *other* receipts in the same split.
+
+### 44.4 RLS recursion and its fix — the key architectural finding of this Part
+
+`split_expenses`'s own SELECT policy needs to check "is the caller a participant?" (a `split_participants` lookup), and `split_participants`'s own policy needs to check "can the caller see this split?" (a `split_expenses` lookup). A naive first attempt — each policy embedding a raw cross-table `EXISTS` subquery against the other table — produced `ERROR 42P17: infinite recursion detected in policy for relation "split_expenses"` the moment either was evaluated for a non-RLS-exempt role. **This was discovered live**, not theorized in advance, while validating the migration inside a rolled-back transaction.
+
+The fix is Supabase's own documented pattern for this exact class of bug: isolate the cross-table check inside a `SECURITY DEFINER STABLE` helper function, which evaluates without re-entering RLS on the table(s) it reads. Three helpers were added:
+
+- `_can_view_split(p_split_id)` — `EXISTS(...created_by=auth.uid()) OR EXISTS(...split_participants...user_id=auth.uid())`.
+- `_can_view_split_receipt(p_receipt_id)` — resolves the receipt's `split_id`, delegates to `_can_view_split`.
+- `_can_view_split_item(p_item_id)` — resolves the item's receipt → split, delegates to `_can_view_split`.
+
+Every policy on every Split table calls one of these three helpers; **no policy embeds a raw cross-table `EXISTS` subquery**. This required a specific file structure, also worth preserving on any future edit: all 7 tables created first (columns/constraints/indexes/RLS-enable/grants only), then the 3 helper functions, then all 7 `SELECT` policies at the very end — `CREATE POLICY` validates referenced objects immediately (unlike some deferred-validation constructs), so a forward reference to a not-yet-created table fails.
+
+### 44.5 Participant authorization — never trusting the stale frontend Friends list
+
+Every non-creator participant id in `submit_split_expense()`'s payload is re-validated against the **live** `friendships` table at submission time (`LEAST`/`GREATEST` canonical-pair lookup, §42.2's pattern) — never the frontend's possibly-stale in-memory Friends list. The creator is auto-included and auto-`accepted`; every other id must resolve to a real, currently-accepted friendship or the whole submission is rejected with a safe error. A friendship removed *after* a split was already submitted does not retroactively invalidate that split — the historical `split_participants`/`split_receipts`/etc. rows remain valid, and a participant may still `accept_split_expense`/`decline_split_expense` on an already-submitted split even if the friendship was removed in the interim (documented v1 rule, §44.16) — friendship validity is checked only at submission time, by design.
+
+### 44.6 Payer semantics
+
+Exactly one payer per receipt (v1, no split-payment support) — `split_receipts.payer_user_id`. Different receipts in the same split may have different payers, which is required for cross-receipt netting (§44.8) to be meaningful. The payer must belong to the split's participant set — validated inside `submit_split_expense()` (`v_payer = ANY(v_participant_ids)`), not via a DB constraint (§44.3).
+
+### 44.7 Item allocation — server-authoritative, deterministic
+
+`split_item_allocations` is computed **server-side**, from the raw `assignmentType`/`participantIds` the client sends per item — the client never sends, and the server never trusts, a client-computed `share_cents`. The equal-split distribution:
+
+```sql
+(v_line_total / v_n) + (CASE WHEN elem.ord <= (v_line_total % v_n) THEN 1 ELSE 0 END)
+```
+
+— `base = floor(total/n)`, and the first `remainder` participants **in the exact array order the client sent for that item** (via `jsonb_array_elements_text(...) WITH ORDINALITY`, not global participant `position`) each get one extra cent. This is the identical algorithm to the frontend's `splitCentsEqually()` (`src/lib/splitExpenses.ts`) — verified via matching unit tests on both sides (§44.19) so the two never disagree. `n=1` (mine/someone_else) degenerates to "the one participant gets the full line total", so one `INSERT ... SELECT` covers all three assignment types uniformly. `SUM(share_cents)` per item is verified to equal the item's own `line_total_cents` by construction (integer floor-division + exact remainder distribution always reconstructs the total exactly).
+
+**Receipt-total reconciliation:** after every item on a receipt is inserted, `submit_split_expense()` compares the running sum of item line totals against the receipt's declared `receipt_total_cents` and rejects the whole submission (`'Receipt items do not add up to the receipt total'`) if they disagree — matching the current frontend model where `receiptItemsSubtotalCents()` (sum of item totals) is the amount actually being split; tax/tip/fee/discount rows are shown truthfully in the UI but are **not** split (§44.10 documents this as a v1 limitation, not invented OCR-specific behavior).
+
+### 44.8 Cross-receipt netting and the settlement algorithm
+
+**Core requirement:** ALL receipts in a split net together into ONE final settlement per pair — never separate per-receipt reimbursements. `split_participants.allocated_total_cents`/`paid_total_cents` are each a running SUM across every receipt in the split (§44.9's UPDATE queries), and `_compute_split_settlements()` operates on those split-wide totals, not per-receipt.
+
+`_compute_split_settlements(p_split_id)` (internal, never granted to `authenticated`) — deterministic debtor/creditor matching, identical in shape to the frontend's `computeSettlements()`:
+
+1. Walk participants in their submitted `position` order (same stable order the frontend preview used), split into debtors (`net_cents < 0`) and creditors (`net_cents > 0`), each as a `public.split_balance_t[]` array (`(user_id, remaining)` composite type).
+2. Two-pointer greedy match: `transfer = LEAST(debtor.remaining, creditor.remaining)`; `INSERT INTO split_settlements`; decrement both; advance whichever side hit zero; repeat.
+
+Produces at most `(participants with a nonzero balance) - 1` transfers, no zero-value rows, deterministic ordering. `split_settlements` has `UNIQUE(split_id, from_user_id, to_user_id)` — at most one net transfer per ordered pair.
+
+**Worked multi-receipt example (live-verified, §44.20):** creator pays Receipt A ($30, split 50/50 with friend), friend pays Receipt B ($20, split 50/50) — net-per-receipt would show two separate $15/$10 reimbursements; cross-receipt netting instead produces a single $5 transfer (friend → creator) reflecting the true combined balance. Verified live inside a rolled-back transaction against real test accounts.
+
+### 44.9 Participant totals
+
+After every receipt/item/allocation is inserted, two `UPDATE` statements set each participant's split-wide totals:
+
+- `allocated_total_cents` = SUM of `split_item_allocations.share_cents` across every item across every receipt in the split, for that user.
+- `paid_total_cents` = SUM of `split_receipts.receipt_total_cents` for every receipt where that user was `payer_user_id`.
+
+A safety-net reconciliation check (`SUM(paid) = SUM(allocated)` across the whole split) is then verified — guaranteed true by construction (one payer per receipt pays exactly that receipt's total; every item's shares sum to exactly its own line total) but checked explicitly rather than merely assumed, raising `'Split totals do not reconcile'` if it ever fails. `net_cents = paid_total_cents - allocated_total_cents`, computed on read (in `_split_expense_summary`), never stored — positive means "should receive money", negative means "owes money".
+
+### 44.10 Transaction semantics — economic share, not amount personally paid
+
+**The critical distinction:** a generated transaction represents a participant's **economic responsibility** for a receipt, not the full amount they personally handed over at checkout. Example: creator pays $60 for a $60 receipt split 3 ways ($20 each) — the creator's own generated transaction is $20 (their share), not $60 (what they paid); the other $40 they fronted is recovered via the settlement, never double-counted as a second $40 "expense". This is why `submit_split_expense()`/`accept_split_expense()` both group by receipt and `sum(sia.share_cents)` **for that specific user**, not the receipt's full total.
+
+**One transaction per receipt per participant with share > 0** — never per item. `GROUP BY sr.id, sr.merchant, sr.receipt_date, sr.category_id` collapses however many items a participant is allocated on a receipt into one `INSERT INTO transactions`. Content: `user_id` (the participant), `category_id` (the receipt's global expense category), `amount` (their share, converted from cents), `merchant` (the receipt's), `occurred_at` (§44.13), `note = 'Split expense'` — deliberately never includes another participant's email or name.
+
+Tax/tip/fee/discount rows (`SplitReceiptExtraRow` in the frontend) are shown truthfully in the receipt UI but are not currently split or reflected in any generated transaction — a documented v1 limitation (§44.16), not invented OCR-specific behavior.
+
+### 44.11 Idempotency
+
+Client-generated `idempotencyKey` (a UUID, generated once per submission attempt in `useSplitExpensesState.ts`, persisted across repeated Submit clicks/retries of the *same* attempt including after a failure — a fresh key is only generated when the user edits and re-processes). `submit_split_expense()` checks `SELECT id FROM split_expenses WHERE created_by=auth.uid() AND idempotency_key=...` **first, before any other validation or write** (so a retry never partially re-validates against possibly-changed state, e.g. a friend removed between attempts) and, if found, immediately `RETURN public._split_expense_summary(v_existing_id)` — the exact same authoritative response, never a duplicate split. The real DB-level backstop against a genuine race (not just a sequential retry) is `UNIQUE(created_by, idempotency_key)` on `split_expenses` itself.
+
+### 44.12 Currency restriction
+
+The creator's own `profiles.currency` is authoritative; the payload's `currency` field must match it (catches a stale frontend), and **every other participant's own configured currency** must also match — checked per-participant inside the loop (`EXISTS(...profiles p...p.currency = v_creator_currency)`). No FX conversion exists in v1; a mismatch produces the safe message `'Split Expenses currently requires all participants to use the same currency.'`, never a raw constraint error.
+
+### 44.13 Category restriction and date/timezone semantics
+
+**Category:** must exist, `type = 'expense'` (verified server-side, never trusting frontend filtering — `IF v_category.type <> 'expense'`), and `user_id IS NULL` (a **global** category, since `categories`' own INSERT RLS policy — `WITH CHECK (auth.uid() = user_id)`, never NULL — proves there is no client path to create a global category at all, so accepting a personal category here would either fail for other participants or silently leak one user's private category taxonomy into another's data). The frontend's `CategoryPicker` gained a `globalOnly` prop (§44.14) so the Split category picker only ever offers categories every participant can safely use, and disables the "create new" affordance entirely (creating a new global category has no safe client path either).
+
+**Date/timezone:** `receipt_date` is a calendar date (no time-of-day). For each generated transaction, `occurred_at` is anchored to **noon, in the TARGET participant's own configured `profiles.timezone`** — `(receipt_date + time '12:00') AT TIME ZONE v_target_tz` — reusing the exact idiom established in Backend Part 4/5 (`transactionDate.ts`'s `occurredAtFromZonedDateInput`, replicated server-side), never the submitting browser's timezone. For the creator's own immediate transactions this is the creator's own timezone; for `accept_split_expense()` it is the *accepting* participant's own timezone, looked up fresh at accept-time — never a value carried over from submission time.
+
+### 44.14 Frontend — Submit integration
+
+`buildSubmitSplitExpensePayload()` (pure, `src/lib/splitExpenses.ts`) maps the local `YOU_PARTICIPANT_ID` placeholder to the real `creatorUserId` everywhere it appears (participants list, every item's `participantIds`, `payerUserId`); `totalCents` is `receiptItemsSubtotalCents(receipt)` (items subtotal, matching the server's own definition of "receipt total" — not `parsedTotalCents`, which includes tax); sends only raw `assignmentType`/`participantIds` per item, never a client-computed `share_cents` — the server independently recomputes everything (§44.7).
+
+New `isRealNexaliUser: boolean` on `Participant` distinguishes real Friends-backed participants (real Supabase user id — `true` for "You" and real friends) from a manually-added, non-Nexali person (client-generated placeholder id, `false`). The pre-existing "Add someone manually" capability is intentionally preserved (informal/offline splitting still works) but `isSubmittableToBackend(participants)` blocks real Submit until every participant is real.
+
+`SplitPreview.tsx`: `handleSubmit()` builds the payload and calls the new `useSubmitSplitExpense(userId)` mutation. Submit is disabled while pending (no duplicate submission) and while `!isSubmittableToBackend`, with an inline warning explaining why. Preview state is fully preserved during pending and on failure (a `StatusBanner` shows the real server error; the same `idempotencyKey` is reused on retry — no new key is generated on a failed-then-retried attempt). On success, the footer switches to a `SubmitSuccessBanner`: "Your N Nexali transaction(s) were created" (the server's real `creatorTransactionCount`, never assumed) plus "N friends still need to accept their shares" (or "Everyone is already settled" for a creator-only split) — truthful, server-derived numbers only, never a claim that every friend's transaction already exists. `submitResult` is not auto-cleared; a new "Start a New Split" button (wired to `resetSplit()`) is the only way to clear it, so a completed submission's confirmation stays visible until the user explicitly moves on.
+
+`CategoryPicker.tsx` gained `globalOnly?: boolean` (§44.13): both `useListCategories` and the new `useListGlobalExpenseCategories()` are always called (Rules-of-Hooks-safe), the result selected conditionally; `showCreate` is forced `false` when `globalOnly`. `ReceiptCard.tsx`'s Split category picker always passes `globalOnly`.
+
+### 44.15 Notification integration — reused, not duplicated
+
+New migration `supabase/migrations/20260921000100_split_expenses_notifications_integration.sql` — additive only, mirroring `20260919000100_friends_notification_integration.sql`'s own pattern:
+
+- `notifications.type`'s CHECK is widened to add `'split_expense'`.
+- A new nullable `split_expense_id uuid REFERENCES split_expenses(id) ON DELETE CASCADE` — deliberately the **split's own id**, not `split_participant_id`: the frontend's `accept_split_expense(p_split_id)`/`decline_split_expense(p_split_id)` RPCs take the split id directly, and `split_participants` has no direct table grant for `authenticated` to resolve one from the other (RPC-only surface). `ON DELETE CASCADE` (unlike `friend_request_id`'s `SET NULL`): a `split_expense` notification has no meaning once its split is gone, unlike a friend request notification which still identifies a real, separate recipient.
+- A supporting partial index, `notifications_split_expense_id_idx ... WHERE split_expense_id IS NOT NULL`.
+- No new `notification_preferences` toggle — split-expense notifications are always delivered in v1, matching the friend-request precedent.
+- **Filtering:** no new tab. The existing "System" tab's query widened to `type IN ('system', 'friend_request', 'split_expense')`.
+
+`submit_split_expense()` inserts one notification per non-creator participant, `dedupe_key = 'split:' || split_id || ':participant:' || user_id`, description showing **only the recipient's own** allocated share and the split's currency code (`'Sarah Tran added you to a split expense. Your share is $12.50.'`) — never the group total, another participant's amount, or receipt-level detail.
+
+`Notifications.tsx`: unlike `friend_request` (a dedicated card, since it needs a cross-referenced sender lookup), a `split_expense` notification's own description already says everything needed, so it reuses the generic `NotificationItem`'s `inlineActions` mechanism directly — Decline/Accept buttons call `useDeclineSplitExpense`/`useAcceptSplitExpense` with `n.splitExpenseId`, no separate card component. **Manual dismiss is never interpreted as accept or decline** — dismissing only calls the generic `dismissNotification` mutation; the split stays `pending` for that participant until they explicitly Accept or Decline (via this notification, since no separate Split history/inbox UI currently exists to respond from elsewhere — a documented v1 limitation, §44.16). Both `accept_split_expense`/`decline_split_expense` resolve (mark read + dismissed) their own notification atomically, so any *visible* `split_expense` notification is, by construction, still pending.
+
+### 44.16 Known limitations (v1, documented)
+
+- Tax/tip/fee/discount rows are shown truthfully but not split or reflected in any generated transaction (§44.10).
+- No FX conversion — all participants in a split must share the creator's configured currency (§44.12).
+- Only global (not personal) expense categories may be used for a Split receipt, and there is no client path to create a new global category (§44.13) — a user wanting a category not yet global must ask an app maintainer, or use an existing one.
+- Declining a split does not automatically re-allocate the declining participant's share to anyone else — the split is marked `needs_attention` and the creator must see and manually resolve it (no edit/resubmit flow exists yet).
+- Friendship validity is checked only at submission time — a friendship removed afterward does not invalidate an already-submitted split or block a pending participant's later accept/decline (§44.5).
+- If a receipt's payer later deletes their account, that receipt (and its items/allocations) cascades away, even if other participants already accepted and have real, untouched transactions for other receipts in the same split (§44.3).
+- **Generated transactions behave exactly like any other transaction** (Option A, chosen over a "locked"/read-only Option B, which would require new, unapproved UI) — editable and deletable via the existing Transactions page. Deleting one only removes its `split_generated_transactions` provenance row (`ON DELETE CASCADE` from `transactions`); it does not retroactively alter the split's own historical participant/settlement records, which remain the permanent record of what was agreed.
+- No "Mark Paid" workflow for `split_settlements.settled_at` — the column is reserved for a future affordance; nothing in this Part sets it. No real external payment processing exists or is implemented.
+- No realtime subscription — a new split-expense notification does not appear until the next refetch/navigation, matching every other notification type in this codebase.
+
+### 44.17 Account deletion
+
+New migration `supabase/migrations/20260921000300_delete_user_everything_split_cleanup.sql` extends `delete_user_everything()` via `CREATE OR REPLACE` (preserving the existing `service_role`-only guard/REVOKE/GRANT discipline unchanged), inserted before the existing Friends/Notifications/financial deletes: `split_generated_transactions` (as generator), `split_settlements` (either side), `split_item_allocations` (as allocatee), `split_receipts` (as payer), `split_participants` (as participant), `split_expenses` (as creator — cascades away that split's own receipts/items/allocations/settlements/provenance not already explicitly removed above). Every relevant FK already carries `ON DELETE CASCADE` to `auth.users`, so these rows would be cleaned up automatically once the delete-user Edge Function's `auth.admin.deleteUser()` runs — these explicit deletes match the same delete-order-independent discipline already established for Friends/Notifications, since `delete_user_everything()` runs *before* that cascade-triggering call.
+
+### 44.18 Database types
+
+`src/types/database.types.ts`: full Row/Insert/Update/Relationships blocks for all 7 new tables; `notifications` Row/Insert/Update gained `split_expense_id: string | null` plus its `Relationships` entry (`referencedRelation: "split_expenses"`); `submit_split_expense`/`accept_split_expense`/`decline_split_expense` added to `Functions` with exact `Args`/`Returns` shapes. No `any`. Verified clean via `npx tsc -b --force`.
+
+### 44.19 Tests added
+
+- `src/lib/splitExpenses.test.ts` — `isSubmittableToBackend` (3 tests) and `buildSubmitSplitExpensePayload` (7 tests), plus existing fixtures updated for `isRealNexaliUser`.
+- `src/lib/splitExpensesData.test.ts` (new) — the 3 RPC wrappers' exact call shape, response mapping, and real-error propagation.
+- `src/features/splitExpenses/useSubmitSplitExpense.test.tsx` (new) — all 3 mutation hooks' exact invalidation sets (submit: financial + splitRoot, no notifications; accept: financial + notifications + splitRoot; decline: notifications + splitRoot only, no financial).
+- `src/features/splitExpenses/useSplitExpensesState.test.tsx` — `idempotencyKey` lifecycle (null initially, generated once, stable across re-renders/retries, fresh only on edit→re-process) and `resetSplit()`.
+- `src/lib/friends.test.ts` — `toSplitParticipant` updated for `isRealNexaliUser: true`.
+- `src/pages/SplitExpenses.test.tsx` — real Submit-flow tests: exact payload shape, pending/duplicate-click prevention, failure preserves the full Preview with a safe error, retry reuses the same idempotency key, truthful success confirmation using real server-returned counts, state not cleared until "Start a New Split", Submit blocked with a clear message when a manually-added participant remains.
+- `src/features/splitExpenses/splitExpensesMigrations.test.ts` (new) — static verification of all 4 migrations: all 7 tables/constraints/cents-typing, the idempotency unique constraint, the RLS-recursion-avoidance helper-function pattern (and that no policy embeds a raw cross-table subquery), no direct table grant to `authenticated`/`anon`, every RPC's `auth.uid()`-only identity/null-rejection/`SECURITY DEFINER`/search_path/REVOKE-GRANT shape (and that no RPC accepts a caller-id parameter), the internal helpers' non-grant, the idempotency-check-before-validation ordering, currency/friendship/category validation, the mine/someone_else/shared count rules, the deterministic equal-cents `WITH ORDINALITY` SQL, the receipt-total reconciliation check, the paid=allocated safety net, one-transaction-per-receipt via `GROUP BY`, the noon-target-timezone conversion, the per-participant (never-creator) notification, `accept_split_expense`'s `WHERE ... = auth.uid()` authorization boundary and idempotency/`ON CONFLICT` shape, finalization logic, `decline_split_expense`'s no-transaction/already-accepted-rejection/`needs_attention` behavior, and the account-deletion migration's new deletes plus unchanged guard.
+- `src/pages/Notifications.test.tsx` — new "split_expense notifications" describe block: renders via the generic `NotificationItem` with real Accept/Decline inline actions, Accept/Decline call the real mutations with the correct split id, per-split pending-disable, a safe fallback with no inline actions when `splitExpenseId` is absent, manual dismiss calls only the generic dismiss mutation (never accept/decline), the System tab includes `split_expense` rows, and the unread count reflects a new one like any other type.
+- `src/lib/notificationsData.test.ts` — the System tab's query now includes `split_expense`, and `split_expense_id` maps through onto `NotificationItemData` (including the null case).
+
+### 44.20 Live verification (rolled-back transactions, real test accounts)
+
+Every RPC was executed against the real linked project inside `BEGIN ... ROLLBACK` transactions, impersonating real test users via `set_config('request.jwt.claim.sub', ...)` / `SET LOCAL ROLE authenticated` — never against a real browser session, and never actually committed. Test fixtures: `ddc3226c-ec9e-49f0-ba10-c76301223ca5` ("Pickle Junior", creator) and `829d4446-6184-4d97-88d7-86a409fc1190` ("Jordan Van", friend), both `currency='USD'`, `timezone='America/Los_Angeles'`, an already-real accepted friendship between them; global expense category id 31 "Food And Dining"; global income category id 59 "Salary And Wages" (used to confirm income-category rejection).
+
+Verified: the cross-receipt-netting worked example (§44.8); idempotent replay (same key → same result, no duplicate split); `accept_split_expense` creating the real, correctly-grouped, correctly-timezoned transaction(s) for the accepting participant only, and correctly resolving their own notification (confirmed via `resolve_check: true` after initially seeing an expected-by-RLS `null` when querying as the creator, who cannot SELECT another user's notification row); `decline_split_expense` creating no transaction and marking `needs_attention`; and five distinct validation-rejection scenarios (non-friend participant, currency mismatch, personal/non-global category, income-type category, receipt-items-sum mismatch) each producing the correct safe error with no partial write (confirmed via `ROLLBACK`, not merely the error message).
+
+### 44.21 Security summary
+
+`auth.users`/other participants' financial data is never exposed beyond what each RPC's own caller is entitled to see. The single cross-user financial-write boundary: `submit_split_expense()` may only ever create a transaction for `auth.uid()` (the submitting creator, inside its own atomic call); every other participant's transactions are created **only** when that participant calls `accept_split_expense()` themselves, whose entire authorization is `WHERE split_id = p_split_id AND user_id = auth.uid()` — no function in this Part accepts a `p_user_id`/participant-id parameter for whose account to act on, so there is no way for the creator (or anyone else) to write a transaction into another user's account without that user's own acceptance call. Every RPC rejects a null `auth.uid()`, pins `search_path`, schema-qualifies every reference, and has `REVOKE ALL FROM PUBLIC` + `GRANT EXECUTE TO authenticated` only (no `anon` grant); the two internal helpers (`_compute_split_settlements`, `_split_expense_summary`) are never granted to `authenticated` at all. All 7 tables have RLS enabled and no direct `authenticated` table grant — every real read/write goes through the RPC-only surface.
+
+### 44.22 Confirmations
+
+Split Expenses page/Notifications page/navigation were not visually redesigned — only Submit's real wiring and the category picker's `globalOnly` restriction are new. `friend_requests`/`friendships` tables and friend search behavior were **not modified** — friendship validation during submission is a read-only query against the existing live table. Aura was not started. No historical migration file was edited — all 4 new migrations are forward-only; `delete_user_everything` was updated via `CREATE OR REPLACE` in a new migration, matching the established pattern. No commit or push occurred. Migrations were **not** applied to the live database — `npx supabase db push` was not run.
+
+### 44.23 Quality gates (this Part)
+
+`npx tsc -b --force`: 0 errors. `npm run lint`: 0 errors, 0 warnings. `npm run build`: succeeds (same pre-existing >500kB chunk-size warning, unrelated to this Part). `npm run test` (`npx vitest run --maxWorkers=2`): full suite passing — see the final report for the exact file/test counts; the only failures seen mid-Part were (a) four pre-existing UI test files whose `useCategories` mock predated `CategoryPicker`'s new unconditional `useListGlobalExpenseCategories()` call, fixed by extending those mocks, and (b) one already-established, environmental Vitest worker-timeout flake (a debounce test in `useFriendsQueries.test.tsx`), confirmed non-regression by an immediate clean retry.
+
+### 44.24 Recommended next phase
+
+With Split Expenses backend approved and deployed, the natural next phases are: (1) Aura (explicitly on hold until now, per every prior Part's closing instruction), or (2) a Split-history/inbox UI surface so a participant can review and respond to a pending split expense from somewhere other than the Notifications feed (removing the manual-dismiss limitation noted in §44.15/§44.16), or (3) a "Mark Paid" workflow for `split_settlements.settled_at` if real settlement tracking becomes a priority. No specific recommendation is made without the user's direction — this Part implements exactly what was scoped, nothing more.

@@ -90,6 +90,7 @@ export type Database = {
           read_at: string | null
           secondary_action_href: string | null
           secondary_action_label: string | null
+          split_expense_id: string | null
           title: string
           type: string
           user_id: string
@@ -106,6 +107,7 @@ export type Database = {
           read_at?: string | null
           secondary_action_href?: string | null
           secondary_action_label?: string | null
+          split_expense_id?: string | null
           title: string
           type: string
           user_id: string
@@ -122,6 +124,7 @@ export type Database = {
           read_at?: string | null
           secondary_action_href?: string | null
           secondary_action_label?: string | null
+          split_expense_id?: string | null
           title?: string
           type?: string
           user_id?: string
@@ -132,6 +135,13 @@ export type Database = {
             columns: ["friend_request_id"]
             isOneToOne: false
             referencedRelation: "friend_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_split_expense_id_fkey"
+            columns: ["split_expense_id"]
+            isOneToOne: false
+            referencedRelation: "split_expenses"
             referencedColumns: ["id"]
           },
         ]
@@ -303,6 +313,282 @@ export type Database = {
           },
         ]
       }
+      split_expenses: {
+        Row: {
+          created_at: string
+          created_by: string
+          currency: string
+          id: string
+          idempotency_key: string
+          status: string
+          submitted_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          currency: string
+          id?: string
+          idempotency_key: string
+          status?: string
+          submitted_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          currency?: string
+          id?: string
+          idempotency_key?: string
+          status?: string
+          submitted_at?: string
+        }
+        Relationships: []
+      }
+      split_participants: {
+        Row: {
+          allocated_total_cents: number
+          id: string
+          paid_total_cents: number
+          position: number
+          responded_at: string | null
+          response_status: string
+          split_id: string
+          user_id: string
+        }
+        Insert: {
+          allocated_total_cents?: number
+          id?: string
+          paid_total_cents?: number
+          position: number
+          responded_at?: string | null
+          response_status?: string
+          split_id: string
+          user_id: string
+        }
+        Update: {
+          allocated_total_cents?: number
+          id?: string
+          paid_total_cents?: number
+          position?: number
+          responded_at?: string | null
+          response_status?: string
+          split_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "split_participants_split_id_fkey"
+            columns: ["split_id"]
+            isOneToOne: false
+            referencedRelation: "split_expenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      split_receipts: {
+        Row: {
+          category_id: number
+          created_at: string
+          id: string
+          merchant: string | null
+          payer_user_id: string
+          position: number
+          receipt_date: string
+          receipt_total_cents: number
+          split_id: string
+        }
+        Insert: {
+          category_id: number
+          created_at?: string
+          id?: string
+          merchant?: string | null
+          payer_user_id: string
+          position: number
+          receipt_date: string
+          receipt_total_cents: number
+          split_id: string
+        }
+        Update: {
+          category_id?: number
+          created_at?: string
+          id?: string
+          merchant?: string | null
+          payer_user_id?: string
+          position?: number
+          receipt_date?: string
+          receipt_total_cents?: number
+          split_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "split_receipts_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "split_receipts_split_id_fkey"
+            columns: ["split_id"]
+            isOneToOne: false
+            referencedRelation: "split_expenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      split_receipt_items: {
+        Row: {
+          assignment_type: string
+          description: string
+          id: string
+          line_total_cents: number
+          position: number
+          quantity: number
+          receipt_id: string
+        }
+        Insert: {
+          assignment_type: string
+          description: string
+          id?: string
+          line_total_cents: number
+          position: number
+          quantity?: number
+          receipt_id: string
+        }
+        Update: {
+          assignment_type?: string
+          description?: string
+          id?: string
+          line_total_cents?: number
+          position?: number
+          quantity?: number
+          receipt_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "split_receipt_items_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "split_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      split_item_allocations: {
+        Row: {
+          id: string
+          item_id: string
+          share_cents: number
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          item_id: string
+          share_cents: number
+          user_id: string
+        }
+        Update: {
+          id?: string
+          item_id?: string
+          share_cents?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "split_item_allocations_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "split_receipt_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      split_settlements: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          from_user_id: string
+          id: string
+          settled_at: string | null
+          split_id: string
+          to_user_id: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          from_user_id: string
+          id?: string
+          settled_at?: string | null
+          split_id: string
+          to_user_id: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          from_user_id?: string
+          id?: string
+          settled_at?: string | null
+          split_id?: string
+          to_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "split_settlements_split_id_fkey"
+            columns: ["split_id"]
+            isOneToOne: false
+            referencedRelation: "split_expenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      split_generated_transactions: {
+        Row: {
+          created_at: string
+          id: string
+          receipt_id: string
+          split_id: string
+          transaction_id: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          receipt_id: string
+          split_id: string
+          transaction_id: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          receipt_id?: string
+          split_id?: string
+          transaction_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "split_generated_transactions_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "split_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "split_generated_transactions_split_id_fkey"
+            columns: ["split_id"]
+            isOneToOne: false
+            referencedRelation: "split_expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "split_generated_transactions_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       v_tx_search: {
@@ -425,6 +711,18 @@ export type Database = {
       remove_friend: {
         Args: { p_friend_user_id: string }
         Returns: undefined
+      }
+      submit_split_expense: {
+        Args: { p_payload: Json }
+        Returns: Json
+      }
+      accept_split_expense: {
+        Args: { p_split_id: string }
+        Returns: Json
+      }
+      decline_split_expense: {
+        Args: { p_split_id: string }
+        Returns: Json
       }
     }
     Enums: {

@@ -69,6 +69,7 @@ vi.mock("../features/transactions/useTransactions", () => ({
 vi.mock("../features/categories/useCategories", () => ({
   useListCategories: () => ({ data: [], isLoading: false, isFetching: false, isError: false, error: null }),
   useCreateCategory: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useListGlobalExpenseCategories: () => ({ data: [], isLoading: false, isFetching: false, isError: false, error: null }),
 }));
 
 function defaultSummary(overrides: Partial<DashboardSummaryResponse> = {}): DashboardSummaryResponse {

@@ -54,13 +54,17 @@ export interface IncomingFriendRequest {
 export const MIN_SEARCH_QUERY_LENGTH = 2;
 
 /**
- * Split Expenses future integration: a Friends user maps directly onto a
- * Split Expenses Participant (see lib/splitExpenses.ts) without inventing
- * a second, incompatible "person" shape. Not wired into Split Expenses in
- * this Part (no such connection was requested) -- this is groundwork
- * only, proving the two features' user representations compose cleanly
- * now that Friends has real data.
+ * A Friends user maps directly onto a Split Expenses Participant (see
+ * lib/splitExpenses.ts) without inventing a second, incompatible "person"
+ * shape -- the friend's real user id becomes the participant id everywhere
+ * (item assignments, payer, preview, settlement), so a friend can never be
+ * represented by two different ids in the same split. `email`/`avatarUrl`
+ * are carried through too (allowed here: list_friends() only ever returns
+ * MUTUALLY ACCEPTED friends, so their email is not privacy-sensitive to
+ * show back to the same user in their own Split Expenses picker/roster --
+ * same rule Friends' own UserRow already applies to the accepted-friends
+ * list).
  */
 export function toSplitParticipant(user: NexaliUserPreview): Participant {
-  return { id: user.id, name: user.fullName };
+  return { id: user.id, name: user.fullName, email: user.email, avatarUrl: user.avatarUrl ?? null, isRealNexaliUser: true };
 }

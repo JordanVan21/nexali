@@ -10,7 +10,17 @@ import { resendVerificationEmail } from "../lib/auth";
 import { normalizeAuthError, getAuthHashError, isExpiredAuthHashError } from "../lib/authErrors";
 import { DEFAULT_AUTHENTICATED_ROUTE } from "../lib/routes";
 
-const RESEND_COOLDOWN_SECONDS = 30;
+/**
+ * Must be >= the linked Supabase project's real `auth.email.max_frequency`
+ * (confirmed via `npx supabase config diff` on 2026-09-16 to be 60s on the
+ * remote project -- NOT the 1s local-dev default in supabase/config.toml).
+ * The prior value of 30 let the button unlock and invite a second resend
+ * before Supabase's own server-side throttle would actually allow another
+ * send, which is a real, confirmed UX bug independent of the account-state
+ * root cause investigated the same day (see docs/BACKEND_AUDIT_REPORT.md's
+ * auth-email-verification entry).
+ */
+const RESEND_COOLDOWN_SECONDS = 60;
 
 type ViewState = "waiting" | "success" | "invalid";
 

@@ -10,6 +10,7 @@ const TYPE_ACCENT: Record<NotificationItemData["type"], string> = {
   system: "bg-primary/15 text-primary",
   assistant: "bg-success/15 text-success",
   friend_request: "bg-primary/15 text-primary",
+  split_expense: "bg-warning/15 text-warning",
 };
 
 /**

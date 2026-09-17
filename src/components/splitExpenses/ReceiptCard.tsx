@@ -2,11 +2,13 @@ import { ChevronDown, ChevronUp, Image as ImageIcon, Loader2, Receipt as Receipt
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import { Badge } from "../ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { CategoryPicker } from "../CategoryPicker";
 import { AssignmentControl } from "./AssignmentControl";
 import { useFormatCurrency, useFormatPreferences } from "../../features/profiles/useFormatPreferences";
 import { cn } from "../../lib/utils";
 import {
+  YOU_PARTICIPANT_ID,
   centsToDollars,
   formatReceiptDate,
   itemShareCents,
@@ -47,6 +49,7 @@ export function ReceiptCard({
   onCategoryChange,
   onItemAssignmentChange,
   onSetAllMine,
+  onPayerChange,
 }: {
   receipt: SplitReceipt;
   userId: string;
@@ -56,6 +59,7 @@ export function ReceiptCard({
   onCategoryChange: (categoryId: number, categoryName: string) => void;
   onItemAssignmentChange: (itemId: string, assignment: SplitReceiptItem["assignment"]) => void;
   onSetAllMine: () => void;
+  onPayerChange: (participantId: string) => void;
 }) {
   const formatCurrency = useFormatCurrency();
   const { dateFormat } = useFormatPreferences();
@@ -131,15 +135,44 @@ export function ReceiptCard({
 
       {receipt.status === "parsed" && !receipt.collapsed && (
         <div className="border-t border-outline-variant/40 p-4 md:p-5">
-          <div className="grid gap-2 sm:max-w-xs">
-            <Label htmlFor={`split-category-${receipt.id}`}>Category</Label>
-            <CategoryPicker
-              userId={userId}
-              type="expense"
-              value={receipt.categoryId != null ? ({ id: receipt.categoryId, name: receipt.categoryName ?? "" } as CatItem) : null}
-              onChange={(cat) => onCategoryChange(Number(cat.id), cat.name)}
-              placeholder="Choose a category…"
-            />
+          <div className="grid gap-4 sm:max-w-md sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor={`split-category-${receipt.id}`}>Category</Label>
+              <CategoryPicker
+                userId={userId}
+                type="expense"
+                value={receipt.categoryId != null ? ({ id: receipt.categoryId, name: receipt.categoryName ?? "" } as CatItem) : null}
+                onChange={(cat) => onCategoryChange(Number(cat.id), cat.name)}
+                placeholder="Choose a category…"
+                // Split Expenses can involve other Nexali accounts, so only
+                // GLOBAL categories (safe for every participant's own
+                // generated transaction) are offered here -- see
+                // CategoryPicker's own globalOnly doc comment.
+                globalOnly
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor={`split-payer-${receipt.id}`}>Who Paid?</Label>
+              <Select value={receipt.payerParticipantId ?? undefined} onValueChange={onPayerChange}>
+                <SelectTrigger
+                  id={`split-payer-${receipt.id}`}
+                  className={cn("h-11", receipt.payerParticipantId == null && "border-warning/50 bg-warning/10")}
+                >
+                  <SelectValue placeholder="Choose who paid…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {participants.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.id === YOU_PARTICIPANT_ID ? "You" : p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {receipt.payerParticipantId == null && (
+                <p className="text-xs text-warning-foreground">Choose who paid before this receipt can be processed.</p>
+              )}
+            </div>
           </div>
 
           {receipt.items.length === 0 ? (

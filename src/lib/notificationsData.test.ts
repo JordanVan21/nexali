@@ -68,6 +68,7 @@ function row(overrides: Record<string, unknown> = {}) {
     read_at: null,
     dismissed_at: null,
     friend_request_id: null,
+    split_expense_id: null,
     ...overrides,
   };
 }
@@ -98,10 +99,10 @@ describe("listNotifications", () => {
     expect(chain.eq).toHaveBeenCalledWith("type", "security");
   });
 
-  it("Backend Part 8: the 'system' tab folds in friend_request rows rather than getting a separate filter value", async () => {
+  it("Backend Part 8 / Split Expenses backend: the 'system' tab folds in friend_request AND split_expense rows rather than getting separate filter values", async () => {
     const chain = mockFrom({ data: [], error: null });
     await listNotifications("u1", "system");
-    expect(chain.in).toHaveBeenCalledWith("type", ["system", "friend_request"]);
+    expect(chain.in).toHaveBeenCalledWith("type", ["system", "friend_request", "split_expense"]);
     expect(chain.eq).not.toHaveBeenCalledWith("type", "system");
   });
 
@@ -115,6 +116,18 @@ describe("listNotifications", () => {
     mockFrom({ data: [row()], error: null });
     const [item] = await listNotifications("u1", "all");
     expect(item.friendRequestId).toBeNull();
+  });
+
+  it("maps split_expense_id through onto NotificationItemData", async () => {
+    mockFrom({ data: [row({ type: "split_expense", split_expense_id: "split-1" })], error: null });
+    const [item] = await listNotifications("u1", "all");
+    expect(item.splitExpenseId).toBe("split-1");
+  });
+
+  it("maps a null split_expense_id through as null (not undefined, not fabricated)", async () => {
+    mockFrom({ data: [row()], error: null });
+    const [item] = await listNotifications("u1", "all");
+    expect(item.splitExpenseId).toBeNull();
   });
 
   it("maps a DB row to NotificationItemData, deriving read from read_at and an icon from type", async () => {

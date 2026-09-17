@@ -19,6 +19,7 @@ import {
   useUnreadNotificationCount,
 } from "../features/notifications/useNotifications";
 import { useAcceptFriendRequest, useDeclineFriendRequest, useListIncomingFriendRequests } from "../features/friends/useFriendsQueries";
+import { useAcceptSplitExpense, useDeclineSplitExpense } from "../features/splitExpenses/useSubmitSplitExpense";
 
 type FilterKey = NotificationFilter;
 
@@ -72,6 +73,19 @@ export default function Notifications() {
     () => new Map((incomingRequestsQuery.data ?? []).map((r) => [r.requestId, r])),
     [incomingRequestsQuery.data]
   );
+
+  // Split Expenses backend: unlike friend_request (a dedicated card, since
+  // it needs the sender's name/avatar from a separate cross-referenced
+  // list), a split_expense notification's own description already says
+  // everything needed ("X added you to a split expense. Your share is
+  // $Y.") -- so this reuses the generic NotificationItem inlineActions
+  // mechanism directly, with no separate card component. accept_split_expense()/
+  // decline_split_expense() both atomically dismiss their own notification,
+  // so any split_expense notification still visible (non-dismissed) here
+  // is, by construction, still pending -- same reasoning as the
+  // friend_request card.
+  const acceptSplit = useAcceptSplitExpense(userId);
+  const declineSplit = useDeclineSplitExpense(userId);
 
   const unreadCount = unreadCountQuery.data ?? 0;
 
@@ -180,6 +194,26 @@ export default function Notifications() {
                             }
                             onAccept={() => void acceptRequest.mutate(request.requestId)}
                             onDecline={() => void declineRequest.mutate(request.requestId)}
+                          />
+                        );
+                      }
+                      if (n.type === "split_expense" && n.splitExpenseId) {
+                        const splitId = n.splitExpenseId;
+                        const pending =
+                          (acceptSplit.isPending && acceptSplit.variables === splitId) ||
+                          (declineSplit.isPending && declineSplit.variables === splitId);
+                        return (
+                          <NotificationItem
+                            key={n.id}
+                            notification={{
+                              ...n,
+                              inlineActions: [
+                                { label: "Decline", variant: "surface", disabled: pending, onClick: () => void declineSplit.mutate(splitId) },
+                                { label: "Accept", variant: "hero", disabled: pending, onClick: () => void acceptSplit.mutate(splitId) },
+                              ],
+                            }}
+                            onMarkRead={markRead}
+                            onDismiss={dismiss}
                           />
                         );
                       }
